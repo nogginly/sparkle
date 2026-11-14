@@ -26,7 +26,7 @@ describe "end to end" do
       it "runs examples/#{File.basename(dir)}" do
         code, stdout, err = build_and_run(File.join("examples", File.basename(dir), "main.spk"))
         code.should eq(0), err
-        stdout.should eq File.read(File.join(dir, "expected.stdout"))
+        stdout.should eq File.read(File.join(dir, "expected.out"))
       end
     end
 
@@ -36,7 +36,18 @@ describe "end to end" do
       code.should_not eq 0
       text = err.to_s
       text.should contain "spec/fixtures/undefined_name/main.spk:4:"
-      text.should contain "    env.@stdout.print(missing_name)"
+      text.should contain "    env.@out.print(missing_name)"
+    end
+
+    it "prints types in ponyc messages in Sparkle syntax" do
+      err = IO::Memory.new
+      Dir.cd(ROOT) { Sparkle::Driver.build("spec/fixtures/iso_mismatch/main.spk", File.join(".sparkle", "bin"), err) }
+      text = err.to_s
+      text.should contain "spec/fixtures/iso_mismatch/main.spk:10:20: argument not assignable to parameter"
+      text.should contain "argument type is ref Array(val String)"
+      text.should contain "parameter type requires iso^ Array(val String)"
+      text.should contain "spec/fixtures/iso_mismatch/main.spk:11:5: right side must be a subtype of left side"
+      text.should_not contain "Array[String"
     end
   end
 end

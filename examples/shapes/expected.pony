@@ -39,9 +39,9 @@ class Vec2
   var _x: U32
   var _y: U32
 
-  new create(x: U32, y: U32) =>
-    _x = x
-    _y = y
+  new create(x': U32, y': U32) =>
+    _x = x'
+    _y = y'
 
   fun x(): U32 =>
     _x
@@ -54,6 +54,9 @@ class Vec2
 
 class Stack[A: Any val]
   var _items: Array[A] = Array[A].create()
+
+  new create() =>
+    None
 
   fun ref push(item: A) =>
     _items.push(item)

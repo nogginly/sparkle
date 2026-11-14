@@ -82,6 +82,7 @@ module Sparkle
     getter? uses_collections = false
     @scopes = [] of Set(String)
     @ivars = Set(String).new
+    @method_names = Set(String).new
 
     def initialize(@program : Program, @add_collections : Bool)
       @w = Writer.new
@@ -153,6 +154,13 @@ module Sparkle
       PONY_RESERVED.includes?(name) ? "#{name}_" : name
     end
 
+    # A local, parameter or binding name; primed when it equals a method name
+    # of the enclosing type, because Pony forbids that overlap.
+    private def local(name : String) : String
+      n = pony_ident(name)
+      @method_names.includes?(n) ? "#{n}'" : n
+    end
+
     private def pony_method_name(name : String, constructor : Bool) : String
       return(name == "new" ? "create" : pony_ident(name)) if constructor
       if op = OPERATOR_NAMES[name]?
@@ -220,17 +228,34 @@ module Sparkle
         w(names.size == 1 ? " is #{names[0]}" : " is (#{names.join(" & ")})")
       end
       @ivars = d.fields.map(&.name).to_set
+      @method_names = d.methods.map { |m| pony_method_name(m.name, m.self_recv) }.to_set
       @w.indent += 1
       d.fields.each do |f|
         @w.nl
         emit_field(f)
       end
+      implicit = implicit_constructor?(d)
+      if implicit
+        @w.nl
+        @w.nl unless d.fields.empty?
+        w "new create() =>"
+        @w.indent += 1
+        @w.nl
+        w "None"
+        @w.indent -= 1
+      end
       d.methods.each_with_index do |m, i|
         @w.nl
-        @w.nl unless i == 0 && d.fields.empty?
+        @w.nl unless i == 0 && d.fields.empty? && !implicit
         emit_method(m)
       end
       @w.indent -= 1
+    end
+
+    # Classes without a constructor get an explicit `create`, so instances are
+    # `ref` (Pony infers `iso` for the implicit one, which cannot be aliased).
+    private def implicit_constructor?(d : TypeDecl) : Bool
+      (d.kind == "class" || d.kind == "struct") && d.methods.none?(&.self_recv) && d.fields.all?(&.init)
     end
 
     private def emit_field(f : Field) : Nil
@@ -261,7 +286,7 @@ module Sparkle
       m.params.each_with_index do |p, i|
         w ", " if i > 0
         @w.mark(p.line, p.col)
-        w pony_ident(p.name)
+        w local(p.name)
         if t = p.type
           w ": #{PonyType.to_pony(t)}"
         end
@@ -426,7 +451,7 @@ module Sparkle
 
     private def emit_ident(e : Ident) : Nil
       if declared?(e.name)
-        w pony_ident(e.name)
+        w local(e.name)
       else
         w "#{pony_method_name(e.name, false)}()"
         w "?" if partial_name?(e.name)
@@ -451,7 +476,7 @@ module Sparkle
       t = a.target
       case t
       when Ident
-        name = pony_ident(t.name)
+        name = local(t.name)
         if declared?(t.name)
           w "#{name} = "
           emit(a.value)
@@ -459,6 +484,8 @@ module Sparkle
           w "var #{name}"
           if ty = a.type
             w ": #{PonyType.to_pony(ty)}"
+          elsif default = default_literal_type(a.value)
+            w ": #{default}"
           end
           w " = "
           emit(a.value)
@@ -477,11 +504,19 @@ module Sparkle
       end
     end
 
+    # Pony cannot infer the type of a bare numeric literal bound to a variable.
+    private def default_literal_type(v : Expr) : String?
+      case v
+      when IntLit   then v.suffix ? nil : "I32"
+      when FloatLit then v.suffix ? nil : "F64"
+      end
+    end
+
     private def emit_lvalue(t : Expr) : Nil
       mark(t)
       case t
       when IVarRef then w "_#{t.name}"
-      when Ident   then w pony_ident(t.name)
+      when Ident   then w local(t.name)
       when Index   then emit_index(t)
       when Call
         emit_receiver(t.recv.not_nil!)
@@ -628,7 +663,7 @@ module Sparkle
       case p
       when TypePattern
         declare(p.name)
-        w "let #{pony_ident(p.name)}: #{PonyType.to_pony(p.type)}"
+        w "let #{local(p.name)}: #{PonyType.to_pony(p.type)}"
       when TuplePattern
         w "("
         p.items.each_with_index do |item, i|
@@ -637,7 +672,7 @@ module Sparkle
         end
         w ")"
       when Ident
-        w(p.name == "_" ? "_" : pony_ident(p.name))
+        w(p.name == "_" ? "_" : local(p.name))
       else
         emit(p)
       end
@@ -710,7 +745,7 @@ module Sparkle
     private def emit_params(params : Array(Param)) : Nil
       params.each_with_index do |p, i|
         w ", " if i > 0
-        w pony_ident(p.name)
+        w local(p.name)
         if t = p.type
           w ": #{PonyType.to_pony(t)}"
         end
@@ -787,17 +822,17 @@ module Sparkle
       case c.name
       when "each"
         return false if params.size > 1
-        w "for #{params.empty? ? "_" : pony_ident(params[0])} in "
+        w "for #{params.empty? ? "_" : local(params[0])} in "
         emit_iterable(recv)
         w ".values()" unless range_receiver(recv)
       when "each_with_index"
         return false unless params.size == 2
-        w "for (#{pony_ident(params[1])}, #{pony_ident(params[0])}) in "
+        w "for (#{local(params[1])}, #{local(params[0])}) in "
         emit_receiver(recv)
         w ".pairs()"
       else
         return false if params.size > 1
-        w "for #{params.empty? ? "_" : pony_ident(params[0])} in Range[USize].till(0, "
+        w "for #{params.empty? ? "_" : local(params[0])} in Range[USize].till(0, "
         @uses_collections = true
         emit(recv)
         w ")"

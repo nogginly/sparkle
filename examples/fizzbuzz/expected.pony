@@ -18,7 +18,7 @@ actor Main
     for i in Range[USize].through(1, 15) do
       env.out.print(FizzBuzz.label(i))
     end
-    var ticks = 0
+    var ticks: I32 = 0
     while ticks < 5 do
       ticks = ticks + 1
       if ticks == 2 then continue end

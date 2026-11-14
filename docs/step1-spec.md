@@ -53,6 +53,8 @@ A field needs a type (`@n = 0` alone is a parse error). `def []=`, `def <<` and 
 
 Pony requires fields before methods, so the emitter writes all of a type's fields first, then methods in source order. An empty body emits `None`.
 
+A `class` or `struct` with no `def self.new` and every field initialised gets an explicit `new create() => None`. Without it Pony infers an `iso` constructor, and `x = Foo.new` could not be passed as a `ref`.
+
 Instance variables map to **private** Pony fields (`@n` → `_n`). This gives Crystal's rule that fields are private, and lets a field and a method share a name (`@count` and `def count`), which Pony otherwise forbids.
 
 ## 3. Types
@@ -82,6 +84,8 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 |---|---|---|
 | `x = 1` (first assignment in scope) | `var x = 1` | later assignments emit `x = 2` |
 | `x : UInt8 = 1` | `var x: U8 = 1` | |
+| `x = 0` / `x = 1.5` (first assignment, bare literal) | `var x: I32 = 0` / `var x: F64 = 1.5` | Crystal's literal defaults; Pony cannot infer them |
+| a parameter or local named like a method of its type | emitted with a prime: `payload'` | Pony forbids the clash; Crystal's `def self.new(payload)` beside `def payload` is idiomatic |
 | `@n` | `_n` | |
 | `self` | `this` | |
 | `x.size` | `x.size()` | *(typeless)* a dot-name is **always a call** |
@@ -154,7 +158,7 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 ## 5. Tooling
 
 1. **Source map.** The emitter records a mark `(pony line, pony column) → (sparkle line, sparkle column)` each time it starts writing a node. A `ponyc` location maps to the last mark at or before it on that line.
-2. **Diagnostics.** `ponyc` output is rewritten: file, line and column go through the source map, the quoted source excerpt is replaced by the Sparkle line with a caret, and Pony type expressions inside messages are re-printed in Sparkle syntax (`Array[String val] ref` → `ref Array(val String)`, `(String val | None val)` → `val String?`).
+2. **Diagnostics.** `ponyc` output is rewritten: file, line and column go through the source map, the quoted source excerpt is replaced by the Sparkle line with a caret, and Pony type expressions inside messages are re-printed in Sparkle syntax, including in notes that point into the Pony stdlib (`Array[String val] ref` → `ref Array(val String)`, `(String val | None val)` → `val String?`).
 3. **Capability statistics.** `sparkle caps` reports, per file, how many capability annotations were written, by position (type declaration, `def`, type, `recover`) and by capability.
 
 ## 6. CLI
@@ -176,7 +180,8 @@ sparkle caps PATH...                # capability statistics
 
 - Pony assignment evaluates to the **old** value of the left side, not the new one.
 - A variable first assigned inside a branch or loop is scoped to that block, as in Pony.
-- An untyped integer literal defaults to Pony's `I32` when nothing constrains it: `ticks = 0` will not compare with a `USize`. Write `ticks : USize = 0`.
+- `ticks = 0` is an `Int32`, as in Crystal, so it will not compare with a `USize`. Write `ticks : USize = 0`.
+- A named argument is not primed, because the callee is unknown: `f(payload: 1)` fails when `f`'s type also has a method `payload`.
 - `x.@name` picks the private field whenever the enclosing type has an ivar of that name, so a type with `@out` cannot also read `env.@out`.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.

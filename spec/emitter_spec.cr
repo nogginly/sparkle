@@ -22,7 +22,13 @@ describe Emitter do
 
     it "writes fields before methods and makes them private" do
       pony = decl("class C\n  def count : UInt64 = @count\n  @count : UInt64 = 0\nend\n")
-      pony.should eq "class C\n  var _count: U64 = 0\n\n  fun count(): U64 =>\n    _count\n"
+      pony.should eq "class C\n  var _count: U64 = 0\n\n  new create() =>\n    None\n\n  fun count(): U64 =>\n    _count\n"
+    end
+
+    it "adds an explicit create to classes without constructors" do
+      decl("class C\nend\n").should eq "class C\n  new create() =>\n    None\n"
+      decl("class C\n  def self.new\n  end\nend\n").should_not contain "new create() =>\n    None\n\n"
+      decl("actor A\nend\n").should eq "actor A\n"
     end
 
     it "maps method forms" do
@@ -84,15 +90,15 @@ describe Emitter do
 
   describe "names, fields and calls" do
     it "decides var versus assignment from scope" do
-      body("x = 1\nx = 2").should eq "new create(env: Env) =>\n    var x = 1\n    x = 2"
+      body("x = 1\nx = 2").should eq "new create(env: Env) =>\n    var x: I32 = 1\n    x = 2"
     end
 
     it "keeps variables first assigned in a branch scoped to it" do
-      body("if true\n  y = 1\nend\ny = 2").should contain "var y = 2"
+      body("if true\n  y = 1\nend\ny = 2").should contain "var y: I32 = 2"
     end
 
     it "treats bare names as calls unless local" do
-      body("foo\nz = 1\nz").should eq "new create(env: Env) =>\n    foo()\n    var z = 1\n    z"
+      body("foo\nz = 1\nz").should eq "new create(env: Env) =>\n    foo()\n    var z: I32 = 1\n    z"
     end
 
     it "emits typed locals, self, instance variables and field reads" do
@@ -129,8 +135,27 @@ describe Emitter do
         PONY
     end
 
+    it "types variables first bound to bare numeric literals" do
+      body("a = 0\nb = -1\nc = 1.5\nd = 1_u64\ne = 2.5_f32\nf = a").should eq <<-PONY.chomp
+        new create(env: Env) =>
+            var a: I32 = 0
+            var b: I32 = -1
+            var c: F64 = 1.5
+            var d = U64(1)
+            var e = F32(2.5)
+            var f = a
+        PONY
+    end
+
+    it "primes locals that share a name with a method of the type" do
+      pony = decl("class C\n  @payload : U32\n  def self.new(payload : U32)\n    @payload = payload\n  end\n  def payload : U32 = @payload\n  def g(xs : Array(U32))\n    xs.each do |payload|\n      payload\n    end\n    payload\n    payload = 1\n    payload\n  end\nend\n")
+      pony.should contain "new create(payload': U32) =>\n    _payload = payload'"
+      pony.should contain "for payload' in xs.values() do\n      payload'\n    end"
+      pony.should contain "    payload()\n    var payload': I32 = 1\n    payload'"
+    end
+
     it "escapes Pony reserved words used as names" do
-      body("val = 1\nval").should contain "var val_ = 1"
+      body("val = 1\nval").should contain "var val_: I32 = 1"
     end
   end
 
@@ -264,7 +289,7 @@ describe Emitter do
     end
 
     it "scopes block parameters to the block" do
-      body("xs = [1]\nxs.each do |x|\nend\nx = 1").should contain "var x = 1"
+      body("xs = [1]\nxs.each do |x|\nend\nx = 1").should contain "var x: I32 = 1"
     end
   end
 end

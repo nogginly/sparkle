@@ -1,6 +1,9 @@
 class Counter
   var _n: U64 = 0
 
+  new create() =>
+    None
+
   fun ref incr() =>
     _n = _n + 1
 

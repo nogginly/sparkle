@@ -47,10 +47,17 @@ describe Diagnostics do
     got.should contain "    app/main.spk:4:"
   end
 
-  it "passes through locations in other files untouched" do
+  it "maps primed names in messages back" do
+    file, pony = generated
+    row = pony.lines.index! { |l| l.includes?("missing") } + 1
+    text = "Error:\n/work/.sparkle/app/main.pony:#{row}:5: can't reuse name 'payload''\n"
+    Diagnostics.rewrite(text, [file], "/work").should contain "can't reuse name 'payload'\n"
+  end
+
+  it "keeps other files' locations and excerpts, re-printing only the message" do
     file, _ = generated
     text = "Error:\n/usr/lib/pony/builtin/array.pony:12:3: can't use Array[String val] ref\n    fun foo()\n    ^\n"
-    Diagnostics.rewrite(text, [file], "/work").should eq text
+    Diagnostics.rewrite(text, [file], "/work").should eq text.sub("Array[String val] ref", "ref Array(val String)")
   end
 
   it "leaves output without locations unchanged" do

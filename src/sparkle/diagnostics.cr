@@ -18,12 +18,13 @@ module Sparkle
 
   # Rewrites ponyc output in terms of the Sparkle sources.
   module Diagnostics
+    PRIMED   = /'([A-Za-z_][A-Za-z0-9_]*)''/
     LOCATION = /\A(\s*)(.+?):(\d+):(\d+): (.*)\z/
     CARET    = /\A\s*\^\s*\z/
 
     # Locations in generated files go through the source map, their source
     # excerpt is replaced by the Sparkle line, and Pony types in messages are
-    # printed in Sparkle syntax. Other locations pass through unchanged.
+    # printed in Sparkle syntax. Other locations keep their file, position and excerpt; only the message is re-printed.
     def self.rewrite(output : String, files : Array(GeneratedFile), base_dir : String = Dir.current) : String
       lines = output.lines(chomp: true)
       by_path = files.to_h { |f| {f.pony_path, f} }
@@ -33,7 +34,7 @@ module Sparkle
         line = lines[i]
         m = LOCATION.match(line)
         unless m
-          out << PonyType.rewrite(line)
+          out << text(line)
           i += 1
           next
         end
@@ -43,14 +44,14 @@ module Sparkle
         pos = file.try(&.map.lookup(row, col))
         if file && pos
           sl, sc = pos
-          out << "#{indent}#{file.spk_path}:#{sl}:#{sc}: #{PonyType.rewrite(msg)}"
+          out << "#{indent}#{file.spk_path}:#{sl}:#{sc}: #{text(msg)}"
           if excerpt
             src = file.source_lines[sl - 1]? || ""
             out << indent + src
             out << indent + caret_padding(src, sc) + "^"
           end
         else
-          out << line
+          out << "#{indent}#{path}:#{row}:#{col}: #{text(msg)}"
           if excerpt
             out << lines[i + 1]
             out << lines[i + 2]
@@ -60,6 +61,10 @@ module Sparkle
       end
       text = out.join('\n')
       output.ends_with?('\n') ? text + "\n" : text
+    end
+
+    private def self.text(s : String) : String
+      PonyType.rewrite(s).gsub(PRIMED, "'\\1'")
     end
 
     # Whitespace that places a caret under column `col` of `src`.

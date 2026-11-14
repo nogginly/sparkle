@@ -4,9 +4,9 @@ class val Job
   var _id: U32
   var _payload: U32
 
-  new create(id: U32, payload: U32) =>
-    _id = id
-    _payload = payload
+  new create(id': U32, payload': U32) =>
+    _id = id'
+    _payload = payload'
 
   fun id(): U32 =>
     _id

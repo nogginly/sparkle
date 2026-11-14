@@ -1,0 +1,13 @@
+actor Worker
+  be process(names : iso Array(String))
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    worker = Worker.new
+    shared = ["ada"]
+    worker.process(shared)
+    label : String = nil
+  end
+end
