@@ -27,7 +27,7 @@ module Sparkle
     # printed in Sparkle syntax. Other locations keep their file, position and excerpt; only the message is re-printed.
     def self.rewrite(output : String, files : Array(GeneratedFile), base_dir : String = Dir.current) : String
       lines = output.lines(chomp: true)
-      by_path = files.to_h { |f| {f.pony_path, f} }
+      by_path = files.to_h { |generated| {generated.pony_path, generated} }
       out = [] of String
       i = 0
       while i < lines.size
@@ -69,9 +69,9 @@ module Sparkle
 
     # Whitespace that places a caret under column `col` of `src`.
     def self.caret_padding(src : String, col : Int32) : String
-      String.build do |s|
-        src.each_char.first(col - 1).each { |c| s << (c == '\t' ? '\t' : ' ') }
-        s << " " * (col - 1 - src.size) if col - 1 > src.size
+      String.build do |buffer|
+        src.each_char.first(col - 1).each { |char| buffer << (char == '\t' ? '\t' : ' ') }
+        buffer << " " * (col - 1 - src.size) if col - 1 > src.size
       end
     end
   end

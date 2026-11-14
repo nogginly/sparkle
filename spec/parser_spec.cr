@@ -4,7 +4,8 @@ include Sparkle
 
 private def expr(src : String) : Expr
   p = Parser.parse("actor A\n  def f\n    #{src}\n  end\nend\n")
-  p.items[0].as(TypeDecl).methods[0].body.not_nil![0]
+  body = p.items[0].as(TypeDecl).methods[0].body || raise "method has no body"
+  body[0]
 end
 
 describe Parser do
@@ -16,7 +17,7 @@ describe Parser do
     d.includes.size.should eq 1
     d.fields[0].name.should eq "n"
     d.methods[0].cap.should eq "ref"
-    d.methods[0].body.not_nil!.size.should eq 1
+    d.methods[0].body.try(&.size).should eq 1
   end
 
   it "attaches line and column to nodes" do
@@ -42,7 +43,7 @@ describe Parser do
     c = expr("a.b(1, x: 2) do |i|\n i\n end").as(Call)
     c.args.size.should eq 1
     c.named[0].name.should eq "x"
-    c.block.not_nil!.params.map(&.name).should eq ["i"]
+    c.block.try(&.params.map(&.name)).should eq ["i"]
   end
 
   it "parses brace blocks and &.name" do

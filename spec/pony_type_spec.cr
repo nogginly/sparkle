@@ -4,11 +4,13 @@ include Sparkle
 
 private def to_pony(src : String) : String
   prog = Parser.parse("class A\n  def f : #{src}\n  end\nend\n")
-  PonyType.to_pony(prog.items[0].as(TypeDecl).methods[0].ret.not_nil!)
+  ret = prog.items[0].as(TypeDecl).methods[0].ret || raise "method has no return type"
+  PonyType.to_pony(ret)
 end
 
 private def to_spk(pony : String) : String
-  PonyType.to_sparkle(PonyType.parse(pony).not_nil!)
+  type = PonyType.parse(pony) || raise "cannot parse #{pony}"
+  PonyType.to_sparkle(type)
 end
 
 describe PonyType do

@@ -26,7 +26,7 @@ module Sparkle
 
     def self.collect(program : Program) : Stats
       stats = Stats.new
-      program.cap_uses.each { |u| stats.add(u) }
+      program.cap_uses.each { |cap_use| stats.add(cap_use) }
       stats
     end
 
@@ -43,14 +43,14 @@ module Sparkle
     end
 
     private def self.block(name : String, stats : Stats) : String
-      String.build do |s|
-        s << name << '\n'
+      String.build do |buffer|
+        buffer << name << '\n'
         POSITIONS.each do |pos|
-          s << "  " << pos.ljust(17) << stats.by_position[pos] << '\n'
+          buffer << "  " << pos.ljust(17) << stats.by_position[pos] << '\n'
         end
-        s << "  " << "total".ljust(17) << stats.total << '\n'
-        caps = ALL_CAPS.select { |c| stats.by_cap[c] > 0 }.map { |c| "#{c} #{stats.by_cap[c]}" }
-        s << "  " << "by capability".ljust(17) << (caps.empty? ? "-" : caps.join(", ")) << '\n'
+        buffer << "  " << "total".ljust(17) << stats.total << '\n'
+        caps = ALL_CAPS.select { |cap| stats.by_cap[cap] > 0 }.map { |cap| "#{cap} #{stats.by_cap[cap]}" }
+        buffer << "  " << "by capability".ljust(17) << (caps.empty? ? "-" : caps.join(", ")) << '\n'
       end
     end
   end

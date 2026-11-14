@@ -99,9 +99,9 @@ module Sparkle
     def run : Nil
       uses = @program.items.select(UseDecl)
       paths = uses.map(&.path)
-      uses.each do |u|
-        @w.mark(u.line, u.col)
-        @w.write("use #{u.path.inspect}")
+      uses.each do |use_decl|
+        @w.mark(use_decl.line, use_decl.col)
+        @w.write("use #{use_decl.path.inspect}")
         @w.nl
       end
       if @add_collections && !paths.includes?("collections")
@@ -187,9 +187,9 @@ module Sparkle
         @w.nl
         w "None"
       else
-        stmts.each do |s|
+        stmts.each do |stmt|
           @w.nl
-          emit(s)
+          emit(stmt)
         end
       end
       @w.indent -= 1
@@ -197,7 +197,7 @@ module Sparkle
 
     private def scoped_block(stmts : Array(Expr), names : Array(String) = [] of String) : Nil
       scoped do
-        names.each { |n| declare(n) }
+        names.each { |name| declare(name) }
         block(stmts)
       end
     end
@@ -213,10 +213,10 @@ module Sparkle
       w " #{d.name}"
       unless d.tparams.empty?
         w "["
-        d.tparams.each_with_index do |tp, i|
+        d.tparams.each_with_index do |tparam, i|
           w ", " if i > 0
-          w tp.name
-          if c = tp.constraint
+          w tparam.name
+          if c = tparam.constraint
             w ": "
             w(c.is_a?(CapType) ? "Any #{PonyType.pony_cap(c.cap)}" : PonyType.to_pony(c))
           end
@@ -224,15 +224,15 @@ module Sparkle
         w "]"
       end
       unless d.includes.empty?
-        names = d.includes.map { |t| PonyType.to_pony(t) }
+        names = d.includes.map { |type| PonyType.to_pony(type) }
         w(names.size == 1 ? " is #{names[0]}" : " is (#{names.join(" & ")})")
       end
       @ivars = d.fields.map(&.name).to_set
-      @method_names = d.methods.map { |m| pony_method_name(m.name, m.self_recv) }.to_set
+      @method_names = d.methods.map { |method| pony_method_name(method.name, method.self_recv) }.to_set
       @w.indent += 1
-      d.fields.each do |f|
+      d.fields.each do |field|
         @w.nl
-        emit_field(f)
+        emit_field(field)
       end
       implicit = implicit_constructor?(d)
       if implicit
@@ -244,10 +244,10 @@ module Sparkle
         w "None"
         @w.indent -= 1
       end
-      d.methods.each_with_index do |m, i|
+      d.methods.each_with_index do |method, i|
         @w.nl
-        @w.nl unless i == 0 && d.fields.empty? && !implicit
-        emit_method(m)
+        @w.nl if i != 0 || !d.fields.empty? || implicit
+        emit_method(method)
       end
       @w.indent -= 1
     end
@@ -261,7 +261,7 @@ module Sparkle
     private def emit_field(f : Field) : Nil
       mark(f)
       @scopes = [Set(String).new]
-      w "var _#{f.name}: #{PonyType.to_pony(f.type.not_nil!)}"
+      w "var _#{f.name}: #{PonyType.to_pony(f.type || raise "field @#{f.name} has no type")}"
       if init = f.init
         w " = "
         emit(init)
@@ -270,6 +270,21 @@ module Sparkle
 
     private def mutating_name?(name : String) : Bool
       REF_BY_DEFAULT.includes?(name) || (name.ends_with?('=') && !%w(== != <= >=).includes?(name))
+    end
+
+    private def emit_method_params(params : Array(Param)) : Nil
+      params.each_with_index do |param, i|
+        w ", " if i > 0
+        @w.mark(param.line, param.col)
+        w local(param.name)
+        if t = param.type
+          w ": #{PonyType.to_pony(t)}"
+        end
+        if d = param.default
+          w " = "
+          emit(d)
+        end
+      end
     end
 
     private def emit_method(m : Method) : Nil
@@ -283,18 +298,7 @@ module Sparkle
       w " #{cap}" if cap
       @w.mark(m.name_line, m.name_col)
       w " #{pony_method_name(m.name, constructor)}("
-      m.params.each_with_index do |p, i|
-        w ", " if i > 0
-        @w.mark(p.line, p.col)
-        w local(p.name)
-        if t = p.type
-          w ": #{PonyType.to_pony(t)}"
-        end
-        if d = p.default
-          w " = "
-          emit(d)
-        end
-      end
+      emit_method_params(m.params)
       w ")"
       if r = m.ret
         w ": #{PonyType.to_pony(r)}"
@@ -304,7 +308,7 @@ module Sparkle
       return unless body
       w " =>"
       scoped do
-        m.params.each { |p| declare(p.name) }
+        m.params.each { |param| declare(param.name) }
         block(body)
       end
     end
@@ -354,68 +358,165 @@ module Sparkle
 
     private def emit(e : Expr) : Nil
       mark(e)
-      case e
-      when IntLit, FloatLit then emit_number(e)
-      when StrLit           then emit_string(e)
-      when CharLit          then w "'#{e.text}'"
-      when BoolLit          then w e.value.to_s
-      when NilLit           then w "None"
-      when SelfRef          then w "this"
-      when Ident            then emit_ident(e)
-      when IVarRef          then w "_#{e.name}"
-      when TypeRef          then w PonyType.to_pony(e.type)
-      when Paren
-        w "("
-        emit(e.expr)
-        w ")"
-      when Lambda    then emit_lambda(e)
-      when AmpMethod then emit_amp(e)
-      when Call      then emit_call(e)
-      when FieldRead then emit_field_read(e)
-      when Index     then emit_index(e)
-      when Assign    then emit_assign(e)
-      when OpAssign  then emit_op_assign(e)
-      when Binary    then emit_binary(e)
-      when Unary
-        w(e.op == "!" ? "not " : e.op)
-        emit_operand(e.operand)
-      when Ternary
-        w "if "
-        emit(e.cond)
-        w " then "
-        emit(e.then_)
-        w " else "
-        emit(e.else_)
-        w " end"
-      when If    then emit_if(e)
-      when While then emit_while(e)
-      when Case  then emit_case(e)
-      when Begin then emit_begin(e)
-      when Raise then w "error"
-      when Return
-        w "return"
-        if v = e.value
-          w " "
-          emit(v)
-        end
-      when Break    then w "break"
-      when Next     then w "continue"
-      when Consume  then (w "consume "; emit_operand(e.expr))
-      when Recover  then emit_recover(e)
-      when ArrayLit then emit_array(e)
-      when TupleLit
-        w "("
-        emit_list(e.items)
-        w ")"
-      when RangeLit then emit_range(e.from, e.to, e.exclusive)
-      when AsCast
-        w "("
-        emit_receiver(e.expr)
-        w " as #{PonyType.to_pony(e.type)})"
-      when TypePattern, TuplePattern then emit_pattern(e)
-      else
-        raise "cannot emit #{e.class}"
+      emit_node(e)
+    end
+
+    private def emit_node(e : IntLit | FloatLit) : Nil
+      emit_number(e)
+    end
+
+    private def emit_node(e : StrLit) : Nil
+      emit_string(e)
+    end
+
+    private def emit_node(e : CharLit) : Nil
+      w "'#{e.text}'"
+    end
+
+    private def emit_node(e : BoolLit) : Nil
+      w e.value.to_s
+    end
+
+    private def emit_node(e : NilLit) : Nil
+      w "None"
+    end
+
+    private def emit_node(e : SelfRef) : Nil
+      w "this"
+    end
+
+    private def emit_node(e : Ident) : Nil
+      emit_ident(e)
+    end
+
+    private def emit_node(e : IVarRef) : Nil
+      w "_#{e.name}"
+    end
+
+    private def emit_node(e : TypeRef) : Nil
+      w PonyType.to_pony(e.type)
+    end
+
+    private def emit_node(e : Paren) : Nil
+      w "("
+      emit(e.expr)
+      w ")"
+    end
+
+    private def emit_node(e : Lambda) : Nil
+      emit_lambda(e)
+    end
+
+    private def emit_node(e : AmpMethod) : Nil
+      emit_amp(e)
+    end
+
+    private def emit_node(e : Call) : Nil
+      emit_call(e)
+    end
+
+    private def emit_node(e : FieldRead) : Nil
+      emit_field_read(e)
+    end
+
+    private def emit_node(e : Index) : Nil
+      emit_index(e)
+    end
+
+    private def emit_node(e : Assign) : Nil
+      emit_assign(e)
+    end
+
+    private def emit_node(e : OpAssign) : Nil
+      emit_op_assign(e)
+    end
+
+    private def emit_node(e : Binary) : Nil
+      emit_binary(e)
+    end
+
+    private def emit_node(e : Unary) : Nil
+      w(e.op == "!" ? "not " : e.op)
+      emit_operand(e.operand)
+    end
+
+    private def emit_node(e : Ternary) : Nil
+      w "if "
+      emit(e.cond)
+      w " then "
+      emit(e.then_)
+      w " else "
+      emit(e.else_)
+      w " end"
+    end
+
+    private def emit_node(e : If) : Nil
+      emit_if(e)
+    end
+
+    private def emit_node(e : While) : Nil
+      emit_while(e)
+    end
+
+    private def emit_node(e : Case) : Nil
+      emit_case(e)
+    end
+
+    private def emit_node(e : Begin) : Nil
+      emit_begin(e)
+    end
+
+    private def emit_node(e : Raise) : Nil
+      w "error"
+    end
+
+    private def emit_node(e : Return) : Nil
+      w "return"
+      if v = e.value
+        w " "
+        emit(v)
       end
+    end
+
+    private def emit_node(e : Break) : Nil
+      w "break"
+    end
+
+    private def emit_node(e : Next) : Nil
+      w "continue"
+    end
+
+    private def emit_node(e : Consume) : Nil
+      w "consume "
+      emit_operand(e.expr)
+    end
+
+    private def emit_node(e : Recover) : Nil
+      emit_recover(e)
+    end
+
+    private def emit_node(e : ArrayLit) : Nil
+      emit_array(e)
+    end
+
+    private def emit_node(e : TupleLit) : Nil
+      w "("
+      emit_list(e.items)
+      w ")"
+    end
+
+    private def emit_node(e : RangeLit) : Nil
+      emit_range(e.from, e.to, e.exclusive)
+    end
+
+    private def emit_node(e : AsCast) : Nil
+      w "("
+      emit_receiver(e.expr)
+      w " as #{PonyType.to_pony(e.type)})"
+    end
+
+    private def emit_node(e : TypePattern | TuplePattern) : Nil
+      emit_pattern(e)
     end
 
     private def emit_number(e : IntLit | FloatLit) : Nil
@@ -433,16 +534,16 @@ module Sparkle
         return
       end
       w %("" + ) if parts.size == 1
-      parts.each_with_index do |p, i|
+      parts.each_with_index do |part, i|
         w " + " if i > 0
-        case p
+        case part
         in String
-          w %("#{p}")
+          w %("#{part}")
         in Expr
-          if p.is_a?(StrLit) && p.parts.all?(String)
-            emit(p)
+          if part.is_a?(StrLit) && part.parts.all?(String)
+            emit(part)
           else
-            emit_receiver(p)
+            emit_receiver(part)
             w ".string()"
           end
         end
@@ -492,7 +593,7 @@ module Sparkle
           declare(t.name)
         end
       when Call
-        emit_receiver(t.recv.not_nil!)
+        emit_receiver(target_receiver(t))
         @w.mark(t.name_line, t.name_col)
         w ".set_#{t.name}("
         emit(a.value)
@@ -519,19 +620,23 @@ module Sparkle
       when Ident   then w local(t.name)
       when Index   then emit_index(t)
       when Call
-        emit_receiver(t.recv.not_nil!)
+        emit_receiver(target_receiver(t))
         w ".#{pony_method_name(t.name, false)}()"
       when FieldRead then emit_field_read(t)
       else                raise "bad assignment target"
       end
     end
 
+    private def target_receiver(call : Call) : Expr
+      call.recv || raise "bad assignment target"
+    end
+
     private def emit_op_assign(a : OpAssign) : Nil
       t = a.target
       if t.is_a?(Call)
-        emit_receiver(t.recv.not_nil!)
+        emit_receiver(target_receiver(t))
         w ".set_#{t.name}("
-        emit_receiver(t.recv.not_nil!)
+        emit_receiver(target_receiver(t))
         w ".#{pony_method_name(t.name, false)}() #{a.op} "
         emit_operand(a.value)
         w ")"
@@ -636,17 +741,17 @@ module Sparkle
       w "match "
       w "\\exhaustive\\ " if c.exhaustive
       emit(c.subject)
-      c.whens.each do |wh|
+      c.whens.each do |branch|
         @w.nl
-        mark(wh)
+        mark(branch)
         scoped do
-          wh.patterns.each_with_index do |p, i|
+          branch.patterns.each_with_index do |pattern, i|
             w " | " if i > 0
             w "| " if i == 0
-            emit_pattern(p)
+            emit_pattern(pattern)
           end
           w " =>"
-          block(wh.body)
+          block(branch.body)
         end
       end
       if els = c.else_
@@ -706,7 +811,7 @@ module Sparkle
     private def emit_array(a : ArrayLit) : Nil
       of_type = a.of_type
       if a.elems.empty?
-        w "Array[#{PonyType.to_pony(of_type.not_nil!)}].create()"
+        w "Array[#{PonyType.to_pony(of_type || raise "empty array literal has no element type")}].create()"
         return
       end
       w "["
@@ -731,7 +836,7 @@ module Sparkle
       if inline_body?(l.body)
         w " "
         scoped do
-          l.params.each { |p| declare(p.name) }
+          l.params.each { |param| declare(param.name) }
           emit(l.body[0])
         end
         w "}"
@@ -743,10 +848,10 @@ module Sparkle
     end
 
     private def emit_params(params : Array(Param)) : Nil
-      params.each_with_index do |p, i|
+      params.each_with_index do |param, i|
         w ", " if i > 0
-        w local(p.name)
-        if t = p.type
+        w local(param.name)
+        if t = param.type
           w ": #{PonyType.to_pony(t)}"
         end
       end
@@ -784,11 +889,17 @@ module Sparkle
       end
       w pony_method_name(c.name, constructor)
       w "("
+      emit_call_args(c)
+      w ")"
+      w "?" if partial_name?(c.name)
+    end
+
+    private def emit_call_args(c : Call) : Nil
       first = true
-      c.args.each do |a|
+      c.args.each do |arg|
         w ", " unless first
         first = false
-        emit(a)
+        emit(arg)
       end
       if blk = c.block
         w ", " unless first
@@ -798,14 +909,12 @@ module Sparkle
       unless c.named.empty?
         w " " unless first
         w "where "
-        c.named.each_with_index do |n, i|
+        c.named.each_with_index do |named_arg, i|
           w ", " if i > 0
-          w "#{pony_ident(n.name)} = "
-          emit(n.value)
+          w "#{pony_ident(named_arg.name)} = "
+          emit(named_arg.value)
         end
       end
-      w ")"
-      w "?" if partial_name?(c.name)
     end
 
     # Emits loop sugar (`each`, `each_with_index`, `times`, `loop`); returns
@@ -819,7 +928,18 @@ module Sparkle
       end
       return false unless LOOP_METHODS.includes?(c.name) && c.args.empty? && c.named.empty?
       params = blk.params.map(&.name)
-      case c.name
+      return false unless emit_loop_header(c.name, recv, params)
+      w " do"
+      scoped_block(blk.body, params)
+      @w.nl
+      w "end"
+      true
+    end
+
+    # Emits `for ... in ...`; returns false, writing nothing, when the block
+    # parameters do not fit the loop method.
+    private def emit_loop_header(name : String, recv : Expr, params : Array(String)) : Bool
+      case name
       when "each"
         return false if params.size > 1
         w "for #{params.empty? ? "_" : local(params[0])} in "
@@ -837,10 +957,6 @@ module Sparkle
         emit(recv)
         w ")"
       end
-      w " do"
-      scoped_block(blk.body, params)
-      @w.nl
-      w "end"
       true
     end
 

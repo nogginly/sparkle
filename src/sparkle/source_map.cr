@@ -16,7 +16,7 @@ module Sparkle
 
     # The Sparkle position of the last mark at or before the Pony position.
     def lookup(pony_line : Int32, pony_col : Int32) : {Int32, Int32}?
-      idx = @marks.bsearch_index { |m| m.pony_line > pony_line || (m.pony_line == pony_line && m.pony_col > pony_col) }
+      idx = @marks.bsearch_index { |mark| mark.pony_line > pony_line || (mark.pony_line == pony_line && mark.pony_col > pony_col) }
       idx = @marks.size if idx.nil?
       return nil if idx == 0
       m = @marks[idx - 1]

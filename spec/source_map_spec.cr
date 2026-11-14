@@ -23,7 +23,7 @@ describe SourceMap do
 
   it "records marks while emitting" do
     t = Driver.translate("actor Main\n  def self.new(env : Env)\n    env.@out.print(\"x\")\n  end\nend\n")
-    pony_line = t.pony.lines.index! { |l| l.includes?("print") } + 1
+    pony_line = t.pony.lines.index!(&.includes?("print")) + 1
     col = t.pony.lines[pony_line - 1].index!("print") + 1
     t.map.lookup(pony_line, col).should eq({3, 14})
   end

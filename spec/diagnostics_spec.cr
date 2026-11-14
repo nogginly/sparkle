@@ -12,7 +12,7 @@ end
 describe Diagnostics do
   it "maps a location, excerpt and caret to the Sparkle line" do
     file, pony = generated
-    row = pony.lines.index! { |l| l.includes?("missing") } + 1
+    row = pony.lines.index!(&.includes?("missing")) + 1
     col = pony.lines[row - 1].index!("missing") + 1
     text = <<-TXT
       Error:
@@ -33,14 +33,14 @@ describe Diagnostics do
 
   it "accepts relative paths in the output" do
     file, pony = generated
-    row = pony.lines.index! { |l| l.includes?("missing") } + 1
+    row = pony.lines.index!(&.includes?("missing")) + 1
     text = ".sparkle/app/main.pony:#{row}:5: oops\n"
     Diagnostics.rewrite(text, [file], "/work").should start_with "app/main.spk:4:"
   end
 
   it "rewrites Info frames and types in messages" do
     file, pony = generated
-    row = pony.lines.index! { |l| l.includes?("print(missing") } + 1
+    row = pony.lines.index!(&.includes?("print(missing")) + 1
     text = "Error:\n/work/.sparkle/app/main.pony:#{row}:5: bad Array[String val] ref\n    Info:\n    /work/.sparkle/app/main.pony:#{row}:5: note\n"
     got = Diagnostics.rewrite(text, [file], "/work")
     got.should contain "bad ref Array(val String)"
@@ -49,7 +49,7 @@ describe Diagnostics do
 
   it "maps primed names in messages back" do
     file, pony = generated
-    row = pony.lines.index! { |l| l.includes?("missing") } + 1
+    row = pony.lines.index!(&.includes?("missing")) + 1
     text = "Error:\n/work/.sparkle/app/main.pony:#{row}:5: can't reuse name 'payload''\n"
     Diagnostics.rewrite(text, [file], "/work").should contain "can't reuse name 'payload'\n"
   end

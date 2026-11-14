@@ -3,13 +3,13 @@ require "./spec_helper"
 include Sparkle
 
 private def texts(src : String) : Array(String)
-  lex(src).reject { |t| t.kind.newline? || t.kind.eof? }.map(&.text)
+  lex(src).reject { |token| token.kind.newline? || token.kind.eof? }.map(&.text)
 end
 
 describe Lexer do
   it "drops comments and joins lines after operators and commas" do
     toks = lex("a = 1 + # note\n  2\nb")
-    toks.select(&.kind.newline?).size.should eq 2
+    toks.count(&.kind.newline?).should eq 2
   end
 
   it "joins a method chain that continues on the next line" do
@@ -47,7 +47,7 @@ describe Lexer do
 
   it "splits interpolations with nested braces and strings" do
     t = lex(%q("a #{ {1, "x}"} } b")).first
-    parts = t.parts.not_nil!
+    parts = t.parts || raise "string token has no parts"
     parts.size.should eq 3
     parts[0].should eq "a "
     parts[2].should eq " b"
@@ -58,7 +58,7 @@ describe Lexer do
   end
 
   it "records line and column" do
-    t = lex("a\n  bb").find { |x| x.text == "bb" }.not_nil!
+    t = lex("a\n  bb").find! { |x| x.text == "bb" }
     {t.line, t.col}.should eq({2, 3})
   end
 

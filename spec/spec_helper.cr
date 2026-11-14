@@ -10,7 +10,7 @@ end
 
 # Wraps statements in `Main.new` and returns the generated constructor lines.
 def main_body(statements : String) : Array(String)
-  src = "actor Main\n  def self.new(env : Env)\n" + statements.lines.map { |l| "    #{l}\n" }.join + "  end\nend\n"
+  src = "actor Main\n  def self.new(env : Env)\n" + statements.lines.map { |line| "    #{line}\n" }.join + "  end\nend\n"
   lines = translate(src).lines.skip(1)
   lines[0] = lines[0].lstrip
   lines

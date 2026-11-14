@@ -68,19 +68,19 @@ module Sparkle
       end
       gen_dir = File.join(".sparkle", package)
       Dir.mkdir_p(gen_dir)
-      Dir.glob(File.join(gen_dir, "*.pony")).each { |f| File.delete(f) }
+      Dir.glob(File.join(gen_dir, "*.pony")).each { |stale| File.delete(stale) }
       generated = [] of GeneratedFile
-      files.each do |f|
-        source = File.read(f)
+      files.each do |file|
+        source = File.read(file)
         begin
           t = translate(source)
         rescue e : ParseError
-          err.print format_error(f, source, e)
+          err.print format_error(file, source, e)
           return {1, nil}
         end
-        pony_path = File.join(gen_dir, File.basename(f, ".spk") + ".pony")
+        pony_path = File.join(gen_dir, File.basename(file, ".spk") + ".pony")
         File.write(pony_path, t.pony)
-        generated << GeneratedFile.new(pony_path, f, t.map, source)
+        generated << GeneratedFile.new(pony_path, file, t.map, source)
       end
       ponyc = find_ponyc
       unless ponyc

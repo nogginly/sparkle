@@ -4,13 +4,16 @@ PONYC_DISTRO ?= $(shell . /etc/os-release && echo $$ID$$VERSION_ID)
 PONYC_URL = https://dl.cloudsmith.io/public/ponylang/releases/raw/versions/$(PONYC_VERSION)/ponyc-x86-64-unknown-linux-$(PONYC_DISTRO).tar.gz
 TOOLS_PONYC := .tools/ponyc
 
-.PHONY: ponyc ponyc-source build test clean distclean
+.PHONY: ponyc ponyc-source build test lint clean distclean
 
 build:
 	crystal build src/sparkle.cr -o bin/sparkle
 
 test:
 	crystal spec
+
+lint:
+	bin/ameba src spec
 
 ponyc:
 	@if [ -x $(TOOLS_PONYC)/bin/ponyc ] && [ "$$(cat $(TOOLS_PONYC)/VERSION-installed 2>/dev/null)" = "$(PONYC_VERSION)" ]; then \

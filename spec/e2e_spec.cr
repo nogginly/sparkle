@@ -8,7 +8,7 @@ private def build_and_run(path : String) : {Int32, String, String}
     code, binary = Sparkle::Driver.build(path, File.join(".sparkle", "bin"), err)
     return {code, "", err.to_s} unless code == 0
     stdout = IO::Memory.new
-    status = Process.run(File.expand_path(binary.not_nil!), output: stdout, error: err)
+    status = Process.run(File.expand_path(binary || raise "build produced no binary"), output: stdout, error: err)
     {status.exit_code, stdout.to_s, err.to_s}
   end
 end

@@ -24,41 +24,51 @@ module Sparkle
     def self.to_pony(t : TypeNode) : String
       case t
       when NamedType
-        String.build do |s|
-          s << (TO_PONY[t.name]? || t.name)
-          unless t.args.empty?
-            s << '[' << t.args.map { |a| to_pony(a) }.join(", ") << ']'
-          end
-          if cap = t.cap
-            s << ' ' << pony_cap(cap)
-          end
-          s << t.eph if t.eph
-        end
+        named_to_pony(t)
       when CapType
         "Any #{pony_cap(t.cap)}"
       when UnionType
-        "(" + t.types.map { |a| to_pony(a) }.join(" | ") + ")"
+        "(" + t.types.map { |member| to_pony(member) }.join(" | ") + ")"
       when IsectType
-        "(" + t.types.map { |a| to_pony(a) }.join(" & ") + ")"
+        "(" + t.types.map { |member| to_pony(member) }.join(" & ") + ")"
       when TupleType
-        "(" + t.types.map { |a| to_pony(a) }.join(", ") + ")"
+        "(" + t.types.map { |member| to_pony(member) }.join(", ") + ")"
       when ArrowType
         left = t.left.is_a?(CapType) ? pony_cap(t.left.as(CapType).cap) : to_pony(t.left)
         "#{left}->#{to_pony(t.right)}"
       when ProcType
-        String.build do |s|
-          s << "{(" << t.params.map { |a| to_pony(a) }.join(", ") << ')'
-          ret = t.ret
-          unless ret.nil? || (ret.is_a?(NamedType) && ret.name == "Nil" && ret.args.empty?)
-            s << ": " << to_pony(ret)
-          end
-          s << '?' if t.partial
-          s << '}'
-          s << ' ' << pony_cap(t.cap.not_nil!) if t.cap
-          s << t.eph if t.eph
-        end
+        proc_to_pony(t)
       else
         raise "unknown type node"
+      end
+    end
+
+    private def self.named_to_pony(t : NamedType) : String
+      String.build do |buffer|
+        buffer << (TO_PONY[t.name]? || t.name)
+        unless t.args.empty?
+          buffer << '[' << t.args.map { |arg| to_pony(arg) }.join(", ") << ']'
+        end
+        if cap = t.cap
+          buffer << ' ' << pony_cap(cap)
+        end
+        buffer << t.eph if t.eph
+      end
+    end
+
+    private def self.proc_to_pony(t : ProcType) : String
+      String.build do |buffer|
+        buffer << "{(" << t.params.map { |param| to_pony(param) }.join(", ") << ')'
+        ret = t.ret
+        unless ret.nil? || (ret.is_a?(NamedType) && ret.name == "Nil" && ret.args.empty?)
+          buffer << ": " << to_pony(ret)
+        end
+        buffer << '?' if t.partial
+        buffer << '}'
+        if cap = t.cap
+          buffer << ' ' << pony_cap(cap)
+        end
+        buffer << t.eph if t.eph
       end
     end
 
@@ -89,7 +99,7 @@ module Sparkle
       end
 
       private def peek?(str : String) : Bool
-        str.each_char.with_index.all? { |c, k| @s[@i + k]? == c }
+        str.each_char.with_index.all? { |char, k| @s[@i + k]? == char }
       end
 
       private def skip_space : Nil
@@ -123,37 +133,8 @@ module Sparkle
       private def parse_atom : TypeNode?
         c = @s[@i]?
         return nil unless c
-        if c == '('
-          @i += 1
-          skip_space
-          first = parse_type
-          return nil unless first
-          skip_space
-          members = [first] of TypeNode
-          sep = @s[@i]?
-          case sep
-          when '|', '&', ','
-            while @s[@i]? == sep
-              @i += 1
-              skip_space
-              m = parse_type
-              return nil unless m
-              members << m
-              skip_space
-            end
-          end
-          return nil unless @s[@i]? == ')'
-          @i += 1
-          node = case sep
-                 when '|' then UnionType.new(0, 0, members)
-                 when '&' then IsectType.new(0, 0, members)
-                 when ',' then TupleType.new(0, 0, members)
-                 else          first
-                 end
-          return with_cap(node)
-        elsif c == '{'
-          return parse_lambda
-        end
+        return parse_group if c == '('
+        return parse_lambda if c == '{'
         w = word
         return nil unless w
         if w == "this"
@@ -170,26 +151,62 @@ module Sparkle
           @i += n.size
           w = n
         end
-        args = [] of TypeNode
-        if @s[@i]? == '['
-          @i += 1
-          loop do
+        args = parse_type_args
+        return nil unless args
+        with_cap(NamedType.new(0, 0, w, args))
+      end
+
+      # `(A | B)`, `(A & B)`, `(A, B)` or a parenthesised single type.
+      private def parse_group : TypeNode?
+        @i += 1
+        skip_space
+        first = parse_type
+        return nil unless first
+        skip_space
+        members = [first] of TypeNode
+        sep = @s[@i]?
+        case sep
+        when '|', '&', ','
+          while @s[@i]? == sep
+            @i += 1
             skip_space
-            a = parse_type
-            return nil unless a
-            args << a
+            m = parse_type
+            return nil unless m
+            members << m
             skip_space
-            if @s[@i]? == ','
-              @i += 1
-            elsif @s[@i]? == ']'
-              @i += 1
-              break
-            else
-              return nil
-            end
           end
         end
-        with_cap(NamedType.new(0, 0, w, args))
+        return nil unless @s[@i]? == ')'
+        @i += 1
+        node = case sep
+               when '|' then UnionType.new(0, 0, members)
+               when '&' then IsectType.new(0, 0, members)
+               when ',' then TupleType.new(0, 0, members)
+               else          first
+               end
+        with_cap(node)
+      end
+
+      # Optional `[A, B]` type arguments; nil when they are malformed.
+      private def parse_type_args : Array(TypeNode)?
+        args = [] of TypeNode
+        return args unless @s[@i]? == '['
+        @i += 1
+        loop do
+          skip_space
+          a = parse_type
+          return nil unless a
+          args << a
+          skip_space
+          if @s[@i]? == ','
+            @i += 1
+          elsif @s[@i]? == ']'
+            @i += 1
+            return args
+          else
+            return nil
+          end
+        end
       end
 
       private def parse_lambda : TypeNode?
@@ -281,54 +298,82 @@ module Sparkle
     def self.to_sparkle(t : TypeNode, ctx : Int32 = 0) : String
       case t
       when NamedType
-        name = TO_SPARKLE[t.name]? || t.name
-        if t.name == "Any" && t.args.empty? && t.cap
-          return "#{sparkle_cap(t.cap.not_nil!)}#{t.eph}"
-        end
-        String.build do |s|
-          if cap = t.cap
-            s << sparkle_cap(cap) << t.eph << ' '
-          end
-          s << name
-          s << '(' << t.args.map { |a| to_sparkle(a) }.join(", ") << ')' unless t.args.empty?
-          s << t.eph if t.cap.nil? && t.eph
-        end
+        named_to_sparkle(t)
       when CapType
         sparkle_cap(t.cap)
       when UnionType
-        rest = t.types.reject { |m| m.is_a?(NamedType) && m.name == "None" && m.args.empty? }
-        if rest.size < t.types.size
-          inner = rest.size == 1 ? to_sparkle(rest[0], 2) : "(" + rest.map { |a| to_sparkle(a, 1) }.join(" | ") + ")"
-          inner = "(#{inner})" if rest.size == 1 && (rest[0].is_a?(UnionType) || rest[0].is_a?(IsectType))
-          return inner + "?"
-        end
-        body = t.types.map { |a| to_sparkle(a, 1) }.join(" | ")
-        ctx >= 1 ? "(#{body})" : body
+        union_to_sparkle(t, ctx)
       when IsectType
-        body = t.types.map { |a| to_sparkle(a, 2) }.join(" & ")
-        ctx >= 2 ? "(#{body})" : body
+        isect_to_sparkle(t, ctx)
       when TupleType
-        "{" + t.types.map { |a| to_sparkle(a) }.join(", ") + "}"
+        "{" + t.types.map { |member| to_sparkle(member) }.join(", ") + "}"
       when ArrowType
         "#{to_sparkle(t.left, 2)}->#{to_sparkle(t.right, 2)}"
       when ProcType
-        args = t.params.map { |a| to_sparkle(a) }
-        args << (t.ret ? to_sparkle(t.ret.not_nil!) : "Nil")
-        prefix = t.cap ? "#{sparkle_cap(t.cap.not_nil!)}#{t.eph} " : ""
-        "#{prefix}Proc(#{args.join(", ")})#{t.cap.nil? ? t.eph : nil}"
+        proc_to_sparkle(t)
       when CappedGroup
-        prefix = t.cap ? "#{sparkle_cap(t.cap.not_nil!)}#{t.eph} " : ""
-        "#{prefix}#{to_sparkle(t.inner, 2)}#{t.cap.nil? ? t.eph : nil}"
+        capped_to_sparkle(t)
       else
         raise "unknown type node"
       end
     end
 
+    private def self.isect_to_sparkle(t : IsectType, ctx : Int32) : String
+      body = t.types.map { |member| to_sparkle(member, 2) }.join(" & ")
+      ctx >= 2 ? "(#{body})" : body
+    end
+
+    private def self.capped_to_sparkle(t : CappedGroup) : String
+      cap = t.cap
+      prefix = cap ? "#{sparkle_cap(cap)}#{t.eph} " : ""
+      "#{prefix}#{to_sparkle(t.inner, 2)}#{t.cap.nil? ? t.eph : nil}"
+    end
+
+    private def self.named_to_sparkle(t : NamedType) : String
+      name = TO_SPARKLE[t.name]? || t.name
+      if t.name == "Any" && t.args.empty? && (cap = t.cap)
+        return "#{sparkle_cap(cap)}#{t.eph}"
+      end
+      String.build do |buffer|
+        if cap = t.cap
+          buffer << sparkle_cap(cap) << t.eph << ' '
+        end
+        buffer << name
+        buffer << '(' << t.args.map { |arg| to_sparkle(arg) }.join(", ") << ')' unless t.args.empty?
+        buffer << t.eph if t.cap.nil? && t.eph
+      end
+    end
+
+    private def self.union_to_sparkle(t : UnionType, ctx : Int32) : String
+      rest = t.types.reject { |member| member.is_a?(NamedType) && member.name == "None" && member.args.empty? }
+      if rest.size < t.types.size
+        inner = rest.size == 1 ? to_sparkle(rest[0], 2) : "(" + rest.map { |member| to_sparkle(member, 1) }.join(" | ") + ")"
+        inner = "(#{inner})" if rest.size == 1 && (rest[0].is_a?(UnionType) || rest[0].is_a?(IsectType))
+        return inner + "?"
+      end
+      body = t.types.map { |member| to_sparkle(member, 1) }.join(" | ")
+      ctx >= 1 ? "(#{body})" : body
+    end
+
+    private def self.proc_to_sparkle(t : ProcType) : String
+      args = t.params.map { |param| to_sparkle(param) }
+      ret = t.ret
+      args << (ret ? to_sparkle(ret) : "Nil")
+      cap = t.cap
+      prefix = cap ? "#{sparkle_cap(cap)}#{t.eph} " : ""
+      "#{prefix}Proc(#{args.join(", ")})#{t.cap.nil? ? t.eph : nil}"
+    end
+
     private def self.arrow_word?(chars : Array(Char), i : Int32) : Bool
       return false unless chars[i].ascii_lowercase?
-      %w(this iso trn ref val box tag).any? do |w|
-        w.each_char.with_index.all? { |ch, k| chars[i + k]? == ch } && chars[i + w.size]? == '-' && chars[i + w.size + 1]? == '>'
+      %w(this iso trn ref val box tag).any? do |word|
+        word.each_char.with_index.all? { |char, k| chars[i + k]? == char } && chars[i + word.size]? == '-' && chars[i + word.size + 1]? == '>'
       end
+    end
+
+    private def self.type_start?(chars : Array(Char), i : Int32, char : Char, prev : Char) : Bool
+      return false if prev.ascii_alphanumeric? || prev == '_' || prev == '.'
+      char.ascii_uppercase? || char == '(' || char == '{' || arrow_word?(chars, i)
     end
 
     # Re-prints every Pony type expression found in `text` in Sparkle syntax.
@@ -339,9 +384,7 @@ module Sparkle
       while i < chars.size
         c = chars[i]
         prev = i > 0 ? chars[i - 1] : ' '
-        candidate = (c.ascii_uppercase? || c == '(' || c == '{' || arrow_word?(chars, i)) &&
-                    !(prev.ascii_alphanumeric? || prev == '_' || prev == '.')
-        if candidate
+        if type_start?(chars, i, c, prev)
           p = PonyParser.new(chars, i)
           node = p.parse_type
           if node

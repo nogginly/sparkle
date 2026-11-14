@@ -27,11 +27,13 @@ module Sparkle
     private def self.translate(args : Array(String)) : Int32
       return usage if args.size != 1
       source = File.read(args[0])
-      print Driver.translate(source).pony
-      0
-    rescue e : ParseError
-      STDERR.print Driver.format_error(args[0], source.not_nil!, e)
-      1
+      begin
+        print Driver.translate(source).pony
+        0
+      rescue e : ParseError
+        STDERR.print Driver.format_error(args[0], source, e)
+        1
+      end
     rescue e : File::Error
       STDERR.puts "sparkle: #{e.message}"
       1
@@ -66,12 +68,12 @@ module Sparkle
       entries = [] of {String, Program}
       args.each do |path|
         files = File.directory?(path) ? Dir.glob(File.join(path, "*.spk")).sort : [path]
-        files.each do |f|
-          source = File.read(f)
+        files.each do |file|
+          source = File.read(file)
           begin
-            entries << {f, Parser.parse(source)}
+            entries << {file, Parser.parse(source)}
           rescue e : ParseError
-            STDERR.print Driver.format_error(f, source, e)
+            STDERR.print Driver.format_error(file, source, e)
             return 1
           end
         end

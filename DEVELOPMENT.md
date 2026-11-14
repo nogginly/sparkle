@@ -11,9 +11,17 @@ How to build, test and change this shard. For how it works, see [DESIGN.md](DESI
 3. The Pony compiler, `ponyc`. `make ponyc` fetches it; see below.
 4. Only to build `ponyc` from source: Clang, CMake 3.25 or later, Python 3, and the zlib and OpenSSL development headers.
 
-Sparkle has no shard dependencies, so there is nothing to `shards install`.
+Sparkle has no runtime shard dependencies. Its one development dependency is the linter, `ameba`.
 
 ## Build
+
+### Dependency check
+
+Run the following to update dependencies and build `ameba` the first time, or when dependencies change.
+
+```sh
+shards check || (shards install && mkdir -p bin && cp lib/ameba/bin/ameba.cr bin && crystal build -o bin/ameba bin/ameba.cr)
+```
 
 ### First time
 
@@ -39,6 +47,7 @@ Command                              |Description
 `make test`                          |Run all specs (`crystal spec`)
 `crystal spec --order random`        |Run the specs in random order
 `UPDATE_GOLDEN=1 crystal spec`       |Rewrite every example's `expected.pony`
+`make lint`                          |Lint all source code (`bin/ameba src spec`)
 `crystal tool format`                |Format all source code
 `make ponyc`                         |Install the prebuilt `ponyc` into `.tools/`
 `make ponyc-source`                  |Build `ponyc` from the submodule (about an hour)
@@ -47,8 +56,6 @@ Command                              |Description
 `bin/sparkle translate FILE.spk`     |Print the Pony generated for one file
 `bin/sparkle run PATH [-- args]`     |Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`           |Count capability annotations per file
-
-There is no lint step yet.
 
 ## Where things are
 
@@ -61,6 +68,7 @@ Path                |Holds
 `docs/`             |The translation rules
 `vendor/ponyc/`     |Pony, as a git submodule pinned to a release tag
 `.tools/`           |The downloaded `ponyc` (not committed)
+`lib/`              |Installed shards, which is only `ameba` (not committed)
 `.sparkle/`         |Generated Pony and built binaries (not committed)
 
 ## Testing
@@ -111,6 +119,7 @@ flowchart LR
     E --> X["4. Use it in an example"]
     X --> G["5. Regenerate goldens,<br/>read the diff"]
     G --> T["6. make test<br/>with ponyc installed"]
+    T --> L["7. make lint,<br/>crystal tool format"]
 ```
 
 1. Write the rule in [docs/step1-spec.md](docs/step1-spec.md) first: Sparkle on the left, Pony on the right.
@@ -119,6 +128,7 @@ flowchart LR
 4. Use the feature in an example under `examples/`, or add a new one with `main.spk`, `expected.pony` and `expected.out`.
 5. Run `UPDATE_GOLDEN=1 crystal spec` and read the golden diff.
 6. Run `make test` with `ponyc` installed, so the end-to-end tier runs.
+7. Run `make lint` and `crystal tool format`.
 
 To see what a snippet becomes, use `bin/sparkle translate FILE.spk`. When `ponyc` reports an error you do not understand, read the generated file under `.sparkle/<package>/`.
 

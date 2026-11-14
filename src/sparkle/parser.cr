@@ -126,8 +126,12 @@ module Sparkle
       end
     end
 
+    private def string_parts(t : Token) : Array(StrPart)
+      t.parts || error("string token has no parts", t)
+    end
+
     private def plain_string(t : Token) : String
-      parts = t.parts.not_nil!
+      parts = string_parts(t)
       error("interpolation is not allowed here", t) unless parts.all?(String)
       parts.join
     end
@@ -195,7 +199,7 @@ module Sparkle
       return false unless tok.kind.ident? && CAPABILITIES.includes?(tok.text)
       n = peek
       return true if n.kind.ident? || n.kw?("self")
-      n.kind.op? && !%w[= ( : . ,].includes?(n.text)
+      n.kind.op? && !["=", "(", ":", ".", ","].includes?(n.text)
     end
 
     private def parse_method : Method
@@ -539,31 +543,9 @@ module Sparkle
       loop do
         t = tok
         if t.op?(".")
-          advance
-          n = advance
-          if n.kind.inst_var?
-            e = FieldRead.new(e.line, e.col, e, n.text)
-            next
-          end
-          error("expected a method name after '.' but found #{n}", n) unless n.kind.ident? || n.kind.const? || n.kind.kw?
-          e = parse_call_rest(e, n)
+          e = parse_member(e)
         elsif t.op?("[") && !t.space_before?
-          advance
-          skip_nl
-          args = [] of Expr
-          until tok.op?("]")
-            args << parse_expr
-            skip_nl
-            break unless accept_op(",")
-            skip_nl
-          end
-          expect_op("]")
-          bang = false
-          if tok.op?("!") && !tok.space_before?
-            advance
-            bang = true
-          end
-          e = Index.new(e.line, e.col, e, args, bang)
+          e = parse_index(e)
         elsif t.op?("(") && !t.space_before? && e.is_a?(Ident)
           call = parse_call_rest(nil, Token.new(Kind::Ident, e.name, e.line, e.col))
           e = call
@@ -577,6 +559,33 @@ module Sparkle
         end
       end
       e
+    end
+
+    private def parse_member(e : Expr) : Expr
+      advance
+      n = advance
+      return FieldRead.new(e.line, e.col, e, n.text) if n.kind.inst_var?
+      error("expected a method name after '.' but found #{n}", n) unless n.kind.ident? || n.kind.const? || n.kind.kw?
+      parse_call_rest(e, n)
+    end
+
+    private def parse_index(e : Expr) : Expr
+      advance
+      skip_nl
+      args = [] of Expr
+      until tok.op?("]")
+        args << parse_expr
+        skip_nl
+        break unless accept_op(",")
+        skip_nl
+      end
+      expect_op("]")
+      bang = false
+      if tok.op?("!") && !tok.space_before?
+        advance
+        bang = true
+      end
+      Index.new(e.line, e.col, e, args, bang)
     end
 
     private def callish?(e : Expr) : Bool
@@ -602,19 +611,7 @@ module Sparkle
           return AsCast.new(recv.line, recv.col, recv, type)
         end
         skip_nl
-        until tok.op?(")")
-          if tok.kind.ident? && peek.op?(":") && !peek.space_before?
-            nt = advance
-            advance
-            skip_nl
-            named << NamedArg.new(nt.line, nt.col, nt.text, parse_expr)
-          else
-            args << parse_expr
-          end
-          skip_nl
-          break unless accept_op(",")
-          skip_nl
-        end
+        parse_call_args(args, named)
         expect_op(")")
       end
       block = nil
@@ -624,6 +621,22 @@ module Sparkle
       line = recv ? recv.line : n.line
       col = recv ? recv.col : n.col
       Call.new(line, col, recv, n.text, args, named, block, parens, n.line, n.col)
+    end
+
+    private def parse_call_args(args : Array(Expr), named : Array(NamedArg)) : Nil
+      until tok.op?(")")
+        if tok.kind.ident? && peek.op?(":") && !peek.space_before?
+          nt = advance
+          advance
+          skip_nl
+          named << NamedArg.new(nt.line, nt.col, nt.text, parse_expr)
+        else
+          args << parse_expr
+        end
+        skip_nl
+        break unless accept_op(",")
+        skip_nl
+      end
     end
 
     private def parse_block : Lambda
@@ -680,12 +693,12 @@ module Sparkle
 
     private def parse_string(t : Token) : Expr
       parts = [] of String | Expr
-      t.parts.not_nil!.each do |p|
-        case p
+      string_parts(t).each do |part|
+        case part
         in String
-          parts << p
+          parts << part
         in Array(Token)
-          parts << Parser.new(p).parse_standalone
+          parts << Parser.new(part).parse_standalone
         end
       end
       StrLit.new(t.line, t.col, parts)

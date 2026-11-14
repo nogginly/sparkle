@@ -84,20 +84,23 @@ module Sparkle
     end
 
     private def next_line_starts_with_dot? : Bool
-      i = @pos
+      i = skip_blank(@pos)
+      i < @chars.size && @chars[i] == '.' && @chars[i + 1]? != '.'
+    end
+
+    # The index of the first character at or after `i` that is neither
+    # whitespace nor part of a comment.
+    private def skip_blank(i : Int32) : Int32
       loop do
-        while i < @chars.size && (@chars[i] == ' ' || @chars[i] == '\t' || @chars[i] == '\r' || @chars[i] == '\n')
+        while i < @chars.size && @chars[i].in?(' ', '\t', '\r', '\n')
           i += 1
         end
-        if i < @chars.size && @chars[i] == '#'
-          while i < @chars.size && @chars[i] != '\n'
-            i += 1
-          end
-          next
+        break unless i < @chars.size && @chars[i] == '#'
+        while i < @chars.size && @chars[i] != '\n'
+          i += 1
         end
-        break
       end
-      i < @chars.size && @chars[i] == '.' && @chars[i + 1]? != '.'
+      i
     end
 
     private def lex_token(c : Char, space : Bool) : Nil
@@ -105,11 +108,11 @@ module Sparkle
       if c.ascii_lowercase? || c == '_'
         lex_ident(line, col, space)
       elsif c.ascii_uppercase?
-        text = take_while { |ch| ch.ascii_alphanumeric? || ch == '_' }
+        text = take_while { |char| char.ascii_alphanumeric? || char == '_' }
         @tokens << Token.new(Kind::Const, text, line, col, space)
       elsif c == '@' && (peek(1).ascii_letter? || peek(1) == '_')
         advance
-        text = take_while { |ch| ch.ascii_alphanumeric? || ch == '_' }
+        text = take_while { |char| char.ascii_alphanumeric? || char == '_' }
         @tokens << Token.new(Kind::InstVar, text, line, col, space)
       elsif c.ascii_number?
         lex_number(line, col, space)
@@ -123,16 +126,16 @@ module Sparkle
     end
 
     private def take_while(&) : String
-      String.build do |s|
+      String.build do |buffer|
         while @pos < @chars.size && yield(@chars[@pos])
-          s << @chars[@pos]
+          buffer << @chars[@pos]
           advance
         end
       end
     end
 
     private def lex_ident(line, col, space) : Nil
-      text = take_while { |ch| ch.ascii_alphanumeric? || ch == '_' }
+      text = take_while { |char| char.ascii_alphanumeric? || char == '_' }
       if (peek == '?' || peek == '!') && peek(1) != '='
         text += peek.to_s
         advance
@@ -146,39 +149,13 @@ module Sparkle
 
     private def lex_number(line, col, space) : Nil
       float = false
-      text = String.build do |s|
+      text = String.build do |buffer|
         if peek == '0' && (peek(1) == 'x' || peek(1) == 'b')
-          hex = peek(1) == 'x'
-          s << peek << peek(1)
-          advance
-          advance
-          while @pos < @chars.size
-            ch = peek
-            break unless ch == '_' || (hex ? ch.hex? : (ch == '0' || ch == '1'))
-            break if ch == '_' && (peek(1) == 'i' || peek(1) == 'u')
-            s << ch
-            advance
-          end
+          take_radix_digits(buffer)
         else
-          digits(s)
-          if peek == '.' && peek(1).ascii_number?
-            float = true
-            s << '.'
-            advance
-            digits(s)
-          end
-          if (peek == 'e' || peek == 'E') && (peek(1).ascii_number? || ((peek(1) == '-' || peek(1) == '+') && peek(2).ascii_number?))
-            float = true
-            s << peek
-            advance
-            if peek == '-' || peek == '+'
-              s << peek
-              advance
-            end
-            digits(s)
-          end
+          float = take_decimal(buffer)
         end
-        take_suffix(s)
+        take_suffix(buffer)
       end
       suffix = nil
       if m = (text.starts_with?("0x") ? HEX_SUFFIX : SUFFIX).match(text)
@@ -191,17 +168,67 @@ module Sparkle
       @tokens << tok
     end
 
+    private def take_radix_digits(buffer : String::Builder) : Nil
+      hex = peek(1) == 'x'
+      buffer << peek << peek(1)
+      advance
+      advance
+      while @pos < @chars.size
+        ch = peek
+        break unless ch == '_' || (hex ? ch.hex? : (ch == '0' || ch == '1'))
+        break if ch == '_' && (peek(1) == 'i' || peek(1) == 'u')
+        buffer << ch
+        advance
+      end
+    end
+
+    # Reads an integer or float literal body; returns whether it is a float.
+    private def take_decimal(buffer : String::Builder) : Bool
+      float = false
+      digits(buffer)
+      if peek == '.' && peek(1).ascii_number?
+        float = true
+        buffer << '.'
+        advance
+        digits(buffer)
+      end
+      if exponent_ahead?
+        float = true
+        take_exponent(buffer)
+      end
+      float
+    end
+
+    private def exponent_ahead? : Bool
+      return false unless peek == 'e' || peek == 'E'
+      peek(1).ascii_number? || ((peek(1) == '-' || peek(1) == '+') && peek(2).ascii_number?)
+    end
+
+    private def take_exponent(buffer : String::Builder) : Nil
+      buffer << peek
+      advance
+      if peek == '-' || peek == '+'
+        buffer << peek
+        advance
+      end
+      digits(buffer)
+    end
+
     private def take_suffix(s : String::Builder) : Nil
-      if peek == '_' && (peek(1) == 'i' || peek(1) == 'u' || peek(1) == 'f') && peek(2).ascii_number?
+      if peek == '_' && suffix_letter?(peek(1)) && peek(2).ascii_number?
         s << '_'
         advance
       end
-      if (peek == 'i' || peek == 'u' || peek == 'f') && peek(1).ascii_number?
+      if suffix_letter?(peek) && peek(1).ascii_number?
         while peek.ascii_alphanumeric?
           s << peek
           advance
         end
       end
+    end
+
+    private def suffix_letter?(char : Char) : Bool
+      char == 'i' || char == 'u' || char == 'f'
     end
 
     private def digits(s : String::Builder) : Nil
@@ -215,13 +242,13 @@ module Sparkle
 
     private def lex_char(line, col, space) : Nil
       advance
-      text = String.build do |s|
+      text = String.build do |buffer|
         while @pos < @chars.size && peek != '\''
           if peek == '\\'
-            s << peek
+            buffer << peek
             advance
           end
-          s << peek
+          buffer << peek
           advance
         end
       end
@@ -316,7 +343,7 @@ module Sparkle
 
     private def lex_operator(c : Char, line, col, space) : Nil
       OPERATORS.each do |op|
-        if op.each_char.with_index.all? { |ch, k| peek(k) == ch }
+        if op.each_char.with_index.all? { |char, k| peek(k) == char }
           op.size.times { advance }
           @tokens << Token.new(Kind::Op, op, line, col, space)
           return
