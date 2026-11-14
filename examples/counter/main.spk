@@ -1,6 +1,6 @@
 class Counter
   @n : UInt64 = 0
-  def ref incr = @n += 1
+  def ref incr : UInt64 = @n += 1
   def count : UInt64 = @n
 end
 
@@ -8,7 +8,8 @@ actor Main
   def self.new(env : Env)
     c = Counter.new
     c.incr
-    c.incr
-    env.@out.print("count = #{c.count}")
+    last = c.incr
+    a = b = 7
+    env.@out.print("count = #{c.count}, last = #{last}, a = #{a}, b = #{b}")
   end
 end

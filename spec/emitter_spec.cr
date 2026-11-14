@@ -292,4 +292,31 @@ describe Emitter do
       body("xs = [1]\nxs.each do |x|\nend\nx = 1").should contain "var x: I32 = 1"
     end
   end
+
+  describe "assignment as a value" do
+    it "keeps statements unchanged" do
+      body("y = 5\ny = 6").should contain "var y: I32 = 5\n    y = 6"
+      body("c = true\nx = 1 if c").should contain "if c then var x: I32 = 1 end"
+    end
+
+    it "evaluates to the new value" do
+      body("x = (y = 5)").should contain "var x = (var y: I32 = 5; y)"
+      body("x = y = 5").should contain "var x = (var y: I32 = 5; y)"
+      body("n = 3\nwhile (n -= 1) > 0\n  n\nend").should contain "while (n = n - 1; n) > 0 do"
+    end
+
+    it "returns the new value from a method with a return type" do
+      decl("class C\n  @n : UInt64 = 0\n  def ref incr : UInt64 = @n += 1\nend\n").should contain "fun ref incr(): U64 =>\n    (_n = _n + 1; _n)"
+      decl("class C\n  @n : UInt64 = 0\n  def ref bump = @n += 1\nend\n").should contain "fun ref bump() =>\n    _n = _n + 1"
+    end
+
+    it "treats a block's last statement as a statement, since a lambda returns None" do
+      body("a = [1]\nf(1) do |v|\n  a[0] = v\nend").should contain "a(0) = v"
+      body("a = [1]\nf(1) { |v| a[0] = v }").should contain "a(0) = v}"
+    end
+
+    it "rejects the value of an index assignment" do
+      expect_raises(ParseError) { translate("actor Main\n  def self.new(env : Env)\n    a = [1]\n    b = (a[0] = 2)\n  end\nend\n") }
+    end
+  end
 end

@@ -65,9 +65,10 @@ module Sparkle
       ">=" => "ge", "<<" => "push", ">>" => "shr", "[]" => "apply",
       "[]!" => "apply", "[]=" => "update",
     }
-    REF_BY_DEFAULT = Set{"[]=", "<<"}
-    BINARY_WORDS   = {"&&" => "and", "||" => "or"}
-    LOOP_METHODS   = Set{"each", "each_with_index", "times"}
+    NON_VALUE_ASSIGN = "the value of an index, setter or field assignment cannot be used; assign, then read"
+    REF_BY_DEFAULT   = Set{"[]=", "<<"}
+    BINARY_WORDS     = {"&&" => "and", "||" => "or"}
+    LOOP_METHODS     = Set{"each", "each_with_index", "times"}
 
     # Returns the Pony text and source map for `program`.
     def self.emit(program : Program) : {String, SourceMap}
@@ -82,6 +83,7 @@ module Sparkle
     getter? uses_collections = false
     @scopes = [] of Set(String)
     @ivars = Set(String).new
+    @statement = false
     @method_names = Set(String).new
 
     def initialize(@program : Program, @add_collections : Bool)
@@ -181,24 +183,24 @@ module Sparkle
       name.ends_with?('!')
     end
 
-    private def block(stmts : Array(Expr)) : Nil
+    private def block(stmts : Array(Expr), value : Bool = false) : Nil
       @w.indent += 1
       if stmts.empty?
         @w.nl
         w "None"
       else
-        stmts.each do |stmt|
+        stmts.each_with_index do |stmt, i|
           @w.nl
-          emit(stmt)
+          emit(stmt, statement: !(value && i == stmts.size - 1))
         end
       end
       @w.indent -= 1
     end
 
-    private def scoped_block(stmts : Array(Expr), names : Array(String) = [] of String) : Nil
+    private def scoped_block(stmts : Array(Expr), names : Array(String) = [] of String, value : Bool = false) : Nil
       scoped do
         names.each { |name| declare(name) }
-        block(stmts)
+        block(stmts, value)
       end
     end
 
@@ -307,9 +309,11 @@ module Sparkle
       body = m.body
       return unless body
       w " =>"
+      ret = m.ret
+      returns_value = !constructor && m.kind != "be" && !(ret.nil? || PonyType.to_pony(ret) == "None")
       scoped do
         m.params.each { |param| declare(param.name) }
-        block(body)
+        block(body, returns_value)
       end
     end
 
@@ -356,9 +360,15 @@ module Sparkle
       end
     end
 
-    private def emit(e : Expr) : Nil
-      mark(e)
-      emit_node(e)
+    private def emit(e : Expr, statement : Bool = false) : Nil
+      saved = @statement
+      @statement = statement
+      begin
+        mark(e)
+        emit_node(e)
+      ensure
+        @statement = saved
+      end
     end
 
     private def emit_node(e : IntLit | FloatLit) : Nil
@@ -398,6 +408,11 @@ module Sparkle
     end
 
     private def emit_node(e : Paren) : Nil
+      inner = e.expr
+      if inner.is_a?(Assign) || inner.is_a?(OpAssign)
+        emit(inner)
+        return
+      end
       w "("
       emit(e.expr)
       w ")"
@@ -575,6 +590,28 @@ module Sparkle
 
     private def emit_assign(a : Assign) : Nil
       t = a.target
+      value = !@statement
+      if value
+        unless t.is_a?(Ident) || t.is_a?(IVarRef)
+          raise ParseError.new(NON_VALUE_ASSIGN, a.line, a.col)
+        end
+        w "("
+      end
+      emit_assign_statement(a, t)
+      return unless value
+      w "; "
+      emit_target_read(t)
+      w ")"
+    end
+
+    private def emit_target_read(t : Expr) : Nil
+      case t
+      when Ident   then w local(t.name)
+      when IVarRef then w "_#{t.name}"
+      end
+    end
+
+    private def emit_assign_statement(a : Assign, t : Expr) : Nil
       case t
       when Ident
         name = local(t.name)
@@ -633,6 +670,21 @@ module Sparkle
 
     private def emit_op_assign(a : OpAssign) : Nil
       t = a.target
+      value = !@statement
+      if value
+        unless t.is_a?(Ident) || t.is_a?(IVarRef)
+          raise ParseError.new(NON_VALUE_ASSIGN, a.line, a.col)
+        end
+        w "("
+      end
+      emit_op_assign_statement(a, t)
+      return unless value
+      w "; "
+      emit_target_read(t)
+      w ")"
+    end
+
+    private def emit_op_assign_statement(a : OpAssign, t : Expr) : Nil
       if t.is_a?(Call)
         emit_receiver(target_receiver(t))
         w ".set_#{t.name}("
@@ -664,13 +716,14 @@ module Sparkle
     end
 
     private def emit_if(n : If) : Nil
+      stmt = @statement
       keyword = "if"
       cur = n
       if n.modifier && n.else_.nil? && inline_body?(n.then_)
         w "if "
         emit_cond(n)
         w " then "
-        scoped { emit(n.then_[0]) }
+        scoped { emit(n.then_[0], statement: stmt) }
         w " end"
         return
       end
@@ -678,7 +731,7 @@ module Sparkle
         w "#{keyword} "
         emit_cond(cur)
         w " then"
-        scoped_block(cur.then_)
+        scoped_block(cur.then_, value: !stmt)
         @w.nl
         els = cur.else_
         if els && els.size == 1 && (nxt = els[0]).is_a?(If) && nxt.is_elsif
@@ -686,7 +739,7 @@ module Sparkle
           cur = nxt
         elsif els
           w "else"
-          scoped_block(els)
+          scoped_block(els, value: !stmt)
           @w.nl
           w "end"
           break
@@ -738,6 +791,7 @@ module Sparkle
     end
 
     private def emit_case(c : Case) : Nil
+      stmt = @statement
       w "match "
       w "\\exhaustive\\ " if c.exhaustive
       emit(c.subject)
@@ -751,13 +805,13 @@ module Sparkle
             emit_pattern(pattern)
           end
           w " =>"
-          block(branch.body)
+          block(branch.body, !stmt)
         end
       end
       if els = c.else_
         @w.nl
         w "else"
-        scoped_block(els)
+        scoped_block(els, value: !stmt)
       end
       @w.nl
       w "end"
@@ -784,12 +838,13 @@ module Sparkle
     end
 
     private def emit_begin(b : Begin) : Nil
+      stmt = @statement
       w "try"
-      scoped_block(b.body)
+      scoped_block(b.body, value: !stmt)
       if r = b.rescue_body
         @w.nl
         w "else"
-        scoped_block(r)
+        scoped_block(r, value: !stmt)
       end
       if en = b.ensure_body
         @w.nl
@@ -803,7 +858,7 @@ module Sparkle
     private def emit_recover(r : Recover) : Nil
       w "recover"
       w " #{r.cap}" if r.cap
-      scoped_block(r.body)
+      scoped_block(r.body, value: true)
       @w.nl
       w "end"
     end
@@ -837,7 +892,7 @@ module Sparkle
         w " "
         scoped do
           l.params.each { |param| declare(param.name) }
-          emit(l.body[0])
+          emit(l.body[0], statement: true)
         end
         w "}"
       else

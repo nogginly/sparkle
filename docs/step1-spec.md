@@ -104,7 +104,7 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 
 ### Assignment as a value
 
-Pony's assignment evaluates to the old value; Sparkle's, like Crystal's, to the new one. An assignment is a **statement** when its value is discarded: a statement that is not the last of its block, the last of a block whose value is unused (a loop body, a `be`, a constructor, a method with no return type or `Nil`, an `if` used as a statement), or the body of a modifier `if`/`unless` used as a statement. A statement emits as before. Anywhere else the assignment is a **value**, and the target is read back:
+Pony's assignment evaluates to the old value; Sparkle's, like Crystal's, to the new one. An assignment is a **statement** when its value is discarded: a statement that is not the last of its block, the last of a block whose value is unused (a loop body, a block passed as a lambda, a `be`, a constructor, a method with no return type or `Nil`, an `if` used as a statement), or the body of a modifier `if`/`unless` used as a statement. A statement emits as before. Anywhere else the assignment is a **value**, and the target is read back:
 
 | Sparkle | Pony |
 |---|---|
