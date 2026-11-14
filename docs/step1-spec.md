@@ -84,6 +84,7 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 |---|---|---|
 | `x = 1` (first assignment in scope) | `var x = 1` | later assignments emit `x = 2` |
 | `x : UInt8 = 1` | `var x: U8 = 1` | |
+| `x = (y = 5)`, `x = y = 5` | `var x = (var y: I32 = 5; y)` | an assignment used as a value gives the **new** value, as in Crystal; see below |
 | `x = 0` / `x = 1.5` (first assignment, bare literal) | `var x: I32 = 0` / `var x: F64 = 1.5` | Crystal's literal defaults; Pony cannot infer them |
 | a parameter or local named like a method of its type | emitted with a prime: `payload'` | Pony forbids the clash; Crystal's `def self.new(payload)` beside `def payload` is idiomatic |
 | `@n` | `_n` | |
@@ -100,6 +101,19 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | `x.empty?` | `x.is_empty()` | |
 | `x.as!(T)` | `(x as T)` | |
 | `x.nil?` | `(x is None)` | |
+
+### Assignment as a value
+
+Pony's assignment evaluates to the old value; Sparkle's, like Crystal's, to the new one. An assignment is a **statement** when its value is discarded: a statement that is not the last of its block, the last of a block whose value is unused (a loop body, a `be`, a constructor, a method with no return type or `Nil`, an `if` used as a statement), or the body of a modifier `if`/`unless` used as a statement. A statement emits as before. Anywhere else the assignment is a **value**, and the target is read back:
+
+| Sparkle | Pony |
+|---|---|
+| `y = 5` (statement) | `y = 5` |
+| `x = (y = 5)` | `var x = (y = 5; y)` |
+| `def ref incr : UInt64 = @n += 1` | `fun ref incr(): U64 => (_n = _n + 1; _n)` |
+| `while (n -= 1) > 0` | `while (n = n - 1; n) > 0 do` |
+
+Only a local or `@field` target can be used as a value. An index (`a[i] = v`), setter (`x.name = v`) or field write (`x.@name = v`) used as a value is a translation error.
 
 ### Operators
 
@@ -178,7 +192,8 @@ sparkle caps PATH...                # capability statistics
 
 ## 8. Known semantic gaps
 
-- Pony assignment evaluates to the **old** value of the left side, not the new one.
+- Reading an assignment's value aliases the target, so `x = (y = consume z)` fails for an `iso` `z`. Assign, then `consume y`.
+- An index, setter or field assignment cannot be used as a value (see *Assignment as a value*).
 - A variable first assigned inside a branch or loop is scoped to that block, as in Pony.
 - `ticks = 0` is an `Int32`, as in Crystal, so it will not compare with a `USize`. Write `ticks : USize = 0`.
 - A named argument is not primed, because the callee is unknown: `f(payload: 1)` fails when `f`'s type also has a method `payload`.
