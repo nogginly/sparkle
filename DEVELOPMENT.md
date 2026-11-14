@@ -37,7 +37,14 @@ make ponyc
 make build
 ```
 
-`make ponyc` downloads the prebuilt Pony release matching `vendor/ponyc/VERSION` into `.tools/ponyc`. It supports Linux on x86-64 only; set `PONYC_DISTRO` (for example `ubuntu24.04`) if your distribution is not detected correctly.
+`make ponyc` downloads the prebuilt Pony release matching `vendor/ponyc/VERSION` into `.tools/ponyc`. It supports macOS and Linux, on Apple silicon/arm64 and x86-64.
+
+Host   |Note
+-------|------------------------------------------------------------------------------
+macOS  |Needs the Xcode Command Line Tools (`xcode-select --install`); `ponyc` uses their SDK to link programs
+Linux  |Pony publishes builds per distribution. Set `PONYC_DISTRO` (for example `ubuntu24.04`) if yours is not detected or has no build
+
+On any other host, use `make ponyc-source`.
 
 ### Actions
 
