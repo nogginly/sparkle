@@ -4,7 +4,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## How we work
 
-- One branch per piece of work, named for it (`step2-libponyc-spike`), cut from `main`. No pull request unless asked.
+- One branch per piece of work, named for it (`step2-libponyc-spike`), cut from `main`, with a pull request opened when its work is ready.
 - Mechanical, checkable tasks go to the `implementer` subagent on a cheaper model, following [.claude/delegation.md](.claude/delegation.md). Design, diagnosis, spikes and review stay in the main session. A language change is specified, and its Pony forms compiled by hand, before the brief is written.
 - CI (`.github/workflows/ci.yml`) runs the checks on Linux and macOS for every PR and fails on pending specs.
 - Questions and decisions put to the user are labelled (**Question**, **Decision**).

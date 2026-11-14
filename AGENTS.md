@@ -33,7 +33,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 - Name a branch for the work it holds, such as `step1-translator` or `step2-yield-inlining`.
 - One commit per coherent change. The message says what changed and why.
-- Do not open a pull request unless asked.
+- Open a pull request for each branch when its work is ready; that is how changes are reviewed and reach `main`.
 
 ## Code style
 
