@@ -37,6 +37,7 @@ jobs:
 
       - name: Test, with no pending specs
         run: |
+          set -o pipefail
           make test 2>&1 | tee spec.log
           grep -q ', 0 pending' spec.log || { echo "::error::pending specs: ponyc was not used"; exit 1; }
 
