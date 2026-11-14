@@ -65,4 +65,9 @@ describe Lexer do
   it "rejects unterminated strings" do
     expect_raises(ParseError, /unterminated string/) { lex(%("abc)) }
   end
+
+  it "lexes :: as one operator and : on its own" do
+    lex("Colour::Red").map { |token| {token.kind, token.text} }.first(3).should eq [{Kind::Const, "Colour"}, {Kind::Op, "::"}, {Kind::Const, "Red"}]
+    lex("x : Int32").map(&.text).first(3).should eq ["x", ":", "Int32"]
+  end
 end

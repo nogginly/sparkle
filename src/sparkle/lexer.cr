@@ -9,12 +9,12 @@ module Sparkle
       "end", "if", "elsif", "else", "unless", "while", "until", "do", "case",
       "when", "in", "then", "begin", "rescue", "ensure", "raise", "return",
       "break", "next", "self", "nil", "true", "false", "consume", "recover",
-      "use", "alias", "include", "abstract", "is", "isnt", "of",
+      "use", "alias", "include", "abstract", "is", "isnt", "of", "enum",
     }
 
     OPERATORS = [
       "...", "..", "&.", "->", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||",
-      "+=", "-=", "*=", "/=", "%=",
+      "+=", "-=", "*=", "/=", "%=", "::",
     ]
     SINGLE = "+-*/%=<>!&|?:,.()[]{};^~"
 

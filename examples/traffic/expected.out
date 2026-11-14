@@ -1,0 +1,4 @@
+Red = 0, next Green
+Amber = 5, next Red
+Green = 6, next Amber
+go

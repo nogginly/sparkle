@@ -84,6 +84,7 @@ module Sparkle
   node TupleLit, Expr, items : Array(Expr)
   node RangeLit, Expr, from : Expr, to : Expr, exclusive : Bool
   node AsCast, Expr, expr : Expr, type : TypeNode
+  node EnumRef, Expr, enum_name : String, member : String
 
   # Where a capability was written, for `sparkle caps`.
   record CapUse, position : String, cap : String, line : Int32, col : Int32
@@ -97,6 +98,10 @@ module Sparkle
   node TypeDecl, Node, kind : String, cap : String?, name : String, tparams : Array(TypeParam), includes : Array(TypeNode), fields : Array(Field), methods : Array(Method)
   node AliasDecl, Node, name : String, type : TypeNode
   node UseDecl, Node, path : String
+
+  # `value` is the member's resolved integer value.
+  node EnumMember, Node, name : String, value : Int64
+  node EnumDecl, Node, name : String, members : Array(EnumMember)
 
   class Program
     getter items : Array(Node)

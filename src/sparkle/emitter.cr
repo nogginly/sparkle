@@ -98,6 +98,18 @@ module Sparkle
       table
     end
 
+    # Maps each Pony enum member name to its Sparkle spelling (`ColourRed` to `Colour::Red`).
+    def self.enum_names(programs : Array(Program)) : Hash(String, String)
+      names = Hash(String, String).new
+      programs.each do |program|
+        program.items.each do |decl|
+          next unless decl.is_a?(EnumDecl)
+          decl.members.each { |member| names["#{decl.name}#{member.name}"] = "#{decl.name}::#{member.name}" }
+        end
+      end
+      names
+    end
+
     def self.pony_ident(name : String) : String
       PONY_RESERVED.includes?(name) ? "#{name}_" : name
     end
@@ -156,6 +168,10 @@ module Sparkle
           first = false
           emit_type_decl(item)
           @w.nl
+        when EnumDecl
+          @w.nl unless first
+          first = false
+          emit_enum(item)
         when AliasDecl
           @w.nl unless first
           first = false
@@ -231,6 +247,29 @@ module Sparkle
     end
 
     # --- declarations ------------------------------------------------------
+
+    private def emit_enum(d : EnumDecl) : Nil
+      d.members.each do |member|
+        pony = "#{d.name}#{member.name}"
+        mark(member)
+        w "primitive #{pony}"
+        @w.indent += 1
+        @w.nl
+        w "fun value(): I32 => #{member.value}"
+        @w.nl
+        w %(fun string(): String iso^ => "#{member.name}".clone())
+        @w.nl
+        w "fun eq(that: #{d.name}): Bool => that is this"
+        @w.nl
+        w "fun ne(that: #{d.name}): Bool => not (that is this)"
+        @w.indent -= 1
+        @w.nl
+        @w.nl
+      end
+      mark(d)
+      w "type #{d.name} is (#{d.members.map { |member| "#{d.name}#{member.name}" }.join(" | ")})"
+      @w.nl
+    end
 
     private def emit_type_decl(d : TypeDecl) : Nil
       mark(d)
@@ -347,7 +386,7 @@ module Sparkle
 
     private def atomic?(e : Expr) : Bool
       case e
-      when Ident, IVarRef, SelfRef, IntLit, FloatLit, CharLit, BoolLit, NilLit, TypeRef,
+      when Ident, IVarRef, SelfRef, IntLit, FloatLit, CharLit, BoolLit, NilLit, TypeRef, EnumRef,
            Index, FieldRead, Paren, ArrayLit, TupleLit, AsCast, AmpMethod, Lambda
         true
       when Call
@@ -427,6 +466,10 @@ module Sparkle
 
     private def emit_node(e : IVarRef) : Nil
       w "_#{e.name}"
+    end
+
+    private def emit_node(e : EnumRef) : Nil
+      w "#{e.enum_name}#{e.member}"
     end
 
     private def emit_node(e : TypeRef) : Nil
@@ -856,6 +899,8 @@ module Sparkle
           emit_pattern(item)
         end
         w ")"
+      when EnumRef
+        w "let _: #{p.enum_name}#{p.member}"
       when Ident
         w(p.name == "_" ? "_" : local(p.name))
       else

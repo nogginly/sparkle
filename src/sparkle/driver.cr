@@ -79,6 +79,7 @@ module Sparkle
         return {1, nil}
       end
       primed = Emitter.primed_params(programs)
+      names = Emitter.enum_names(programs)
       files.each_with_index do |file, i|
         source = sources[i]
         begin
@@ -100,7 +101,7 @@ module Sparkle
       Dir.mkdir_p(out_dir)
       io = IO::Memory.new
       status = Process.run(ponyc, ["-o", out_dir, "-b", package, File.expand_path(gen_dir)], output: io, error: io)
-      err.print Diagnostics.rewrite(io.to_s, generated)
+      err.print Diagnostics.rewrite(io.to_s, generated, names: names)
       {status.exit_code, File.join(out_dir, package)}
     end
   end

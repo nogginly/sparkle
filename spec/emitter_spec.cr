@@ -339,4 +339,45 @@ describe Emitter do
       expect_raises(ParseError) { translate("actor Main\n  def self.new(env : Env)\n    a = [1]\n    b = (a[0] = 2)\n  end\nend\n") }
     end
   end
+
+  describe "enums" do
+    it "emits a primitive per member and a union type" do
+      decl("enum Colour\n  Red\n  Green = 5\n  Blue\nend\n").should eq <<-PONY
+        primitive ColourRed
+          fun value(): I32 => 0
+          fun string(): String iso^ => "Red".clone()
+          fun eq(that: Colour): Bool => that is this
+          fun ne(that: Colour): Bool => not (that is this)
+
+        primitive ColourGreen
+          fun value(): I32 => 5
+          fun string(): String iso^ => "Green".clone()
+          fun eq(that: Colour): Bool => that is this
+          fun ne(that: Colour): Bool => not (that is this)
+
+        primitive ColourBlue
+          fun value(): I32 => 6
+          fun string(): String iso^ => "Blue".clone()
+          fun eq(that: Colour): Bool => that is this
+          fun ne(that: Colour): Bool => not (that is this)
+
+        type Colour is (ColourRed | ColourGreen | ColourBlue)
+
+        PONY
+    end
+
+    it "emits member references and patterns" do
+      body("c = Colour::Green").should contain "var c = ColourGreen"
+      body("c = Colour::Green\ncase c in\nwhen Colour::Red then 1\nend").should contain "| let _: ColourRed =>"
+    end
+
+    it "parenthesises a single member" do
+      decl("enum Solo\n  Only\nend\n").should contain "type Solo is (SoloOnly)"
+    end
+
+    it "maps Pony member names back" do
+      names = Emitter.enum_names([Parser.parse("enum Colour\n  Red\nend\n")])
+      names.should eq({"ColourRed" => "Colour::Red"})
+    end
+  end
 end

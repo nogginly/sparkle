@@ -119,11 +119,49 @@ module Sparkle
         name = expect_kind(Kind::Const, "a type name").text
         expect_op("=")
         AliasDecl.new(t.line, t.col, name, parse_type)
+      elsif t.kw?("enum") && peek.kind.const?
+        parse_enum
       elsif t.kind.kw? && TYPE_KINDS.includes?(t.text)
         parse_type_decl
       else
         error("expected a type declaration (class, actor, ...) but found #{t}")
       end
+    end
+
+    private def parse_enum : EnumDecl
+      kw = advance
+      name = expect_kind(Kind::Const, "an enum name").text
+      members = [] of EnumMember
+      next_value = 0_i64
+      loop do
+        skip_separators
+        t = tok
+        if t.kw?("end")
+          error("an enum needs at least one member") if members.empty?
+          advance
+          break
+        end
+        error("only members are allowed in an enum body") unless t.kind.const?
+        error("duplicate enum member #{t.text}") if members.any? { |member| member.name == t.text }
+        advance
+        value = next_value
+        if accept_op("=")
+          value = parse_enum_value
+        end
+        members << EnumMember.new(t.line, t.col, t.text, value)
+        next_value = value + 1
+        error("only members are allowed in an enum body") unless tok.kind.newline? || tok.op?(";")
+      end
+      EnumDecl.new(kw.line, kw.col, name, members)
+    end
+
+    private def parse_enum_value : Int64
+      negative = accept_op("-")
+      t = tok
+      error("expected an integer literal but found #{t}") unless t.kind.int?
+      advance
+      value = t.text.delete('_').to_i64?(prefix: true) || error("expected an integer literal but found #{t}", t)
+      negative ? -value : value
     end
 
     private def string_parts(t : Token) : Array(StrPart)
@@ -705,6 +743,7 @@ module Sparkle
     end
 
     private def parse_const_ref : Expr
+      return parse_enum_ref if tok.kind.const? && peek.op?("::") && peek(2).kind.const?
       t = advance
       args = [] of TypeNode
       if tok.op?("(") && !tok.space_before?
@@ -719,6 +758,13 @@ module Sparkle
         expect_op(")")
       end
       TypeRef.new(t.line, t.col, NamedType.new(t.line, t.col, t.text, args))
+    end
+
+    private def parse_enum_ref : Expr
+      t = advance
+      advance
+      member = advance
+      EnumRef.new(t.line, t.col, t.text, member.text)
     end
 
     private def parse_op_primary : Expr

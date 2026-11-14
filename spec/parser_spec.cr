@@ -86,4 +86,27 @@ describe Parser do
   it "rejects raise with an argument" do
     expect_raises(ParseError, /takes no argument/) { expr(%(raise "x")) }
   end
+
+  describe "enums" do
+    it "resolves member values" do
+      enum_decl = Parser.parse("enum Colour\n  Red\n  Green = 5\n  Blue\nend\n").items.first.as(EnumDecl)
+      enum_decl.members.map(&.value).should eq [0_i64, 5_i64, 6_i64]
+    end
+
+    it "accepts negative values" do
+      enum_decl = Parser.parse("enum E\n  A = -2\n  B\nend\n").items.first.as(EnumDecl)
+      enum_decl.members.map(&.value).should eq [-2_i64, -1_i64]
+    end
+
+    it "rejects bad enums" do
+      expect_raises(ParseError, "an enum needs at least one member") { Parser.parse("enum E\nend\n") }
+      expect_raises(ParseError, "duplicate enum member A") { Parser.parse("enum E\n  A\n  A\nend\n") }
+      expect_raises(ParseError, "only members are allowed in an enum body") { Parser.parse("enum E\n  A\n  def f\n  end\nend\n") }
+    end
+
+    it "parses Colour::Red as an EnumRef" do
+      ref = expr("Colour::Red").as(EnumRef)
+      {ref.enum_name, ref.member}.should eq({"Colour", "Red"})
+    end
+  end
 end
