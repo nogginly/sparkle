@@ -80,7 +80,7 @@ Path             | Holds
 
 ## Using `ops`
 
-> Not required unless your are so inclined.
+> Not required unless you are so inclined.
 
 The `ops` tool provides an alternative way to define task recipes. It can be installed in one of the following ways:
   - as a gem via `gem install ops_team` or
@@ -93,8 +93,8 @@ Command                | Description
 `ops up`               | Gets everything setup, including shards, `ponyc`, submodule init, etc.
 `ops lint`             | Run `ameba` on the source code
 `ops build` or `b`     | Runs `make build`
-`ops test`             | Runs `ops lint` and `make test`
-`ops wipe`             | Clears Crystal build caches and runs `make clean`
+`ops test`             | Runs `ops lint` first, then `make test`
+`ops clean`            | Clears Crystal build caches and runs `make clean`
 `ops run CRYSTAL_FILE` | Helper to run individual Crystal programs from source
 `ops sparkle`          | Runs `bin/sparkle` assuming it's been built.
 
