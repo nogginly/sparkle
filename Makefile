@@ -11,6 +11,7 @@ TOOLS_PONYC ?= .tools/ponyc
 .PHONY: ponyc ponyc-source build test lint clean distclean
 
 build:
+	@mkdir -p bin
 	crystal build src/sparkle.cr -o bin/sparkle
 
 test:
