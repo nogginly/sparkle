@@ -39,44 +39,64 @@ make build
 
 `make ponyc` downloads the prebuilt Pony release matching `vendor/ponyc/VERSION` into `.tools/ponyc`. It supports macOS and Linux, on Apple silicon/arm64 and x86-64.
 
-Host   |Note
--------|------------------------------------------------------------------------------
-macOS  |Needs the Xcode Command Line Tools (`xcode-select --install`); `ponyc` uses their SDK to link programs
-Linux  |Pony publishes builds per distribution. Set `PONYC_DISTRO` (for example `ubuntu24.04`) if yours is not detected or has no build
+Host  | Note
+------|--------------------------------------------------------------------------------------------------------------------------------
+macOS | Needs the Xcode Command Line Tools (`xcode-select --install`); `ponyc` uses their SDK to link programs
+Linux | Pony publishes builds per distribution. Set `PONYC_DISTRO` (for example `ubuntu24.04`) if yours is not detected or has no build
 
 On any other host, use `make ponyc-source`.
 
 ### Actions
 
-Command                              |Description
--------------------------------------|------------------------------------------------------
-`make build`                         |Build the translator into `bin/sparkle`
-`make test`                          |Run all specs (`crystal spec`)
-`crystal spec --order random`        |Run the specs in random order
-`UPDATE_GOLDEN=1 crystal spec`       |Rewrite every example's `expected.pony`
-`make lint`                          |Lint all source code (`bin/ameba src spec`)
-`crystal tool format`                |Format all source code
-`make ponyc`                         |Install the prebuilt `ponyc` into `.tools/`
-`make ponyc-source`                  |Build `ponyc` from the submodule (about an hour)
-`make clean`                         |Remove `bin/` and `.sparkle/`
-`make distclean`                     |As `clean`, and remove `.tools/` too
-`bin/sparkle translate FILE.spk`     |Print the Pony generated for one file
-`bin/sparkle run PATH [-- args]`     |Translate, compile and run a `.spk` file or directory
-`bin/sparkle caps PATH...`           |Count capability annotations per file
+Command                          | Description
+---------------------------------|------------------------------------------------------
+`make build`                     | Build the translator into `bin/sparkle`
+`make test`                      | Run all specs (`crystal spec`)
+`crystal spec --order random`    | Run the specs in random order
+`UPDATE_GOLDEN=1 crystal spec`   | Rewrite every example's `expected.pony`
+`make lint`                      | Lint all source code (`bin/ameba src spec`)
+`crystal tool format`            | Format all source code
+`make ponyc`                     | Install the prebuilt `ponyc` into `.tools/`
+`make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
+`make clean`                     | Remove `bin/` and `.sparkle/`
+`make distclean`                 | As `clean`, and remove `.tools/` too
+`bin/sparkle translate FILE.spk` | Print the Pony generated for one file
+`bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
+`bin/sparkle caps PATH...`       | Count capability annotations per file
 
 ## Where things are
 
-Path                |Holds
---------------------|----------------------------------------------------------------------
-`src/sparkle/`      |The translator, one file per layer
-`spec/`             |Test specs, mirroring `src/sparkle/*`
-`spec/fixtures/`    |Programs that must fail to compile, for the diagnostics specs
-`examples/`         |Runnable programs, each with its golden Pony and expected output
-`docs/`             |The translation rules
-`vendor/ponyc/`     |Pony, as a git submodule pinned to a release tag
-`.tools/`           |The downloaded `ponyc` (not committed)
-`lib/`              |Installed shards, which is only `ameba` (not committed)
-`.sparkle/`         |Generated Pony and built binaries (not committed)
+Path             | Holds
+-----------------|-----------------------------------------------------------------
+`src/sparkle/`   | The translator, one file per layer
+`spec/`          | Test specs, mirroring `src/sparkle/*`
+`spec/fixtures/` | Programs that must fail to compile, for the diagnostics specs
+`examples/`      | Runnable programs, each with its golden Pony and expected output
+`docs/`          | The translation rules
+`vendor/ponyc/`  | Pony, as a git submodule pinned to a release tag
+`.tools/`        | The downloaded `ponyc` (not committed)
+`lib/`           | Installed shards, which is only `ameba` (not committed)
+`.sparkle/`      | Generated Pony and built binaries (not committed)
+
+## Using `ops`
+
+> Not required unless your are so inclined.
+
+The `ops` tool provides an alternative way to define task recipes. It can be installed in one of the following ways:
+  - as a gem via `gem install ops_team` or
+  - as a tool via `brew tap nickthecook/crops && brew install ops`
+
+The following `ops` actions wrap calls to `make` when the `Makefile` offers an action. CI workflow will have access to `make` and toolchains so they are the priority to maintain. Using `ops` is a convenience.
+
+Command                | Description
+-----------------------|-----------------------------------------------------------------------
+`ops up`               | Gets everything setup, including shards, `ponyc`, submodule init, etc.
+`ops lint`             | Run `ameba` on the source code
+`ops build` or `b`     | Runs `make build`
+`ops test`             | Runs `ops lint` and `make test`
+`ops wipe`             | Clears Crystal build caches and runs `make clean`
+`ops run CRYSTAL_FILE` | Helper to run individual Crystal programs from source
+`ops sparkle`          | Runs `bin/sparkle` assuming it's been built.
 
 ## Testing
 
@@ -89,11 +109,11 @@ flowchart TD
     E --> F["Failing fixtures<br/>spec/fixtures/*: errors land on the right Sparkle line"]
 ```
 
-Tier        |File                  |Needs `ponyc`
-------------|----------------------|-------------
-Unit        |`spec/<layer>_spec.cr`|No
-Golden      |`spec/golden_spec.cr` |No
-End-to-end  |`spec/e2e_spec.cr`    |Yes
+Tier       | File                   | Needs `ponyc`
+-----------|------------------------|--------------
+Unit       | `spec/<layer>_spec.cr` | No
+Golden     | `spec/golden_spec.cr`  | No
+End-to-end | `spec/e2e_spec.cr`     | Yes
 
 The unit and golden tiers prove the translator produces the Pony we expect. Only the end-to-end tier proves that Pony is correct.
 
@@ -110,10 +130,10 @@ The unit and golden tiers prove the translator produces the Pony we expect. Only
 
 Each directory under `spec/fixtures/` holds a `main.spk` that `ponyc` must reject. The end-to-end spec asserts on the rewritten error: the Sparkle file and line, the source excerpt, and types printed in Sparkle syntax.
 
-Fixture          |Proves
------------------|-----------------------------------------------------------------
-`undefined_name` |An error is reported at the Sparkle line and column
-`iso_mismatch`   |Capability and type errors print types the Sparkle way
+Fixture          | Proves
+-----------------|-------------------------------------------------------
+`undefined_name` | An error is reported at the Sparkle line and column
+`iso_mismatch`   | Capability and type errors print types the Sparkle way
 
 ## Working on the code
 
@@ -147,12 +167,12 @@ Not in place yet. When it is, `.github/workflows/ci.yml` will run on every pull 
 
 ### Keeping the documents current
 
-Document                                    |Update it when
---------------------------------------------|---------------------------------------------------------------
-[README.md](README.md)                      |What Sparkle is, why it exists, or its status changes
-[DESIGN.md](DESIGN.md)                      |A layer, a decision or the "Not built" list changes
-[docs/step1-spec.md](docs/step1-spec.md)    |A translation rule or a known gap changes
-DEVELOPMENT.md                              |The way to build, test or lint changes
+Document                                 | Update it when
+-----------------------------------------|------------------------------------------------------
+[README.md](README.md)                   | What Sparkle is, why it exists, or its status changes
+[DESIGN.md](DESIGN.md)                   | A layer, a decision or the "Not built" list changes
+[docs/step1-spec.md](docs/step1-spec.md) | A translation rule or a known gap changes
+DEVELOPMENT.md                           | The way to build, test or lint changes
 
 ## Contributions
 
