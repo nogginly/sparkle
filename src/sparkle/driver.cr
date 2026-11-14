@@ -70,17 +70,26 @@ module Sparkle
       Dir.mkdir_p(gen_dir)
       Dir.glob(File.join(gen_dir, "*.pony")).each { |stale| File.delete(stale) }
       generated = [] of GeneratedFile
-      files.each do |file|
-        source = File.read(file)
+      sources = files.map { |file| File.read(file) }
+      programs = [] of Program
+      files.each_with_index do |file, i|
+        programs << Parser.parse(sources[i])
+      rescue e : ParseError
+        err.print format_error(file, sources[i], e)
+        return {1, nil}
+      end
+      primed = Emitter.primed_params(programs)
+      files.each_with_index do |file, i|
+        source = sources[i]
         begin
-          t = translate(source)
+          pony, map = Emitter.emit(programs[i], primed)
         rescue e : ParseError
           err.print format_error(file, source, e)
           return {1, nil}
         end
         pony_path = File.join(gen_dir, File.basename(file, ".spk") + ".pony")
-        File.write(pony_path, t.pony)
-        generated << GeneratedFile.new(pony_path, file, t.map, source)
+        File.write(pony_path, pony)
+        generated << GeneratedFile.new(pony_path, file, map, source)
       end
       ponyc = find_ponyc
       unless ponyc

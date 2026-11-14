@@ -159,6 +159,26 @@ describe Emitter do
     end
   end
 
+  describe "named arguments" do
+    job = "class val Job\n  @payload : UInt32\n  def self.new(payload : UInt32)\n    @payload = payload\n  end\n  def payload : UInt32 = @payload\nend\n"
+    main = "actor Main\n  def self.new(env : Env)\n    j = Job.new(payload: 1)\n  end\nend\n"
+
+    it "primes a named argument whose parameter is primed" do
+      decl(job + main).should contain "Job.create(where payload' = 1)"
+    end
+
+    it "leaves an unmatched named argument alone" do
+      body("f(x: 1)").should eq "new create(env: Env) =>\n    f(where x = 1)"
+    end
+
+    it "matches methods across programs" do
+      job_program = Parser.parse(job)
+      main_program = Parser.parse(main)
+      table = Emitter.primed_params([job_program, main_program])
+      Emitter.emit(main_program, table)[0].should contain "where payload' = 1"
+    end
+  end
+
   describe "operators and literals" do
     it "parenthesises nested binary expressions" do
       body("a = 1 + 2 * 3 - 4").should contain "var a = (1 + (2 * 3)) - 4"

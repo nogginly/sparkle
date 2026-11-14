@@ -71,13 +71,51 @@ module Sparkle
     LOOP_METHODS     = Set{"each", "each_with_index", "times"}
 
     # Returns the Pony text and source map for `program`.
-    def self.emit(program : Program) : {String, SourceMap}
-      probe = new(program, false)
+    def self.emit(program : Program, primed : Hash(String, Set(String)) = primed_params([program])) : {String, SourceMap}
+      probe = new(program, false, primed)
       probe.run
       return {probe.text, probe.map} unless probe.uses_collections?
-      final = new(program, true)
+      final = new(program, true, primed)
       final.run
       {final.text, final.map}
+    end
+
+    # Returns, per Pony method name, the parameters that are emitted primed.
+    def self.primed_params(programs : Array(Program)) : Hash(String, Set(String))
+      table = Hash(String, Set(String)).new
+      programs.each do |program|
+        program.items.each do |decl|
+          next unless decl.is_a?(TypeDecl)
+          names = decl.methods.map { |method| pony_method_name(method.name, method.self_recv) }.to_set
+          decl.methods.each do |method|
+            method.params.each do |param|
+              n = pony_ident(param.name)
+              (table[pony_method_name(method.name, method.self_recv)] ||= Set(String).new).add(n) if names.includes?(n)
+            end
+          end
+        end
+      end
+      table
+    end
+
+    def self.pony_ident(name : String) : String
+      PONY_RESERVED.includes?(name) ? "#{name}_" : name
+    end
+
+    def self.pony_method_name(name : String, constructor : Bool) : String
+      return(name == "new" ? "create" : pony_ident(name)) if constructor
+      if op = OPERATOR_NAMES[name]?
+        return op
+      end
+      if name.ends_with?('?')
+        "is_#{name.rchop}"
+      elsif name.ends_with?('!')
+        pony_ident(name.rchop)
+      elsif name.ends_with?('=')
+        "set_#{name.rchop}"
+      else
+        pony_ident(name)
+      end
     end
 
     getter? uses_collections = false
@@ -86,7 +124,7 @@ module Sparkle
     @statement = false
     @method_names = Set(String).new
 
-    def initialize(@program : Program, @add_collections : Bool)
+    def initialize(@program : Program, @add_collections : Bool, @primed : Hash(String, Set(String)))
       @w = Writer.new
     end
 
@@ -153,7 +191,7 @@ module Sparkle
     end
 
     private def pony_ident(name : String) : String
-      PONY_RESERVED.includes?(name) ? "#{name}_" : name
+      Emitter.pony_ident(name)
     end
 
     # A local, parameter or binding name; primed when it equals a method name
@@ -164,19 +202,7 @@ module Sparkle
     end
 
     private def pony_method_name(name : String, constructor : Bool) : String
-      return(name == "new" ? "create" : pony_ident(name)) if constructor
-      if op = OPERATOR_NAMES[name]?
-        return op
-      end
-      if name.ends_with?('?')
-        "is_#{name.rchop}"
-      elsif name.ends_with?('!')
-        pony_ident(name.rchop)
-      elsif name.ends_with?('=')
-        "set_#{name.rchop}"
-      else
-        pony_ident(name)
-      end
+      Emitter.pony_method_name(name, constructor)
     end
 
     private def partial_name?(name : String) : Bool
@@ -944,12 +970,13 @@ module Sparkle
       end
       w pony_method_name(c.name, constructor)
       w "("
-      emit_call_args(c)
+      emit_call_args(c, constructor)
       w ")"
       w "?" if partial_name?(c.name)
     end
 
-    private def emit_call_args(c : Call) : Nil
+    private def emit_call_args(c : Call, constructor : Bool) : Nil
+      primed = @primed[pony_method_name(c.name, constructor)]?
       first = true
       c.args.each do |arg|
         w ", " unless first
@@ -966,7 +993,8 @@ module Sparkle
         w "where "
         c.named.each_with_index do |named_arg, i|
           w ", " if i > 0
-          w "#{pony_ident(named_arg.name)} = "
+          n = pony_ident(named_arg.name)
+          w "#{primed && primed.includes?(n) ? "#{n}'" : n} = "
           emit(named_arg.value)
         end
       end
