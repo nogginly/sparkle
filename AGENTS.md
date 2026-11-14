@@ -10,6 +10,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 | [DESIGN.md](DESIGN.md) | Layers, decisions, roadmap, what is not built |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Build, test, lint, and the workflow for a change |
 | [docs/step1-spec.md](docs/step1-spec.md) | Every translation rule and known gap |
+| [HANDOFF.md](HANDOFF.md) | Where the work stands and what's next |
 
 ## Before you call a change done
 
