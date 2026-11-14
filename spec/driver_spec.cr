@@ -28,6 +28,28 @@ describe Driver do
     text.lines[2].should eq "  ^"
   end
 
+  it "primes named arguments across the files of a package" do
+    dir = File.join(Dir.tempdir, "sparkle-spec-#{Process.pid}-#{Random.rand(1_000_000)}")
+    out_dir = "#{dir}-out"
+    Dir.mkdir_p(dir)
+    File.write(File.join(dir, "job.spk"), "class val Job\n  @payload : UInt32\n  def self.new(payload : UInt32)\n    @payload = payload\n  end\n  def payload : UInt32 = @payload\nend\n")
+    File.write(File.join(dir, "main.spk"), "actor Main\n  def self.new(env : Env)\n    j = Job.new(payload: 1)\n  end\nend\n")
+    gen_dir = File.join(".sparkle", File.basename(dir))
+    previous = ENV["SPARKLE_PONYC"]?
+    begin
+      with_ponyc("bin") do |_, ponyc|
+        ENV["SPARKLE_PONYC"] = ponyc
+        Driver.build(dir, out_dir, IO::Memory.new)
+      end
+      File.read(File.join(gen_dir, "main.pony")).should contain "where payload' = 1"
+    ensure
+      ENV["SPARKLE_PONYC"] = previous
+      FileUtils.rm_rf(gen_dir)
+      FileUtils.rm_rf(dir)
+      FileUtils.rm_rf(out_dir)
+    end
+  end
+
   describe ".find_ponyc" do
     it "prefers the environment variable" do
       Driver.find_ponyc("/opt/ponyc", nil, "/nonexistent").should eq "/opt/ponyc"

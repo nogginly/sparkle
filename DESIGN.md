@@ -124,9 +124,17 @@ Without types the translator cannot tell `x.size` the method from `x.size` the f
 | A parameter named like a method | Forbidden | Emitted with a prime (`payload'`) |
 | A class whose fields all have defaults | Infers an `iso` constructor | Emits an explicit constructor, giving `ref` |
 
+### An assignment's value is the new value
+
+Crystal's rule, not Pony's. Where the value is used, `y = 5` becomes `(y = 5; y)`; as a statement it is left alone. The cost is Pony's swap idiom, `a = b = a`, which relies on assignment returning the old value. Index, setter and field assignments are not read back, because re-reading `a(i)` is a partial call and `x.name` would evaluate `x` twice, so using their value is an error.
+
 ### Blocks without `yield`
 
 Step 1 has no `yield`. `each`, `each_with_index` and `times` with a block become real Pony `for` loops, chosen by method name, so `break` and `next` work. Any other block becomes a lambda passed as the last argument.
+
+### An enum is a set of primitives
+
+Pony has no `enum`. Each member becomes a `primitive`, prefixed with the enum's name so that two enums can both have a `Red`, and the enum becomes a union of them, which makes `case … in` exhaustive. Each member carries `value`, `string`, `eq` and `ne`. Because Pony does not count a primitive with its own `eq` towards an exhaustive match, a member in a `case` pattern is matched by type (`let _: ColourRed`), not by value.
 
 ### Dropped on purpose
 
@@ -185,12 +193,11 @@ This is untested. Linking `libponyc`, which embeds a statically linked LLVM, fro
 - **Reopening types.** Allow adding methods to an existing type elsewhere, or not? Forbidding it keeps a type's methods in one place, which makes contracts easier to prove.
 - **Macros.** Now, later or never? A few built-in declarations (`getter`, `property`, `record`) might cover most uses.
 - **Is Pony's garbage collector actually a problem?** It collects per actor, between behaviours, with no stop-the-world pause. The real reason to remove it may be runtime size, not latency.
-- **Assignment value.** Pony's assignment evaluates to the old value; Crystal's to the new one. Hide the difference or adopt Pony's?
 
 ## Not built
 
 - `yield`
-- `enum`
+- Methods inside an `enum`, flag enums, and enums with a base type
 - Macros: `getter`, `property`, `record`
 - Calls with arguments but no parentheses (`puts "x"`)
 - Hash and symbol literals

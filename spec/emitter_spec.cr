@@ -159,6 +159,26 @@ describe Emitter do
     end
   end
 
+  describe "named arguments" do
+    job = "class val Job\n  @payload : UInt32\n  def self.new(payload : UInt32)\n    @payload = payload\n  end\n  def payload : UInt32 = @payload\nend\n"
+    main = "actor Main\n  def self.new(env : Env)\n    j = Job.new(payload: 1)\n  end\nend\n"
+
+    it "primes a named argument whose parameter is primed" do
+      decl(job + main).should contain "Job.create(where payload' = 1)"
+    end
+
+    it "leaves an unmatched named argument alone" do
+      body("f(x: 1)").should eq "new create(env: Env) =>\n    f(where x = 1)"
+    end
+
+    it "matches methods across programs" do
+      job_program = Parser.parse(job)
+      main_program = Parser.parse(main)
+      table = Emitter.primed_params([job_program, main_program])
+      Emitter.emit(main_program, table)[0].should contain "where payload' = 1"
+    end
+  end
+
   describe "operators and literals" do
     it "parenthesises nested binary expressions" do
       body("a = 1 + 2 * 3 - 4").should contain "var a = (1 + (2 * 3)) - 4"
@@ -290,6 +310,74 @@ describe Emitter do
 
     it "scopes block parameters to the block" do
       body("xs = [1]\nxs.each do |x|\nend\nx = 1").should contain "var x: I32 = 1"
+    end
+  end
+
+  describe "assignment as a value" do
+    it "keeps statements unchanged" do
+      body("y = 5\ny = 6").should contain "var y: I32 = 5\n    y = 6"
+      body("c = true\nx = 1 if c").should contain "if c then var x: I32 = 1 end"
+    end
+
+    it "evaluates to the new value" do
+      body("x = (y = 5)").should contain "var x = (var y: I32 = 5; y)"
+      body("x = y = 5").should contain "var x = (var y: I32 = 5; y)"
+      body("n = 3\nwhile (n -= 1) > 0\n  n\nend").should contain "while (n = n - 1; n) > 0 do"
+    end
+
+    it "returns the new value from a method with a return type" do
+      decl("class C\n  @n : UInt64 = 0\n  def ref incr : UInt64 = @n += 1\nend\n").should contain "fun ref incr(): U64 =>\n    (_n = _n + 1; _n)"
+      decl("class C\n  @n : UInt64 = 0\n  def ref bump = @n += 1\nend\n").should contain "fun ref bump() =>\n    _n = _n + 1"
+    end
+
+    it "treats a block's last statement as a statement, since a lambda returns None" do
+      body("a = [1]\nf(1) do |v|\n  a[0] = v\nend").should contain "a(0) = v"
+      body("a = [1]\nf(1) { |v| a[0] = v }").should contain "a(0) = v}"
+    end
+
+    it "rejects the value of an index assignment" do
+      expect_raises(ParseError) { translate("actor Main\n  def self.new(env : Env)\n    a = [1]\n    b = (a[0] = 2)\n  end\nend\n") }
+    end
+  end
+
+  describe "enums" do
+    it "emits a primitive per member and a union type" do
+      decl("enum Colour\n  Red\n  Green = 5\n  Blue\nend\n").should eq <<-PONY
+        primitive ColourRed
+          fun value(): I32 => 0
+          fun string(): String iso^ => "Red".clone()
+          fun eq(that: Colour): Bool => that is this
+          fun ne(that: Colour): Bool => not (that is this)
+
+        primitive ColourGreen
+          fun value(): I32 => 5
+          fun string(): String iso^ => "Green".clone()
+          fun eq(that: Colour): Bool => that is this
+          fun ne(that: Colour): Bool => not (that is this)
+
+        primitive ColourBlue
+          fun value(): I32 => 6
+          fun string(): String iso^ => "Blue".clone()
+          fun eq(that: Colour): Bool => that is this
+          fun ne(that: Colour): Bool => not (that is this)
+
+        type Colour is (ColourRed | ColourGreen | ColourBlue)
+
+        PONY
+    end
+
+    it "emits member references and patterns" do
+      body("c = Colour::Green").should contain "var c = ColourGreen"
+      body("c = Colour::Green\ncase c in\nwhen Colour::Red then 1\nend").should contain "| let _: ColourRed =>"
+    end
+
+    it "parenthesises a single member" do
+      decl("enum Solo\n  Only\nend\n").should contain "type Solo is (SoloOnly)"
+    end
+
+    it "maps Pony member names back" do
+      names = Emitter.enum_names([Parser.parse("enum Colour\n  Red\nend\n")])
+      names.should eq({"ColourRed" => "Colour::Red"})
     end
   end
 end

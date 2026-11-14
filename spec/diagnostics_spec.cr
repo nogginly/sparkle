@@ -64,4 +64,10 @@ describe Diagnostics do
     file, _ = generated
     Diagnostics.rewrite("Building builtin -> /x\n", [file], "/work").should eq "Building builtin -> /x\n"
   end
+
+  it "names enum members in messages" do
+    names = {"ColourRed" => "Colour::Red"}
+    Diagnostics.rewrite("main.pony:1:1: argument type is ColourRed val\n", [] of GeneratedFile, "/work", names).should contain "val Colour::Red"
+    Diagnostics.rewrite("main.pony:1:1: argument type is ColourRedder val\n", [] of GeneratedFile, "/work", names).should contain "ColourRedder"
+  end
 end

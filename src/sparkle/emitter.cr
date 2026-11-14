@@ -65,26 +65,78 @@ module Sparkle
       ">=" => "ge", "<<" => "push", ">>" => "shr", "[]" => "apply",
       "[]!" => "apply", "[]=" => "update",
     }
-    REF_BY_DEFAULT = Set{"[]=", "<<"}
-    BINARY_WORDS   = {"&&" => "and", "||" => "or"}
-    LOOP_METHODS   = Set{"each", "each_with_index", "times"}
+    NON_VALUE_ASSIGN = "the value of an index, setter or field assignment cannot be used; assign, then read"
+    REF_BY_DEFAULT   = Set{"[]=", "<<"}
+    BINARY_WORDS     = {"&&" => "and", "||" => "or"}
+    LOOP_METHODS     = Set{"each", "each_with_index", "times"}
 
     # Returns the Pony text and source map for `program`.
-    def self.emit(program : Program) : {String, SourceMap}
-      probe = new(program, false)
+    def self.emit(program : Program, primed : Hash(String, Set(String)) = primed_params([program])) : {String, SourceMap}
+      probe = new(program, false, primed)
       probe.run
       return {probe.text, probe.map} unless probe.uses_collections?
-      final = new(program, true)
+      final = new(program, true, primed)
       final.run
       {final.text, final.map}
+    end
+
+    # Returns, per Pony method name, the parameters that are emitted primed.
+    def self.primed_params(programs : Array(Program)) : Hash(String, Set(String))
+      table = Hash(String, Set(String)).new
+      programs.each do |program|
+        program.items.each do |decl|
+          next unless decl.is_a?(TypeDecl)
+          names = decl.methods.map { |method| pony_method_name(method.name, method.self_recv) }.to_set
+          decl.methods.each do |method|
+            method.params.each do |param|
+              n = pony_ident(param.name)
+              (table[pony_method_name(method.name, method.self_recv)] ||= Set(String).new).add(n) if names.includes?(n)
+            end
+          end
+        end
+      end
+      table
+    end
+
+    # Maps each Pony enum member name to its Sparkle spelling (`ColourRed` to `Colour::Red`).
+    def self.enum_names(programs : Array(Program)) : Hash(String, String)
+      names = Hash(String, String).new
+      programs.each do |program|
+        program.items.each do |decl|
+          next unless decl.is_a?(EnumDecl)
+          decl.members.each { |member| names["#{decl.name}#{member.name}"] = "#{decl.name}::#{member.name}" }
+        end
+      end
+      names
+    end
+
+    def self.pony_ident(name : String) : String
+      PONY_RESERVED.includes?(name) ? "#{name}_" : name
+    end
+
+    def self.pony_method_name(name : String, constructor : Bool) : String
+      return(name == "new" ? "create" : pony_ident(name)) if constructor
+      if op = OPERATOR_NAMES[name]?
+        return op
+      end
+      if name.ends_with?('?')
+        "is_#{name.rchop}"
+      elsif name.ends_with?('!')
+        pony_ident(name.rchop)
+      elsif name.ends_with?('=')
+        "set_#{name.rchop}"
+      else
+        pony_ident(name)
+      end
     end
 
     getter? uses_collections = false
     @scopes = [] of Set(String)
     @ivars = Set(String).new
+    @statement = false
     @method_names = Set(String).new
 
-    def initialize(@program : Program, @add_collections : Bool)
+    def initialize(@program : Program, @add_collections : Bool, @primed : Hash(String, Set(String)))
       @w = Writer.new
     end
 
@@ -116,6 +168,10 @@ module Sparkle
           first = false
           emit_type_decl(item)
           @w.nl
+        when EnumDecl
+          @w.nl unless first
+          first = false
+          emit_enum(item)
         when AliasDecl
           @w.nl unless first
           first = false
@@ -151,7 +207,7 @@ module Sparkle
     end
 
     private def pony_ident(name : String) : String
-      PONY_RESERVED.includes?(name) ? "#{name}_" : name
+      Emitter.pony_ident(name)
     end
 
     # A local, parameter or binding name; primed when it equals a method name
@@ -162,47 +218,58 @@ module Sparkle
     end
 
     private def pony_method_name(name : String, constructor : Bool) : String
-      return(name == "new" ? "create" : pony_ident(name)) if constructor
-      if op = OPERATOR_NAMES[name]?
-        return op
-      end
-      if name.ends_with?('?')
-        "is_#{name.rchop}"
-      elsif name.ends_with?('!')
-        pony_ident(name.rchop)
-      elsif name.ends_with?('=')
-        "set_#{name.rchop}"
-      else
-        pony_ident(name)
-      end
+      Emitter.pony_method_name(name, constructor)
     end
 
     private def partial_name?(name : String) : Bool
       name.ends_with?('!')
     end
 
-    private def block(stmts : Array(Expr)) : Nil
+    private def block(stmts : Array(Expr), value : Bool = false) : Nil
       @w.indent += 1
       if stmts.empty?
         @w.nl
         w "None"
       else
-        stmts.each do |stmt|
+        stmts.each_with_index do |stmt, i|
           @w.nl
-          emit(stmt)
+          emit(stmt, statement: !(value && i == stmts.size - 1))
         end
       end
       @w.indent -= 1
     end
 
-    private def scoped_block(stmts : Array(Expr), names : Array(String) = [] of String) : Nil
+    private def scoped_block(stmts : Array(Expr), names : Array(String) = [] of String, value : Bool = false) : Nil
       scoped do
         names.each { |name| declare(name) }
-        block(stmts)
+        block(stmts, value)
       end
     end
 
     # --- declarations ------------------------------------------------------
+
+    private def emit_enum(d : EnumDecl) : Nil
+      d.members.each do |member|
+        pony = "#{d.name}#{member.name}"
+        mark(member)
+        w "primitive #{pony}"
+        @w.indent += 1
+        @w.nl
+        w "fun value(): I32 => #{member.value}"
+        @w.nl
+        w %(fun string(): String iso^ => "#{member.name}".clone())
+        @w.nl
+        w "fun eq(that: #{d.name}): Bool => that is this"
+        @w.nl
+        w "fun ne(that: #{d.name}): Bool => not (that is this)"
+        @w.indent -= 1
+        @w.nl
+        @w.nl
+      end
+      mark(d)
+      w "type #{d.name} is (#{d.members.map { |member| "#{d.name}#{member.name}" }.join(" | ")})"
+      @w.nl
+    end
 
     private def emit_type_decl(d : TypeDecl) : Nil
       mark(d)
@@ -307,9 +374,11 @@ module Sparkle
       body = m.body
       return unless body
       w " =>"
+      ret = m.ret
+      returns_value = !constructor && m.kind != "be" && !(ret.nil? || PonyType.to_pony(ret) == "None")
       scoped do
         m.params.each { |param| declare(param.name) }
-        block(body)
+        block(body, returns_value)
       end
     end
 
@@ -317,7 +386,7 @@ module Sparkle
 
     private def atomic?(e : Expr) : Bool
       case e
-      when Ident, IVarRef, SelfRef, IntLit, FloatLit, CharLit, BoolLit, NilLit, TypeRef,
+      when Ident, IVarRef, SelfRef, IntLit, FloatLit, CharLit, BoolLit, NilLit, TypeRef, EnumRef,
            Index, FieldRead, Paren, ArrayLit, TupleLit, AsCast, AmpMethod, Lambda
         true
       when Call
@@ -356,9 +425,15 @@ module Sparkle
       end
     end
 
-    private def emit(e : Expr) : Nil
-      mark(e)
-      emit_node(e)
+    private def emit(e : Expr, statement : Bool = false) : Nil
+      saved = @statement
+      @statement = statement
+      begin
+        mark(e)
+        emit_node(e)
+      ensure
+        @statement = saved
+      end
     end
 
     private def emit_node(e : IntLit | FloatLit) : Nil
@@ -393,11 +468,20 @@ module Sparkle
       w "_#{e.name}"
     end
 
+    private def emit_node(e : EnumRef) : Nil
+      w "#{e.enum_name}#{e.member}"
+    end
+
     private def emit_node(e : TypeRef) : Nil
       w PonyType.to_pony(e.type)
     end
 
     private def emit_node(e : Paren) : Nil
+      inner = e.expr
+      if inner.is_a?(Assign) || inner.is_a?(OpAssign)
+        emit(inner)
+        return
+      end
       w "("
       emit(e.expr)
       w ")"
@@ -575,6 +659,28 @@ module Sparkle
 
     private def emit_assign(a : Assign) : Nil
       t = a.target
+      value = !@statement
+      if value
+        unless t.is_a?(Ident) || t.is_a?(IVarRef)
+          raise ParseError.new(NON_VALUE_ASSIGN, a.line, a.col)
+        end
+        w "("
+      end
+      emit_assign_statement(a, t)
+      return unless value
+      w "; "
+      emit_target_read(t)
+      w ")"
+    end
+
+    private def emit_target_read(t : Expr) : Nil
+      case t
+      when Ident   then w local(t.name)
+      when IVarRef then w "_#{t.name}"
+      end
+    end
+
+    private def emit_assign_statement(a : Assign, t : Expr) : Nil
       case t
       when Ident
         name = local(t.name)
@@ -633,6 +739,21 @@ module Sparkle
 
     private def emit_op_assign(a : OpAssign) : Nil
       t = a.target
+      value = !@statement
+      if value
+        unless t.is_a?(Ident) || t.is_a?(IVarRef)
+          raise ParseError.new(NON_VALUE_ASSIGN, a.line, a.col)
+        end
+        w "("
+      end
+      emit_op_assign_statement(a, t)
+      return unless value
+      w "; "
+      emit_target_read(t)
+      w ")"
+    end
+
+    private def emit_op_assign_statement(a : OpAssign, t : Expr) : Nil
       if t.is_a?(Call)
         emit_receiver(target_receiver(t))
         w ".set_#{t.name}("
@@ -664,13 +785,14 @@ module Sparkle
     end
 
     private def emit_if(n : If) : Nil
+      stmt = @statement
       keyword = "if"
       cur = n
       if n.modifier && n.else_.nil? && inline_body?(n.then_)
         w "if "
         emit_cond(n)
         w " then "
-        scoped { emit(n.then_[0]) }
+        scoped { emit(n.then_[0], statement: stmt) }
         w " end"
         return
       end
@@ -678,7 +800,7 @@ module Sparkle
         w "#{keyword} "
         emit_cond(cur)
         w " then"
-        scoped_block(cur.then_)
+        scoped_block(cur.then_, value: !stmt)
         @w.nl
         els = cur.else_
         if els && els.size == 1 && (nxt = els[0]).is_a?(If) && nxt.is_elsif
@@ -686,7 +808,7 @@ module Sparkle
           cur = nxt
         elsif els
           w "else"
-          scoped_block(els)
+          scoped_block(els, value: !stmt)
           @w.nl
           w "end"
           break
@@ -738,6 +860,7 @@ module Sparkle
     end
 
     private def emit_case(c : Case) : Nil
+      stmt = @statement
       w "match "
       w "\\exhaustive\\ " if c.exhaustive
       emit(c.subject)
@@ -751,13 +874,13 @@ module Sparkle
             emit_pattern(pattern)
           end
           w " =>"
-          block(branch.body)
+          block(branch.body, !stmt)
         end
       end
       if els = c.else_
         @w.nl
         w "else"
-        scoped_block(els)
+        scoped_block(els, value: !stmt)
       end
       @w.nl
       w "end"
@@ -776,6 +899,8 @@ module Sparkle
           emit_pattern(item)
         end
         w ")"
+      when EnumRef
+        w "let _: #{p.enum_name}#{p.member}"
       when Ident
         w(p.name == "_" ? "_" : local(p.name))
       else
@@ -784,12 +909,13 @@ module Sparkle
     end
 
     private def emit_begin(b : Begin) : Nil
+      stmt = @statement
       w "try"
-      scoped_block(b.body)
+      scoped_block(b.body, value: !stmt)
       if r = b.rescue_body
         @w.nl
         w "else"
-        scoped_block(r)
+        scoped_block(r, value: !stmt)
       end
       if en = b.ensure_body
         @w.nl
@@ -803,7 +929,7 @@ module Sparkle
     private def emit_recover(r : Recover) : Nil
       w "recover"
       w " #{r.cap}" if r.cap
-      scoped_block(r.body)
+      scoped_block(r.body, value: true)
       @w.nl
       w "end"
     end
@@ -837,7 +963,7 @@ module Sparkle
         w " "
         scoped do
           l.params.each { |param| declare(param.name) }
-          emit(l.body[0])
+          emit(l.body[0], statement: true)
         end
         w "}"
       else
@@ -889,12 +1015,13 @@ module Sparkle
       end
       w pony_method_name(c.name, constructor)
       w "("
-      emit_call_args(c)
+      emit_call_args(c, constructor)
       w ")"
       w "?" if partial_name?(c.name)
     end
 
-    private def emit_call_args(c : Call) : Nil
+    private def emit_call_args(c : Call, constructor : Bool) : Nil
+      primed = @primed[pony_method_name(c.name, constructor)]?
       first = true
       c.args.each do |arg|
         w ", " unless first
@@ -911,7 +1038,8 @@ module Sparkle
         w "where "
         c.named.each_with_index do |named_arg, i|
           w ", " if i > 0
-          w "#{pony_ident(named_arg.name)} = "
+          n = pony_ident(named_arg.name)
+          w "#{primed && primed.includes?(n) ? "#{n}'" : n} = "
           emit(named_arg.value)
         end
       end

@@ -51,5 +51,5 @@ actor Main
       workers.push(Worker.create((i + 1).u32(), sink))
     end
     for (i, w) in workers.pairs() do
-      w.run(Job.create(i.u32(), 10))
+      w.run(Job.create(where id' = i.u32(), payload' = 10))
     end

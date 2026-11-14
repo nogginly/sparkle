@@ -35,7 +35,9 @@ One agent definition, `.claude/agents/implementer.md`, with `model: sonnet` and 
 
 Written for a capable colleague who has seen none of the conversation: the goal and why, the files to change and to read, the change itself precisely enough to need no design decisions, the checks that must pass, and what is out of scope.
 
-Run the subagent in an isolated worktree so its edits cannot collide with the main session's. Gitignored tools and build outputs are not in a new worktree, so the brief must say where to find them.
+Run the subagent in an isolated worktree so its edits cannot collide with the main session's. Gitignored tools and build outputs are not in a new worktree, so the brief must say where to find them. The worktree starts from the default branch, not the current one, so a brief must not rely on the working branch's commits.
+
+Check a brief's claims about the target language before sending it. The subagent follows a wrong rule faithfully, and the specs it writes will confirm it.
 
 ## After it reports
 

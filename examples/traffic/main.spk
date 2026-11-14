@@ -1,0 +1,25 @@
+enum Light
+  Red
+  Amber = 5
+  Green
+end
+
+actor Main
+  def self.new(env : Env)
+    lights = [Light::Red, Light::Amber, Light::Green] of Light
+    lights.each do |light|
+      env.@out.print("#{light} = #{light.value}, next #{after(light)}")
+      if light == Light::Green
+        env.@out.print("go")
+      end
+    end
+  end
+
+  def after(l : Light) : Light
+    case l in
+    when Light::Red then Light::Green
+    when Light::Amber then Light::Red
+    when Light::Green then Light::Amber
+    end
+  end
+end
