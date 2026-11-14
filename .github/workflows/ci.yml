@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -21,7 +21,7 @@ jobs:
         with:
           crystal: latest
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .tools/ponyc
           key: ponyc-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vendor/ponyc/VERSION') }}
@@ -29,7 +29,21 @@ jobs:
       - name: Install ponyc
         run: make ponyc
 
+      - name: Read the Crystal version
+        id: crystal
+        run: echo "version=$(crystal env CRYSTAL_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        id: ameba
+        with:
+          path: |
+            lib
+            bin/ameba
+            bin/ameba.cr
+          key: ameba-${{ runner.os }}-${{ runner.arch }}-crystal-${{ steps.crystal.outputs.version }}-${{ hashFiles('shard.lock') }}
+
       - name: Build ameba
+        if: steps.ameba.outputs.cache-hit != 'true'
         run: make ameba
 
       - name: Build

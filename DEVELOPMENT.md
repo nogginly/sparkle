@@ -164,7 +164,7 @@ Keep `vendor/ponyc` unmodified during step 1. To move to a newer Pony, check out
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-15`, arm64). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-15`, arm64). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and builds `ameba` (cached with `lib/` per Crystal version and `shard.lock`; on a hit, `make ameba` is skipped, because a fresh checkout makes `shard.lock` look newer than the restored binary), then runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
 
 ### Keeping the documents current
 
