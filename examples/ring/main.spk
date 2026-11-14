@@ -1,0 +1,60 @@
+class val Job
+  @id : UInt32
+  @payload : UInt32
+
+  def self.new(id : UInt32, payload : UInt32)
+    @id = id
+    @payload = payload
+  end
+
+  def id : UInt32 = @id
+  def payload : UInt32 = @payload
+end
+
+actor Collector
+  @stream : OutStream
+  @pending : USize
+  @total : UInt64 = 0
+
+  def self.new(stream : OutStream, expected : USize)
+    @stream = stream
+    @pending = expected
+  end
+
+  be collect(id : UInt32, value : UInt64)
+    @total += value
+    @pending -= 1
+    if @pending == 0
+      @stream.print("collected total = #{@total}")
+    end
+  end
+end
+
+actor Worker
+  @id : UInt32
+  @sink : tag Collector
+
+  def self.new(id : UInt32, sink : tag Collector)
+    @id = id
+    @sink = sink
+  end
+
+  be run(job : Job)
+    value = job.payload.u64 * @id.u64
+    @sink.collect(job.id, value)
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    count : USize = 4
+    sink = Collector.new(env.@out, count)
+    workers = [] of Worker
+    count.times do |i|
+      workers << Worker.new((i + 1).u32, sink)
+    end
+    workers.each_with_index do |w, i|
+      w.run(Job.new(i.u32, 10))
+    end
+  end
+end

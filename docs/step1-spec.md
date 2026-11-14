@@ -21,7 +21,7 @@ flowchart LR
 - Instance variables: `@name`.
 - Numbers: decimal, `0x`, `0b`, `_` separators, floats. A Crystal suffix (`1_u64`, `2.5_f32`, `7u8`) becomes a Pony conversion (`U64(1)`, `F32(2.5)`).
 - Strings: `"…"` with Pony-compatible escapes and `#{expr}` interpolation (nested braces and strings allowed inside). Chars: `'a'`.
-- Capability words (`iso trn ref val box tag`, and the generic capability sets `read send share alias any`) are **contextual**: keywords only in type position, right after `def`, right after a type-declaration keyword, and right after `recover`. Everywhere else they are ordinary identifiers.
+- Capability words (`iso trn ref val box tag`, and the generic capability sets `read send share alias any`) are **contextual**: keywords only in type position, right after `def`, right after a type-declaration keyword, and right after `recover`. Everywhere else they are ordinary identifiers. Pony still reserves them, so a variable named `val` is emitted as `val_`.
 
 ## 2. Declarations
 
@@ -48,6 +48,8 @@ flowchart LR
 | `def +(o : T) : T` | `fun add(o: T): T` |
 
 Operator method names: `+ add`, `- sub`, `* mul`, `/ div`, `% rem`, `== eq`, `!= ne`, `< lt`, `<= le`, `> gt`, `>= ge`, `<< push`, `>> shr`, `[] apply`, `[]! apply … ?`, `[]= update`.
+
+A field needs a type (`@n = 0` alone is a parse error). `def []=`, `def <<` and `def name=` default to `fun ref` when no capability is written.
 
 Pony requires fields before methods, so the emitter writes all of a type's fields first, then methods in source order. An empty body emits `None`.
 
@@ -106,15 +108,15 @@ Pony has no operator precedence, so the emitter parenthesises every nested binar
 | `a << b` | `a.push(b)` *(typeless: integer shift is `a.shl(b)`)* |
 | `a += b` (also `-= *= /= %=`) | `a = a + b` |
 | `c ? a : b` | `if c then a else b end` |
-| `a...b` / `a..b` | `Range(a, b)` / `Range(a, b + 1)`, adding `use "collections"` if missing |
+| `a...b` / `a..b` | `Range[USize].till(a, b)` / `Range[USize].through(a, b)`, adding `use "collections"` if missing *(typeless: the element type is fixed at `USize`)* |
 
 ### Literals
 
 | Sparkle | Pony |
 |---|---|
 | `nil`, `true`, `false` | `None`, `true`, `false` |
-| `"n = #{n}!"` | `"n = " + n.string() + "!"` |
-| `[1, 2, 3]` / `[1, 2] of UInt8` / `[] of String` | `[1; 2; 3]` / `[as U8: 1; 2]` / `Array[String]` |
+| `"n = #{n}!"` / `"#{n}"` | `"n = " + n.string() + "!"` / `"" + n.string()` |
+| `[1, 2, 3]` / `[1, 2] of UInt8` / `[] of String` | `[1; 2; 3]` / `[as U8: 1; 2]` / `Array[String].create()` |
 | `{a, b}` in expression position | `(a, b)` |
 
 ### Control flow
@@ -130,7 +132,7 @@ Pony has no operator precedence, so the emitter parenthesises every nested binar
 | `case x when 1, 2 … when s : String … when {a, b} … else … end` | `match x \| 1 \| 2 => … \| let s: String => … \| (a, b) => … else … end` |
 | `case x in …` | `match \exhaustive\ x …` |
 | `begin … rescue … ensure … end` | `try … else … then … end` |
-| `raise` | `error` |
+| `raise` (takes no value) | `error` |
 | `consume x` | `consume x` |
 | `recover iso do … end` / `recover do … end` | `recover iso … end` / `recover … end` |
 
@@ -142,8 +144,8 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 |---|---|---|
 | `xs.each do \|x\| … end` | `for x in xs.values() do … end` | *(typeless, by method name)* |
 | `xs.each_with_index do \|x, i\| … end` | `for (i, x) in xs.pairs() do … end` | |
-| `n.times do \|i\| … end` | `for i in Range(0, n) do … end` | |
-| `(a...b).each do \|i\| … end` | `for i in Range(a, b) do … end` | |
+| `n.times do \|i\| … end` | `for i in Range[USize].till(0, n) do … end` | `n` must be a `USize` |
+| `(a...b).each do \|i\| … end` | `for i in Range[USize].till(a, b) do … end` | |
 | any other `recv.m(args) do \|x\| … end` or `{ \|x\| … }` | `recv.m(args, {(x) => …})` | lambda as last argument |
 | `&.name` as an argument | `{(x) => x.name()}` | |
 
@@ -174,4 +176,8 @@ sparkle caps PATH...                # capability statistics
 
 - Pony assignment evaluates to the **old** value of the left side, not the new one.
 - A variable first assigned inside a branch or loop is scoped to that block, as in Pony.
+- An untyped integer literal defaults to Pony's `I32` when nothing constrains it: `ticks = 0` will not compare with a `USize`. Write `ticks : USize = 0`.
+- `x.@name` picks the private field whenever the enclosing type has an ivar of that name, so a type with `@out` cannot also read `env.@out`.
+- In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
+- A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
 - `def pop` and `def pop!` both become `pop`; `def empty?` and `def is_empty` both become `is_empty`. Defining both is an error from `ponyc`.

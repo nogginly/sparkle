@@ -1,0 +1,30 @@
+primitive FizzBuzz
+  def label(i : USize) : String
+    case {i % 3, i % 5}
+    when {0, 0} then "FizzBuzz"
+    when {0, _} then "Fizz"
+    when {_, 0} then "Buzz"
+    else "#{i}"
+    end
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    (1..15).each do |i|
+      env.@out.print(FizzBuzz.label(i))
+    end
+
+    ticks = 0
+    while ticks < 5
+      ticks += 1
+      next if ticks == 2
+      env.@out.print("tick #{ticks}")
+      break if ticks >= 4
+    end
+
+    3.times do |n|
+      env.@out.print("n = #{n}")
+    end
+  end
+end

@@ -1,0 +1,7 @@
+bin/
+.sparkle/
+lib/
+*.dwarf
+examples/*/main
+examples/*/*.o
+spec/fixtures/*/main

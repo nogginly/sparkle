@@ -1,0 +1,25 @@
+actor Worker
+  @stream : OutStream
+
+  def self.new(env : Env)
+    @stream = env.@out
+  end
+
+  be process(names : iso Array(String))
+    sealed : val Array(String) = consume names
+    @stream.print("worker got #{sealed.size} names")
+    sealed.each do |name|
+      @stream.print("hello, #{name}")
+    end
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    worker = Worker.new(env)
+    names = recover iso do Array(String).new end
+    names << "ada"
+    names << "grace"
+    worker.process(consume names)
+  end
+end

@@ -1,0 +1,8 @@
+name: sparkle
+version: 0.1.0
+crystal: ">= 1.11"
+license: MIT
+
+targets:
+  sparkle:
+    main: src/sparkle.cr
