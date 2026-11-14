@@ -11,7 +11,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 ## Where things stand
 
 - Step 1, the translator, is merged to `main`. Build, specs (97, none pending), lint and format all pass.
-- `delegation-setup` adds the delegation guide, the `implementer` agent and this file, and makes `make build` create `bin/`, which a fresh clone or worktree lacks.
+- `delegation-setup` adds the delegation guide, the `implementer` agent and this file, makes `make build` create `bin/`, which a fresh clone or worktree lacks, and makes `make clean` keep `bin/ameba`.
 - No task has been delegated yet, so the approach is unmeasured.
 
 ## What's next

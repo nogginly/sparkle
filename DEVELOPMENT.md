@@ -58,8 +58,8 @@ Command                          | Description
 `crystal tool format`            | Format all source code
 `make ponyc`                     | Install the prebuilt `ponyc` into `.tools/`
 `make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
-`make clean`                     | Remove `bin/` and `.sparkle/`
-`make distclean`                 | As `clean`, and remove `.tools/` too
+`make clean`                     | Remove `bin/sparkle` and `.sparkle/`; keeps `bin/ameba`
+`make distclean`                 | As `clean`, and remove all of `bin/` and `.tools/` too
 `bin/sparkle translate FILE.spk` | Print the Pony generated for one file
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
