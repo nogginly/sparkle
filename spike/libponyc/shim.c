@@ -3,6 +3,7 @@
 #include "ast/ast.h"
 #include "ast/token.h"
 #include "pass/pass.h"
+#include "ast/error.h"
 
 /* Option fields that Crystal cannot reach without mirroring pass_opt_t. */
 
@@ -27,10 +28,17 @@ void spk_opt_set_limit(pass_opt_t* opt, int limit) { opt->limit = (pass_id)limit
 errors_t* spk_opt_errors(pass_opt_t* opt) { return opt->check.errors; }
 strtable_t* spk_opt_strtab(pass_opt_t* opt) { return opt->strtab; }
 
+void spk_opt_reset_errors(pass_opt_t* opt)
+{
+  errors_free(opt->check.errors);
+  opt->check.errors = errors_alloc();
+}
+
 /* Values from C enums. */
 
 const int spk_pass_parse = PASS_PARSE;
 const int spk_pass_all = PASS_ALL;
+const int spk_pass_expr = PASS_EXPR;
 const int spk_tk_none = TK_NONE;
 const int spk_tk_actor = TK_ACTOR;
 const int spk_tk_members = TK_MEMBERS;

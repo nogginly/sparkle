@@ -11,9 +11,11 @@ lib LibPonyc
   fun spk_opt_set_limit(opt : PassOpt, limit : LibC::Int)
   fun spk_opt_errors(opt : PassOpt) : Errors
   fun spk_opt_strtab(opt : PassOpt) : Strtab
+  fun spk_opt_reset_errors(opt : PassOpt)
 
   $spk_pass_parse : LibC::Int
   $spk_pass_all : LibC::Int
+  $spk_pass_expr : LibC::Int
   $spk_tk_none : LibC::Int
   $spk_tk_actor : LibC::Int
   $spk_tk_members : LibC::Int
@@ -40,6 +42,23 @@ lib LibPonyc
   fun ast_free(ast : Ast)
   fun errors_print(errors : Errors)
   fun errors_get_count(errors : Errors) : LibC::SizeT
+  fun errors_get_first(errors : Errors) : ErrorMsg*
+
+  struct ErrorMsg
+    file : LibC::Char*
+    line : LibC::SizeT
+    pos : LibC::SizeT
+    msg : LibC::Char*
+    source : LibC::Char*
+    frame : ErrorMsg*
+    next : ErrorMsg*
+  end
+
+  fun ast_type(ast : Ast) : Ast
+  fun ast_print_type(type : Ast, strtab : Strtab) : LibC::Char*
+  fun ast_sibling(ast : Ast) : Ast
+  fun ast_line(ast : Ast) : LibC::SizeT
+  fun ast_pos(ast : Ast) : LibC::SizeT
 
   fun ast_blank(id : LibC::Int) : Ast
   fun ast_add(parent : Ast, child : Ast) : Ast
