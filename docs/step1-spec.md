@@ -47,6 +47,38 @@ flowchart LR
 | `def name=(v : A)` | `fun ref set_name(v: A)` |
 | `def +(o : T) : T` | `fun add(o: T): T` |
 
+### Enums
+
+```crystal
+enum Colour
+  Red
+  Green = 5
+  Blue
+end
+```
+
+becomes one `primitive` per member, named after the enum, and a union type:
+
+```pony
+primitive ColourRed
+  fun value(): I32 => 0
+  fun string(): String iso^ => "Red".clone()
+  fun eq(that: Colour): Bool => that is this
+  fun ne(that: Colour): Bool => not (that is this)
+
+primitive ColourGreen
+  …                                  // value 5
+
+primitive ColourBlue
+  …                                  // value 6
+
+type Colour is (ColourRed | ColourGreen | ColourBlue)
+```
+
+- A member is a constant on its own line, optionally `= n` with an integer literal (which may be negative). Values start at 0 and each unvalued member is one more than the previous. `value` is always `Int32`.
+- `string` gives the member's name, so `"#{c}"` prints `Green` and a member is `Stringable`. `eq` and `ne` make `==` and `!=` work.
+- An enum needs at least one member, and member names must be distinct. Methods, flags (`@[Flags]`) and a base type (`enum Colour : UInt8`) are not supported: anything but a member in the body is a parse error.
+
 Operator method names: `+ add`, `- sub`, `* mul`, `/ div`, `% rem`, `== eq`, `!= ne`, `< lt`, `<= le`, `> gt`, `>= ge`, `<< push`, `>> shr`, `[] apply`, `[]! apply … ?`, `[]= update`.
 
 A field needs a type (`@n = 0` alone is a parse error). `def []=`, `def <<` and `def name=` default to `fun ref` when no capability is written.
@@ -89,6 +121,7 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | a parameter or local named like a method of its type | emitted with a prime: `payload'` | Pony forbids the clash; Crystal's `def self.new(payload)` beside `def payload` is idiomatic |
 | `@n` | `_n` | |
 | `self` | `this` | |
+| `Colour::Green` | `ColourGreen` | an enum member; not checked against the enum *(typeless)*, so `ponyc` reports an unknown one |
 | `x.size` | `x.size()` | *(typeless)* a dot-name is **always a call** |
 | `x.@name` | `x._name` if `name` is an ivar of the enclosing type, otherwise `x.name` | explicit field read; the second form reads a public field of a Pony type (`env.@out`) |
 | `foo` (not a local or parameter) | `foo()` | call on `this` |
@@ -150,6 +183,7 @@ Pony has no operator precedence, so the emitter parenthesises every nested binar
 | `break`, `next`, `return x` | `break`, `continue`, `return x` |
 | `case x when 1, 2 … when s : String … when {a, b} … else … end` | `match x \| 1 \| 2 => … \| let s: String => … \| (a, b) => … else … end` |
 | `case x in …` | `match \exhaustive\ x …` |
+| `when Colour::Red` / `in Colour::Red` | `\| let _: ColourRed =>` | matched by type, because Pony does not count a primitive with its own `eq` towards exhaustiveness |
 | `begin … rescue … ensure … end` | `try … else … then … end` |
 | `raise` (takes no value) | `error` |
 | `consume x` | `consume x` |
@@ -173,7 +207,7 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 ## 5. Tooling
 
 1. **Source map.** The emitter records a mark `(pony line, pony column) → (sparkle line, sparkle column)` each time it starts writing a node. A `ponyc` location maps to the last mark at or before it on that line.
-2. **Diagnostics.** `ponyc` output is rewritten: file, line and column go through the source map, the quoted source excerpt is replaced by the Sparkle line with a caret, and Pony type expressions inside messages are re-printed in Sparkle syntax, including in notes that point into the Pony stdlib (`Array[String val] ref` → `ref Array(val String)`, `(String val | None val)` → `val String?`).
+2. **Diagnostics.** `ponyc` output is rewritten: file, line and column go through the source map, the quoted source excerpt is replaced by the Sparkle line with a caret, and Pony type expressions inside messages are re-printed in Sparkle syntax, including in notes that point into the Pony stdlib (`Array[String val] ref` → `ref Array(val String)`, `(String val | None val)` → `val String?`). An enum member's Pony name is printed as Sparkle's: `ColourRed` → `Colour::Red`.
 3. **Capability statistics.** `sparkle caps` reports, per file, how many capability annotations were written, by position (type declaration, `def`, type, `recover`) and by capability.
 
 ## 6. CLI
@@ -189,7 +223,7 @@ sparkle caps PATH...                # capability statistics
 
 ## 7. Not in step 1
 
-`yield`, macros (`getter`, `property`, `record`), `enum`, calls with arguments but no parentheses (`puts "x"`), hash and symbol literals, FFI, `let`/`embed` fields, generic method calls, reopening types.
+`yield`, macros (`getter`, `property`, `record`), methods inside an `enum`, calls with arguments but no parentheses (`puts "x"`), hash and symbol literals, FFI, `let`/`embed` fields, generic method calls, reopening types.
 
 ## 8. Known semantic gaps
 

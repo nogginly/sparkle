@@ -132,6 +132,10 @@ Crystal's rule, not Pony's. Where the value is used, `y = 5` becomes `(y = 5; y)
 
 Step 1 has no `yield`. `each`, `each_with_index` and `times` with a block become real Pony `for` loops, chosen by method name, so `break` and `next` work. Any other block becomes a lambda passed as the last argument.
 
+### An enum is a set of primitives
+
+Pony has no `enum`. Each member becomes a `primitive`, prefixed with the enum's name so that two enums can both have a `Red`, and the enum becomes a union of them, which makes `case … in` exhaustive. Each member carries `value`, `string`, `eq` and `ne`. Because Pony does not count a primitive with its own `eq` towards an exhaustive match, a member in a `case` pattern is matched by type (`let _: ColourRed`), not by value.
+
 ### Dropped on purpose
 
 Range types (`Int(1..10)`). An exhaustive `case … in` over an enum covers the need.
@@ -193,7 +197,7 @@ This is untested. Linking `libponyc`, which embeds a statically linked LLVM, fro
 ## Not built
 
 - `yield`
-- `enum`
+- Methods inside an `enum`, flag enums, and enums with a base type
 - Macros: `getter`, `property`, `record`
 - Calls with arguments but no parentheses (`puts "x"`)
 - Hash and symbol literals
