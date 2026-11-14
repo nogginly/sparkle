@@ -73,7 +73,8 @@ Path             | Holds
 `spec/`          | Test specs, mirroring `src/sparkle/*`
 `spec/fixtures/` | Programs that must fail to compile, for the diagnostics specs
 `examples/`      | Runnable programs, each with its golden Pony and expected output
-`docs/`          | The translation rules
+`docs/`          | The translation rules, and the `libponyc` spike's findings
+`spike/`         | Throwaway code from spikes, kept as evidence; not built or tested by `make`
 `vendor/ponyc/`  | Pony, as a git submodule pinned to a release tag
 `.tools/`        | The downloaded `ponyc` (not committed)
 `lib/`           | Installed shards, which is only `ameba` (not committed)
@@ -173,6 +174,7 @@ Document                                 | Update it when
 [README.md](README.md)                   | What Sparkle is, why it exists, or its status changes
 [DESIGN.md](DESIGN.md)                   | A layer, a decision or the "Not built" list changes
 [docs/step1-spec.md](docs/step1-spec.md) | A translation rule or a known gap changes
+[docs/spike-libponyc.md](docs/spike-libponyc.md) | A spike finding is confirmed or overturned
 DEVELOPMENT.md                           | The way to build, test or lint changes
 [HANDOFF.md](HANDOFF.md)                 | A piece of work ends: rewrite it, do not append
 [.claude/](.claude)                      | The way work is delegated, or a review yields a lesson for `implementer.md`

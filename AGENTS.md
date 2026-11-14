@@ -56,4 +56,4 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 ## What comes next
 
-Step 2 of the roadmap in `DESIGN.md`. Before any fork of `ponyc`, run the spike described under "One binary": link `libponyc` from Crystal and build a trivial AST through its C API. The plan depends on it and it is untested.
+Step 2 of the roadmap in `DESIGN.md`. The `libponyc` spike is done and the plan holds; read [docs/spike-libponyc.md](docs/spike-libponyc.md) before starting, including what it left untested.
