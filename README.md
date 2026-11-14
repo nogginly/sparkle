@@ -1,74 +1,64 @@
 # Sparkle
 
-An experimental compiled language: Crystal's syntax and Ruby-style idioms on top of Pony's reference capabilities and actors.
+An experimental compiled language: Crystal's syntax and Ruby-style idioms, on top of Pony's reference capabilities and actors.
 
 ```crystal
-class Counter
-  @n : UInt64 = 0
-  def ref incr = @n += 1
-  def count : UInt64 = @n
+actor Worker
+  @stream : OutStream
+
+  def self.new(env : Env)
+    @stream = env.@out
+  end
+
+  be process(names : iso Array(String))
+    sealed : val Array(String) = consume names
+    sealed.each do |name|
+      @stream.print("hello, #{name}")
+    end
+  end
 end
 
 actor Main
   def self.new(env : Env)
-    c = Counter.new
-    c.incr
-    env.@out.print("count = #{c.count}")
+    names = recover iso do Array(String).new end
+    names << "ada"
+    Worker.new(env).process(consume names)
   end
 end
 ```
 
+## Why
+
+Crystal reads well but shares memory between fibres and leans on a garbage collector. Pony makes data races a compile error and has actors built in, but its syntax is unfamiliar and its capability defaults are demanding. Sparkle is a bet that the two can be combined:
+
+```mermaid
+flowchart LR
+    C["Crystal<br/>syntax, blocks, Enumerable"] --> S(["Sparkle"])
+    P["Pony<br/>capabilities, actors"] --> S
+    A["Ada/SPARK<br/>provable contracts"] --> S
+    S --> G1["Concurrency without data races"]
+    S --> G2["No garbage collector, eventually"]
+    S --> G3["Contracts checked, then proved"]
+```
+
+| Goal | Meaning |
+|---|---|
+| Familiar syntax | `def … end`, blocks, `Enumerable`, string interpolation |
+| Safe concurrency | Pony's `iso`, `val`, `ref` and friends, with actors as the unit of concurrency |
+| Small, predictable runtime | No garbage collector in the end state, without passing arenas around by hand |
+| Provable contracts | `requires`, `ensures` and `invariant`, checked at runtime first and proved where possible |
+
 ## Status
 
-Step 1 of the roadmap: a source-to-source translator. It parses Sparkle (`.spk`), writes Pony, runs an unmodified `ponyc`, and rewrites the compiler's errors back into Sparkle locations and type syntax. It has no type information of its own, which explains most of its rough edges.
+Early, and it may not work out. Today Sparkle is a translator: it turns `.spk` source into Pony and hands that to the unmodified Pony compiler. There is no toolchain to install yet.
 
-- [docs/step1-spec.md](docs/step1-spec.md): every translation rule, the tooling, and the known gaps.
-- [examples/](examples): five programs, each with its generated Pony and expected output.
-
-## Getting started
-
-Requires Crystal 1.11 or later, and Linux on x86-64 for the prebuilt Pony compiler.
-
-```bash
-git submodule update --init
-```
-
-```bash
-make ponyc
-```
-
-```bash
-make build
-```
-
-```bash
-bin/sparkle run examples/counter/main.spk
-```
-
-`make ponyc` downloads the Pony release matching `vendor/ponyc/VERSION` into `.tools/`. `make ponyc-source` builds it from the submodule instead, which takes about an hour because it compiles LLVM.
-
-## Commands
-
-| Command | Outcome |
+| Document | Read it for |
 |---|---|
-| `sparkle translate FILE.spk` | Prints the generated Pony |
-| `sparkle build PATH [-o DIR]` | Compiles a `.spk` file or a directory of them into a binary |
-| `sparkle run PATH [-- args]` | Builds, then runs the binary |
-| `sparkle caps PATH...` | Counts capability annotations per file |
+| [DESIGN.md](DESIGN.md) | How the translator is put together, the decisions behind it, and the roadmap |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Building, testing and changing it |
+| [docs/step1-spec.md](docs/step1-spec.md) | Every Sparkle-to-Pony translation rule |
+| [examples/](examples) | Working programs |
 
-## Tests
+## Licence
 
-```bash
-make test
-```
-
-The suite includes golden translations of every example and end-to-end runs through `ponyc`; the latter are skipped when no `ponyc` is found. `UPDATE_GOLDEN=1 crystal spec` rewrites the golden files.
-
-## Layout
-
-| Path | Contents |
-|---|---|
-| `src/sparkle/` | Lexer, parser, emitter, source map, diagnostics rewriter, driver |
-| `spec/` | Unit, golden and end-to-end specs |
-| `examples/` | Sparkle programs used as golden tests |
-| `vendor/ponyc` | Pony, as a submodule pinned to a release tag |
+[MPL-2.0](LICENSE).
