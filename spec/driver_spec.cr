@@ -37,8 +37,10 @@ describe Driver do
     gen_dir = File.join(".sparkle", File.basename(dir))
     previous = ENV["SPARKLE_PONYC"]?
     begin
-      ENV["SPARKLE_PONYC"] = "/bin/true"
-      Driver.build(dir, out_dir, IO::Memory.new)
+      with_ponyc("bin") do |_, ponyc|
+        ENV["SPARKLE_PONYC"] = ponyc
+        Driver.build(dir, out_dir, IO::Memory.new)
+      end
       File.read(File.join(gen_dir, "main.pony")).should contain "where payload' = 1"
     ensure
       ENV["SPARKLE_PONYC"] = previous
