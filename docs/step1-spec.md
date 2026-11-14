@@ -166,7 +166,7 @@ sparkle run PATH [-- args]          # build, then run the binary
 sparkle caps PATH...                # capability statistics
 ```
 
-`build` writes generated Pony under `.sparkle/<package>/` and runs `ponyc` on it. `ponyc` is found via `$SPARKLE_PONYC`, then `vendor/ponyc/build/release/ponyc`, then `PATH`.
+`build` writes generated Pony under `.sparkle/<package>/` and runs `ponyc` on it. `ponyc` is found via `$SPARKLE_PONYC`, then `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
 
 ## 7. Not in step 1
 

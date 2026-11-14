@@ -7,7 +7,7 @@ module Sparkle
   record Translation, source : String, program : Program, pony : String, map : SourceMap
 
   module Driver
-    PONYC_RELATIVE = "vendor/ponyc/build/release/ponyc"
+    PONYC_RELATIVES = [".tools/ponyc/bin/ponyc", "vendor/ponyc/build/release/ponyc"]
 
     def self.translate(source : String) : Translation
       program = Parser.parse(source)
@@ -21,8 +21,9 @@ module Sparkle
       "#{path}:#{err.line}:#{err.col}: #{err.message}\n#{line}\n#{Diagnostics.caret_padding(line, err.col)}^\n"
     end
 
-    # Locates ponyc: `$SPARKLE_PONYC`, then the vendored build relative to the
-    # executable and the working directory (and their parents), then `PATH`.
+    # Locates ponyc: `$SPARKLE_PONYC`, then `.tools/ponyc`, then the vendored
+    # build, each searched upward from the executable and the working
+    # directory, then `PATH`.
     def self.find_ponyc(env_value : String? = ENV["SPARKLE_PONYC"]?, exe_path : String? = Process.executable_path, cwd : String = Dir.current) : String?
       if env_value && !env_value.empty?
         return env_value
@@ -32,14 +33,16 @@ module Sparkle
         roots << File.dirname(File.dirname(File.expand_path(exe_path)))
       end
       roots << File.expand_path(cwd)
-      roots.each do |root|
-        dir = root
-        loop do
-          candidate = File.join(dir, PONYC_RELATIVE)
-          return candidate if File.file?(candidate) && File.executable?(candidate)
-          parent = File.dirname(dir)
-          break if parent == dir
-          dir = parent
+      PONYC_RELATIVES.each do |relative|
+        roots.each do |root|
+          dir = root
+          loop do
+            candidate = File.join(dir, relative)
+            return candidate if File.file?(candidate) && File.executable?(candidate)
+            parent = File.dirname(dir)
+            break if parent == dir
+            dir = parent
+          end
         end
       end
       Process.find_executable("ponyc")
@@ -81,7 +84,7 @@ module Sparkle
       end
       ponyc = find_ponyc
       unless ponyc
-        err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, build vendor/ponyc, or put ponyc on PATH)"
+        err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
         return {1, nil}
       end
       out_dir ||= File.join(".sparkle", "bin")
