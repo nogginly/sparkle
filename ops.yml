@@ -1,0 +1,35 @@
+dependencies:
+  brew:
+    - crystal
+  custom:
+    - |
+      shards check || (shards install && mkdir -p bin && cp lib/ameba/bin/ameba.cr bin && crystal build -o bin/ameba bin/ameba.cr)
+      git submodule update --init && make ponyc
+
+hooks:
+  before:
+    - mkdir -p bin
+actions:
+  sparkle:
+    command: bin/sparkle
+    description: Run sparkle, assumes already built. Run `ops build` first if not.
+  run:
+    command: crystal run
+    description: Compile and run a given source file
+  clean:
+    command: crystal clear_cache && make clean
+    description: Clear build caches
+  lint:
+    command: bin/ameba src/ spec/
+    description: Run Crystal source linter (ameba)
+  format:
+    command: crystal tool format
+    description: Format all source code
+    alias: fmt
+  build:
+    command: make build
+    description: Build the command-line apps into bin/
+    alias: b
+  test:
+    command: ops lint && make test
+    description: Run all tests and linter

@@ -1,0 +1,11 @@
+circle with area 3 big=false
+square with area 16 big=true
+circle with area 27 big=true
+sum = (4, 6)
+popped 20
+popped 10
+popped 0
+empty = true size = 0
+grace
+none
+missing nil = true, present nil = false

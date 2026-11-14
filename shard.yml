@@ -1,0 +1,13 @@
+name: sparkle
+version: 0.1.0
+crystal: ">= 1.19"
+license: MPL-2.0
+
+targets:
+  sparkle:
+    main: src/sparkle.cr
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.7.0

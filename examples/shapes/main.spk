@@ -1,0 +1,110 @@
+trait Shape
+  abstract def area : UInt32
+  abstract def name : String
+
+  def describe : String = "#{name} with area #{area}"
+  def big? : Bool = area > 10
+end
+
+class Circle
+  include Shape
+  @r : UInt32
+
+  def self.new(r : UInt32)
+    @r = r
+  end
+
+  def area : UInt32 = 3 * @r * @r
+  def name : String = "circle"
+end
+
+class Square
+  include Shape
+  @side : UInt32
+
+  def self.new(side : UInt32)
+    @side = side
+  end
+
+  def area : UInt32 = @side * @side
+  def name : String = "square"
+end
+
+class Vec2
+  @x : UInt32
+  @y : UInt32
+
+  def self.new(x : UInt32, y : UInt32)
+    @x = x
+    @y = y
+  end
+
+  def x : UInt32 = @x
+  def y : UInt32 = @y
+  def +(o : Vec2) : Vec2 = Vec2.new(@x + o.@x, @y + o.@y)
+end
+
+class Stack(A : val)
+  @items : Array(A) = Array(A).new
+
+  def ref push(item : A)
+    @items << item
+  end
+
+  def ref pop! : A
+    @items.pop!
+  end
+
+  def size : USize = @items.size
+  def empty? : Bool = @items.size == 0
+end
+
+primitive Report
+  def pop_or(stack : Stack(UInt32), fallback : UInt32) : UInt32
+    begin
+      stack.pop!
+    rescue
+      fallback
+    end
+  end
+
+  def at_or(names : Array(String), i : USize) : String
+    begin
+      names[i]!
+    rescue
+      "none"
+    end
+  end
+
+  def tag_for(n : UInt32) : String?
+    n == 0 ? nil : "n#{n}"
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    shapes = [Circle.new(1), Square.new(4), Circle.new(3)] of Shape
+    shapes.each do |s|
+      env.@out.print("#{s.describe} big=#{s.big?}")
+    end
+
+    sum = Vec2.new(1, 2) + Vec2.new(3, 4)
+    env.@out.print("sum = (#{sum.x}, #{sum.y})")
+
+    stack = Stack(UInt32).new
+    stack.push(10)
+    stack.push(20)
+    3.times do
+      env.@out.print("popped #{Report.pop_or(stack, 0)}")
+    end
+    env.@out.print("empty = #{stack.empty?} size = #{stack.size}")
+
+    names = ["ada", "grace"]
+    env.@out.print(Report.at_or(names, 1))
+    env.@out.print(Report.at_or(names, 7))
+
+    missing = Report.tag_for(0)
+    present = Report.tag_for(5)
+    env.@out.print("missing nil = #{missing.nil?}, present nil = #{present.nil?}")
+  end
+end

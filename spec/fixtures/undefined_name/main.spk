@@ -1,0 +1,6 @@
+actor Main
+  def self.new(env : Env)
+    env.@out.print("before")
+    env.@out.print(missing_name)
+  end
+end
