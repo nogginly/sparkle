@@ -5,8 +5,8 @@ require "./ast"
 module Sparkle
   # Recursive-descent parser producing a `Program`. Raises `ParseError`.
   class Parser
-    TYPE_KINDS  = %w(class actor struct primitive trait interface)
-    TERMINATORS = %w(end else elsif when rescue ensure)
+    TYPE_KINDS  = %w[class actor struct primitive trait interface]
+    TERMINATORS = %w[end else elsif when rescue ensure]
     BINARY_PREC = {
       "||" => 1, "&&" => 2,
       "==" => 3, "!=" => 3, "<" => 3, "<=" => 3, ">" => 3, ">=" => 3, "is" => 3, "isnt" => 3,
@@ -15,7 +15,7 @@ module Sparkle
       "*" => 6, "/" => 6, "%" => 6,
     }
     OP_ASSIGN       = {"+=" => "+", "-=" => "-", "*=" => "*", "/=" => "/", "%=" => "%"}
-    OPERATOR_METHOD = %w(+ - * / % == != < <= > >= << >>)
+    OPERATOR_METHOD = %w[+ - * / % == != < <= > >= << >>]
 
     @i = 0
     @caps = [] of CapUse
@@ -486,7 +486,7 @@ module Sparkle
 
     private def binary_op : {String, Int32}?
       t = tok
-      return nil unless t.kind.op? || t.kw?("is") || t.kw?("isnt")
+      return unless t.kind.op? || t.kw?("is") || t.kw?("isnt")
       prec = BINARY_PREC[t.text]?
       prec ? {t.text, prec} : nil
     end
@@ -805,20 +805,24 @@ module Sparkle
         advance
         Next.new(t.line, t.col)
       when "recover"
-        advance
-        cap = nil
-        if tok.kind.ident? && CAPABILITIES.includes?(tok.text)
-          cap = tok.text
-          cap_use("recover", cap, tok)
-          advance
-        end
-        expect_kw("do")
-        body = parse_stmts
-        expect_kw("end")
-        Recover.new(t.line, t.col, cap, body)
+        parse_recover
       else
         error("unexpected #{t}")
       end
+    end
+
+    private def parse_recover : Expr
+      t = advance
+      cap = nil
+      if tok.kind.ident? && CAPABILITIES.includes?(tok.text)
+        cap = tok.text
+        cap_use("recover", cap, tok)
+        advance
+      end
+      expect_kw("do")
+      body = parse_stmts
+      expect_kw("end")
+      Recover.new(t.line, t.col, cap, body)
     end
 
     private def value_follows? : Bool

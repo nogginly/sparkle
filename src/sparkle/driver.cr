@@ -38,7 +38,7 @@ module Sparkle
           dir = root
           loop do
             candidate = File.join(dir, relative)
-            return candidate if File.file?(candidate) && File.executable?(candidate)
+            return candidate if File.file?(candidate) && File::Info.executable?(candidate)
             parent = File.dirname(dir)
             break if parent == dir
             dir = parent

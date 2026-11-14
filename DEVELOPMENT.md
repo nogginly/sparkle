@@ -4,7 +4,7 @@ How to build, test and change this shard. For how it works, see [DESIGN.md](DESI
 
 ## Dependencies
 
-1. Make sure you have the Crystal toolchain installed, version 1.11 or later.
+1. Make sure you have the Crystal toolchain installed, version 1.19 or later (`ameba` 1.7 needs it).
    - via `brew install crystal` for macOS and Linux (if you are so inclined)
    - or directly [install Crystal](https://crystal-lang.org/install/) from the website
 2. `make` and `curl`.

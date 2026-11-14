@@ -314,7 +314,7 @@ module Sparkle
           return i if depth == 0
         when '"'
           i = skip_string(i + 1)
-          return nil unless i
+          return unless i
           next
         end
         i += 1
@@ -332,7 +332,7 @@ module Sparkle
         when '#'
           if @chars[i + 1]? == '{'
             stop = interpolation_end(i + 2)
-            return nil unless stop
+            return unless stop
             i = stop
           end
         end

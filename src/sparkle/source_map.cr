@@ -18,7 +18,7 @@ module Sparkle
     def lookup(pony_line : Int32, pony_col : Int32) : {Int32, Int32}?
       idx = @marks.bsearch_index { |mark| mark.pony_line > pony_line || (mark.pony_line == pony_line && mark.pony_col > pony_col) }
       idx = @marks.size if idx.nil?
-      return nil if idx == 0
+      return if idx == 0
       m = @marks[idx - 1]
       {m.line, m.col}
     end

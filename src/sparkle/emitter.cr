@@ -269,7 +269,7 @@ module Sparkle
     end
 
     private def mutating_name?(name : String) : Bool
-      REF_BY_DEFAULT.includes?(name) || (name.ends_with?('=') && !%w(== != <= >=).includes?(name))
+      REF_BY_DEFAULT.includes?(name) || (name.ends_with?('=') && !%w[== != <= >=].includes?(name))
     end
 
     private def emit_method_params(params : Array(Param)) : Nil

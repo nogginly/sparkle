@@ -1,8 +1,8 @@
 require "./token"
 
 module Sparkle
-  CAPABILITIES = %w(iso trn ref val box tag)
-  GENERIC_CAPS = %w(read send share alias any)
+  CAPABILITIES = %w[iso trn ref val box tag]
+  GENERIC_CAPS = %w[read send share alias any]
   ALL_CAPS     = CAPABILITIES + GENERIC_CAPS
 
   # Base of every AST node; `line` and `col` are 1-based positions in the
@@ -16,12 +16,12 @@ module Sparkle
   end
 
   macro node(name, parent, *fields)
-    class {{name}} < {{parent}}
+    class {{ name }} < {{ parent }}
       {% for f in fields %}
-        property {{f.var}} : {{f.type}}{% if !f.value.is_a?(Nop) %} = {{f.value}}{% end %}
+        property {{ f.var }} : {{ f.type }}{% if !f.value.is_a?(Nop) %} = {{ f.value }}{% end %}
       {% end %}
 
-      def initialize(line : Int32, col : Int32{% for f in fields %}, @{{f.var}} : {{f.type}}{% if !f.value.is_a?(Nop) %} = {{f.value}}{% end %}{% end %})
+      def initialize(line : Int32, col : Int32{% for f in fields %}, @{{ f.var }} : {{ f.type }}{% if !f.value.is_a?(Nop) %} = {{ f.value }}{% end %}{% end %})
         super(line, col)
       end
     end
