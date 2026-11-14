@@ -94,6 +94,7 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | `foo` (not a local or parameter) | `foo()` | call on `this` |
 | `Foo.new(a)` / `Array(String).new` | `Foo.create(a)` / `Array[String].create()` | |
 | `f(x: 1)` | `f(where x = 1)` | named arguments |
+| `Message.new(payload: s)`, where some `def self.new(payload …)` in the package has its `payload` primed | `Message.create(where payload' = s)` | a named argument is primed when a Sparkle method of the same Pony name, anywhere in the package, primes that parameter *(typeless: matched by method name, not by receiver type)* |
 | `a[i]` / `a[i]!` | `a(i)` / `a(i)?` | |
 | `a[i] = v` / `a[i]! = v` | `a(i) = v` / `a(i)? = v` | |
 | `x.name = v` | `x.set_name(v)` | |
@@ -196,7 +197,7 @@ sparkle caps PATH...                # capability statistics
 - An index, setter or field assignment cannot be used as a value (see *Assignment as a value*).
 - A variable first assigned inside a branch or loop is scoped to that block, as in Pony.
 - `ticks = 0` is an `Int32`, as in Crystal, so it will not compare with a `USize`. Write `ticks : USize = 0`.
-- A named argument is not primed, because the callee is unknown: `f(payload: 1)` fails when `f`'s type also has a method `payload`.
+- A named argument is primed by method name alone. If two types in a package each define `f` and only one primes its parameter `x`, then `f(x: 1)` is primed for both, and `ponyc` reports the call to the other.
 - `x.@name` picks the private field whenever the enclosing type has an ivar of that name, so a type with `@out` cannot also read `env.@out`.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
