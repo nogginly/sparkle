@@ -16,6 +16,12 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## What's next
 
-**Decision** for the user: the `libponyc` spike, or a step 1 gap first (`enum`, calls without parentheses).
+Three step 1 gaps, decided by the user, each on its own branch and starting in `docs/step1-spec.md`:
 
-The spike, from `DESIGN.md` "One binary": link `libponyc` from Crystal and build a trivial AST through its C API. Step 2 depends on it, and it is untested.
+1. **Assignment value.** Adopt Crystal's: an assignment used as a value gives the new value (`x = (y = 5)` → `x = (y = 5; y)`). Pony's swap idiom `a = b = a` is lost, knowingly.
+2. **Named arguments to primed parameters.** The build records, across the package, which methods have a primed parameter, and primes matching named arguments (`Message.new(payload: …)` → `where payload' = …`). Two same-named methods on different types that disagree are left to `ponyc` to report.
+3. **`enum`.** One `primitive` per member and a union type, so `case … in` can be exhaustive over it.
+
+Dropped for now, maybe for good: calls without parentheses.
+
+After those, the `libponyc` spike from `DESIGN.md` "One binary": link `libponyc` from Crystal and build a trivial AST through its C API. Step 2 depends on it, and it is untested.
