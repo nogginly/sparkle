@@ -61,3 +61,15 @@ The plan holds, and two parts of it look lighter than DESIGN.md assumed:
 2. Building the AST needs no fork either. A fork is needed only for behaviour `ponyc` lacks, such as `yield` inlining.
 
 That raises a question for step 2: could rules that need types be written in Crystal, by reading the typed AST after `PASS_EXPR` and rewriting it, before any C patches? Field-versus-call resolution is the obvious candidate.
+
+## What happens to `spike/`
+
+It stays frozen as evidence until step 2's real code replaces it, and grows only through follow-up spikes such as reading types back. Then:
+
+| File | Fate |
+|---|---|
+| `libponyc.cr`, `shim.c` | Move into `src/sparkle/` as the binding layer, built by `make` and tested in CI on both platforms. Token values are generated from `token.h` instead of copied, the archive path comes from the same logic as `make ponyc`, and a spec compiles a small hand-built AST and checks its output and an error position |
+| `stage1.cr` … `stage3.cr`, `build.sh` | Deleted; git history keeps them |
+| This document | Kept, as the record of why step 2 is built this way |
+
+Until then nothing builds `spike/`, so a Pony upgrade can break it unnoticed. The pinned Pony version limits that risk.
