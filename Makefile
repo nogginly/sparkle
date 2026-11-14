@@ -11,6 +11,7 @@ TOOLS_PONYC ?= .tools/ponyc
 .PHONY: ponyc ponyc-source build test lint clean distclean
 
 build:
+	@mkdir -p bin
 	crystal build src/sparkle.cr -o bin/sparkle
 
 test:
@@ -41,7 +42,7 @@ ponyc-source:
 	cd $(PONYC_DIR) && cmake --build --preset release
 
 clean:
-	rm -rf bin .sparkle
+	rm -rf bin/sparkle .sparkle
 
 distclean: clean
-	rm -rf .tools
+	rm -rf bin .tools

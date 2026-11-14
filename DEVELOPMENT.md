@@ -58,8 +58,8 @@ Command                          | Description
 `crystal tool format`            | Format all source code
 `make ponyc`                     | Install the prebuilt `ponyc` into `.tools/`
 `make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
-`make clean`                     | Remove `bin/` and `.sparkle/`
-`make distclean`                 | As `clean`, and remove `.tools/` too
+`make clean`                     | Remove `bin/sparkle` and `.sparkle/`; keeps `bin/ameba`
+`make distclean`                 | As `clean`, and remove all of `bin/` and `.tools/` too
 `bin/sparkle translate FILE.spk` | Print the Pony generated for one file
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
@@ -173,6 +173,8 @@ Document                                 | Update it when
 [DESIGN.md](DESIGN.md)                   | A layer, a decision or the "Not built" list changes
 [docs/step1-spec.md](docs/step1-spec.md) | A translation rule or a known gap changes
 DEVELOPMENT.md                           | The way to build, test or lint changes
+[HANDOFF.md](HANDOFF.md)                 | A piece of work ends: rewrite it, do not append
+[.claude/](.claude)                      | The way work is delegated, or a review yields a lesson for `implementer.md`
 
 ## Contributions
 
