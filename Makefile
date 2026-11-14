@@ -8,7 +8,7 @@ PONYC_PLATFORM = $(strip $(if $(filter Darwin,$(HOST_OS)),apple-darwin,$(if $(fi
 PONYC_URL = https://dl.cloudsmith.io/public/ponylang/releases/raw/versions/$(PONYC_VERSION)/ponyc-$(PONYC_ARCH)-$(PONYC_PLATFORM).tar.gz
 TOOLS_PONYC ?= .tools/ponyc
 
-.PHONY: ponyc ponyc-source build test lint clean distclean
+.PHONY: ponyc ponyc-source ameba build test lint clean distclean
 
 build:
 	@mkdir -p bin
@@ -19,6 +19,13 @@ test:
 
 lint:
 	bin/ameba src spec
+
+ameba:
+	@if ! shards check >/dev/null 2>&1 || [ ! -x bin/ameba ]; then \
+		shards install && mkdir -p bin && cp lib/ameba/bin/ameba.cr bin && crystal build -o bin/ameba bin/ameba.cr; \
+	else \
+		echo "ameba is up to date"; \
+	fi
 
 ponyc:
 	@if [ -x $(TOOLS_PONYC)/bin/ponyc ] && [ "$$(cat $(TOOLS_PONYC)/VERSION-installed 2>/dev/null)" = "$(PONYC_VERSION)" ]; then \

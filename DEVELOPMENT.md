@@ -17,10 +17,10 @@ Sparkle has no runtime shard dependencies. Its one development dependency is the
 
 ### Dependency check
 
-Run the following to update dependencies and build `ameba` the first time, or when dependencies change.
+Run the following to install shards and build `ameba` the first time, or when dependencies change.
 
 ```sh
-shards check || (shards install && mkdir -p bin && cp lib/ameba/bin/ameba.cr bin && crystal build -o bin/ameba bin/ameba.cr)
+make ameba
 ```
 
 ### First time
@@ -55,6 +55,7 @@ Command                          | Description
 `crystal spec --order random`    | Run the specs in random order
 `UPDATE_GOLDEN=1 crystal spec`   | Rewrite every example's `expected.pony`
 `make lint`                      | Lint all source code (`bin/ameba src spec`)
+`make ameba`                     | Install shards and build `bin/ameba`, unless `shards check` passes and `bin/ameba` exists
 `crystal tool format`            | Format all source code
 `make ponyc`                     | Install the prebuilt `ponyc` into `.tools/`
 `make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
@@ -163,7 +164,7 @@ Keep `vendor/ponyc` unmodified during step 1. To move to a newer Pony, check out
 
 ### Continuous integration
 
-Not in place yet. When it is, `.github/workflows/ci.yml` will run on every pull request and on every push to `main`.
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-15`, arm64). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and builds `ameba` (cached with `lib/` per Crystal version and `shard.lock`), then runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
 
 ### Keeping the documents current
 

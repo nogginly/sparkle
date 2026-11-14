@@ -3,7 +3,7 @@ dependencies:
     - crystal
   custom:
     - |
-      shards check || (shards install && mkdir -p bin && cp lib/ameba/bin/ameba.cr bin && crystal build -o bin/ameba bin/ameba.cr)
+      make ameba
       git submodule update --init && make ponyc
 
 hooks:
