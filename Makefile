@@ -20,12 +20,12 @@ test:
 lint:
 	bin/ameba src spec
 
-ameba: bin/ameba
-
-bin/ameba: shard.lock
-	shards install
-	mkdir -p bin && cp lib/ameba/bin/ameba.cr bin
-	crystal build -o bin/ameba bin/ameba.cr
+ameba:
+	@if ! shards check >/dev/null 2>&1 || [ ! -x bin/ameba ]; then \
+		shards install && mkdir -p bin && cp lib/ameba/bin/ameba.cr bin && crystal build -o bin/ameba bin/ameba.cr; \
+	else \
+		echo "ameba is up to date"; \
+	fi
 
 ponyc:
 	@if [ -x $(TOOLS_PONYC)/bin/ponyc ] && [ "$$(cat $(TOOLS_PONYC)/VERSION-installed 2>/dev/null)" = "$(PONYC_VERSION)" ]; then \

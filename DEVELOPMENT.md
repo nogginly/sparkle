@@ -55,7 +55,7 @@ Command                          | Description
 `crystal spec --order random`    | Run the specs in random order
 `UPDATE_GOLDEN=1 crystal spec`   | Rewrite every example's `expected.pony`
 `make lint`                      | Lint all source code (`bin/ameba src spec`)
-`make ameba`                     | Install shards and build `bin/ameba`, again whenever `shard.lock` changes
+`make ameba`                     | Install shards and build `bin/ameba`, unless `shards check` passes and `bin/ameba` exists
 `crystal tool format`            | Format all source code
 `make ponyc`                     | Install the prebuilt `ponyc` into `.tools/`
 `make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
@@ -164,7 +164,7 @@ Keep `vendor/ponyc` unmodified during step 1. To move to a newer Pony, check out
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-15`, arm64). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and builds `ameba` (cached with `lib/` per Crystal version and `shard.lock`; on a hit, `make ameba` is skipped, because a fresh checkout makes `shard.lock` look newer than the restored binary), then runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-15`, arm64). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and builds `ameba` (cached with `lib/` per Crystal version and `shard.lock`), then runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
 
 ### Keeping the documents current
 
