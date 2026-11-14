@@ -6,3 +6,8 @@ license: MPL-2.0
 targets:
   sparkle:
     main: src/sparkle.cr
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.6.4
