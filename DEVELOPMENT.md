@@ -8,7 +8,7 @@ How to build, test and change this shard. For how it works, see [DESIGN.md](DESI
    - via `brew install crystal` for macOS and Linux (if you are so inclined)
    - or directly [install Crystal](https://crystal-lang.org/install/) from the website
 2. `make` and `curl`.
-3. The Pony compiler, `ponyc`. `make ponyc` fetches it; see below.
+3. The Pony compiler, `ponyc`. `make ponyc` fetches it; see below. It is needed to build Sparkle, not only to test it: `bin/sparkle` links its `libponyc-standalone.a`, and the shim compiles against the headers in the `vendor/ponyc` submodule.
 4. Only to build `ponyc` from source: Clang, CMake 3.25 or later, Python 3, and the zlib and OpenSSL development headers.
 
 Sparkle has no runtime shard dependencies. Its one development dependency is the linter, `ameba`.
@@ -121,7 +121,8 @@ The unit and golden tiers prove the translator produces the Pony we expect. Only
 
 ### Things that will bite you
 
-- **End-to-end specs are skipped, not failed, when `ponyc` is missing.** A run that reports pending specs has not checked that the generated Pony compiles. Run `make ponyc` first.
+- **Nothing builds before `make ponyc`.** `bin/sparkle` and the spec binary link the compiler from `.tools/ponyc`; without it the build stops and says so. End-to-end specs are still skipped, not failed, if no Pony installation is found at run time, and a run that reports pending specs has not checked that the generated Pony compiles.
+- **`bin/sparkle` is about 160 MB and takes about 10 seconds to link**, because it holds the Pony compiler with LLVM.
 - **`UPDATE_GOLDEN=1` accepts whatever the emitter writes.** Read the diff of every `expected.pony` before committing it.
 - **`expected.out` is maintained by hand.** Nothing regenerates it.
 - **Actors run concurrently.** An example whose output order depends on message timing will fail now and then. Have one actor do all the printing, as `examples/ring` does.

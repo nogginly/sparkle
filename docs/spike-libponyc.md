@@ -93,7 +93,7 @@ Stage 4 answers the question this raised: a rule that needs types can be written
 
 ## What happens to `spike/`
 
-It stays frozen as evidence until step 2's real code replaces it, and grows only through follow-up spikes such as reading types back. Then:
+It stays frozen as evidence until step 2's real code replaces it, and grows only through follow-up spikes such as reading types back. The in-process compile of Pony text (stage 2) has graduated to `src/sparkle/ponyc/`, built by `make` and tested on Linux and macOS. Building the AST (stages 3 and 4) has not, so those parts remain:
 
 | File | Fate |
 |---|---|

@@ -1,6 +1,7 @@
 require "./parser"
 require "./emitter"
 require "./diagnostics"
+require "./ponyc/compiler"
 
 module Sparkle
   # Result of translating one Sparkle source.
@@ -58,8 +59,10 @@ module Sparkle
       end
     end
 
-    # Translates, writes `.sparkle/<package>/*.pony` and runs ponyc. Returns
-    # the exit code. `out_dir` receives the binary.
+    # Translates, writes `.sparkle/<package>/*.pony` and compiles it with the
+    # linked-in Pony compiler, against the standard library of the Pony
+    # installation that holds the `ponyc` found by `find_ponyc`. Returns the
+    # exit code. `out_dir` receives the binary.
     def self.build(path : String, out_dir : String?, err : IO = STDERR) : {Int32, String?}
       files, package = sources_for(path)
       if files.empty?
@@ -99,10 +102,9 @@ module Sparkle
       end
       out_dir ||= File.join(".sparkle", "bin")
       Dir.mkdir_p(out_dir)
-      io = IO::Memory.new
-      status = Process.run(ponyc, ["-o", out_dir, "-b", package, File.expand_path(gen_dir)], output: io, error: io)
-      err.print Diagnostics.rewrite(io.to_s, generated, names: names)
-      {status.exit_code, File.join(out_dir, package)}
+      ok, errors = Ponyc.compile(gen_dir, out_dir, package, File.dirname(File.dirname(ponyc)))
+      err.print Diagnostics.rewrite(errors, generated, names: names)
+      {ok ? 0 : 1, File.join(out_dir, package)}
     end
   end
 end
