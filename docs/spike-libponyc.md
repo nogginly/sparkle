@@ -1,6 +1,6 @@
 # Spike: linking `libponyc` from Crystal
 
-The question from DESIGN.md's [One binary](../DESIGN.md#one-binary): can the Crystal front end link `libponyc` and build its AST directly, instead of writing Pony text and running `ponyc`? **Yes.** The code is in [`spike/libponyc/`](../spike/libponyc), and was tested on Linux x86-64 with Pony 0.78.2.
+The question from DESIGN.md's [One binary](../DESIGN.md#one-binary): can the Crystal front end link `libponyc` and build its AST directly, instead of writing Pony text and running `ponyc`? **Yes.** The code was [`spike/libponyc/`](https://github.com/nogginly/sparkle/tree/747866f47de5a62a87767e660f879d8285c4025d/spike/libponyc), removed once its stages had graduated or been recorded here, and was tested on Linux x86-64 with Pony 0.78.2.
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ flowchart LR
 | 3, with an error | Nodes carry `.spk` positions | `main.spk:3:13: couldn't find 'prnt' in 'OutStream'`, with the Sparkle line and a caret |
 | 4 | Tell a field from a method using types, and read types back | Works: three rounds of type checking, then a running binary |
 
-Run `spike/libponyc/build.sh`, then `build/stage1`, `build/stage2`, `build/stage3`, `build/stage3 bad` and `build/stage4`.
+To rerun it, restore it with `git checkout 747866f -- spike/libponyc`, run `spike/libponyc/build.sh`, then `build/stage1`, `build/stage2`, `build/stage3`, `build/stage3 bad` and `build/stage4`.
 
 ## Stage 4: fields and methods, decided by types
 
@@ -55,7 +55,7 @@ round 3 (0.14s): 0 errors; methods at none
 ## What it takes
 
 - **Linking:** the prebuilt release already ships `libponyc-standalone.a`, which is `libponyc` with LLVM, lld and clang inside, so nothing is built from source. It needs `libponyrt-pic.a` beside it, because the compiler uses the runtime's data structures, plus `-lz -ldl -lpthread -lm`.
-- **A C shim of about 50 lines** ([`shim.c`](../spike/libponyc/shim.c)). `pass_opt_t` is a large struct, so the shim sets the five options that matter: output directory, binary name, pass limit, release and `argv0`. Token kinds and pass ids are C enums, so it also exports their values. Everything else is called directly from Crystal.
+- **A C shim of about 50 lines** ([`shim.c`](https://github.com/nogginly/sparkle/blob/747866f47de5a62a87767e660f879d8285c4025d/spike/libponyc/shim.c)). `pass_opt_t` is a large struct, so the shim sets the five options that matter: output directory, binary name, pass limit, release and `argv0`. Token kinds and pass ids are C enums, so it also exports their values. Everything else is called directly from Crystal.
 - **Injecting the AST:** register an empty magic module, load it with the pass limit at `PASS_PARSE`, append the hand-built nodes to its file node, then raise the limit and run `ast_passes_program` and `generate_passes`. Passes are recorded per node, so they resume. Because the nodes enter at the parse level, Pony's own sugar pass still runs on them.
 - **Positions:** a `source_t` whose `file` is `main.spk` and whose text is the Sparkle source, set on each node with `ast_setpos`. `ponyc` then reports errors against the `.spk` file and quotes its line. No source map is needed.
 
@@ -92,14 +92,12 @@ The plan holds, and two parts of it look lighter than DESIGN.md assumed:
 
 Stage 4 answers the question this raised: a rule that needs types can be written in Crystal, by type-checking, reading the result and rebuilding, before any C patches. Field-versus-call resolution works that way, which would retire `env.@out`. A fork is still the route for rules that must change what the type checker does mid-pass, such as `yield` inlining.
 
-## What happens to `spike/`
+## Where the spike's code went
 
-It stays frozen as evidence until step 2's real code replaces it, and grows only through follow-up spikes such as reading types back. The in-process compile of Pony text (stage 2) has graduated to `src/sparkle/ponyc/`, built by `make` and tested on Linux and macOS. Building the AST (stages 3 and 4) has not, so those parts remain:
-
-| File | Fate |
+| Stage | Now |
 |---|---|
-| `libponyc.cr`, `shim.c` | Move into `src/sparkle/` as the binding layer, built by `make` and tested in CI on both platforms. Token values are generated from `token.h` instead of copied, the archive path comes from the same logic as `make ponyc`, and a spec compiles a small hand-built AST and checks its output and an error position |
-| `stage1.cr` … `stage4.cr`, `build.sh` | Deleted; git history keeps them, and stage 4's loop is rewritten in `src/` if step 2 adopts it |
-| This document | Kept, as the record of why step 2 is built this way |
+| 1, 2: link and compile in-process | `src/sparkle/ponyc/`, built by `make` and tested in CI on Linux and macOS |
+| 4: fields and methods by type-checking | `Ponyc.check` and the loop in `Driver.build` |
+| 3: build the AST by hand | Not in `src/` yet. [`stage3.cr`](https://github.com/nogginly/sparkle/blob/747866f47de5a62a87767e660f879d8285c4025d/spike/libponyc/stage3.cr) at commit `747866f` is the reference for building `ponyc`'s AST directly |
 
-Until then nothing builds `spike/`, so a Pony upgrade can break it unnoticed. The pinned Pony version limits that risk.
+`spike/` was then deleted, because nothing built it and a Pony upgrade could break it unnoticed. This document stays as the record of why step 2 is built this way.

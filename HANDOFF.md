@@ -17,7 +17,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## What's next
 
-1. Build the AST directly instead of Pony text (spike stage 3), with token values generated from `token.h`. Then the type-check loop can rewrite nodes instead of re-emitting text.
+1. Build the AST directly instead of Pony text (spike stage 3, kept at commit `747866f`; see [docs/spike-libponyc.md](docs/spike-libponyc.md)), with token values generated from `token.h`. Then the type-check loop can rewrite nodes instead of re-emitting text.
 2. Then the `ponyc` fork for `yield` inlining.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.
