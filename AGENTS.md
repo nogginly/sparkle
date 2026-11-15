@@ -33,7 +33,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 - Name a branch for the work it holds, such as `step1-translator` or `step2-yield-inlining`.
 - One commit per coherent change. The message says what changed and why.
-- Do not open a pull request unless asked.
+- Open a pull request for each branch when its work is ready; that is how changes are reviewed and reach `main`.
 
 ## Code style
 
@@ -56,4 +56,4 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 ## What comes next
 
-Step 2 of the roadmap in `DESIGN.md`. Before any fork of `ponyc`, run the spike described under "One binary": link `libponyc` from Crystal and build a trivial AST through its C API. The plan depends on it and it is untested.
+Step 2 of the roadmap in `DESIGN.md`. The `libponyc` spike is done and the plan holds; read [docs/spike-libponyc.md](docs/spike-libponyc.md) before starting, including what it left untested.
