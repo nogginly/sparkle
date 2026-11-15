@@ -196,6 +196,15 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 - **Reopening types.** Allow adding methods to an existing type elsewhere, or not? Forbidding it keeps a type's methods in one place, which makes contracts easier to prove.
 - **Macros.** Now, later or never? A few built-in declarations (`getter`, `property`, `record`) might cover most uses.
 - **Is Pony's garbage collector actually a problem?** It collects per actor, between behaviours, with no stop-the-world pause. The real reason to remove it may be runtime size, not latency.
+- **What happens to Pony's standard library?** Today Sparkle uses all of it. Steps 3 and 5 rewrite `Enumerable`, the collections and `String` in Sparkle's style; nothing says what happens to the rest (files, networking, time, processes) once step 6 forks the runtime. Three end states:
+
+  | Option | Gain | Cost |
+  |---|---|---|
+  | Sparkle's own core, Pony's library for the rest, for good | Cheapest; inherits a large, tested library written to the same capability rules | The language reads two ways: Crystal style for collections, Pony style for I/O. After the fork, every kept package is code Sparkle maintains alone |
+  | Rewrite everything in Sparkle, in time | One consistent library | The most work, and none of Pony's maturity |
+  | Wrap rather than rewrite: thin Sparkle-style layers over Pony's packages, such as a Crystal-like `File` over `files` | Consistent on the surface, cheap underneath | Depends on Pony's library surviving step 6's arenas, for example objects that outlive the behaviour that made them |
+
+  Two questions decide it: how far a Sparkle program should read like Crystal rather than Pony with Crystal's syntax, and whether Sparkle keeps pulling from upstream Pony after step 6. It should be settled before step 3 commits to a direction.
 
 ## Not built
 
