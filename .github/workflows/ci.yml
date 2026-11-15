@@ -29,6 +29,12 @@ jobs:
       - name: Install ponyc
         run: make ponyc
 
+      - name: Select the newest Xcode
+        if: runner.os == 'macOS'
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -n 1)"
+          clang --version | head -n 1
+
       - name: Install lld
         if: runner.os == 'Linux'
         run: command -v ld.lld || { sudo apt-get update && sudo apt-get install -y lld; }

@@ -41,7 +41,7 @@ make build
 
 Host  | Note
 ------|--------------------------------------------------------------------------------------------------------------------------------
-macOS | Needs the Xcode Command Line Tools (`xcode-select --install`); `ponyc` uses their SDK to link programs
+macOS | Needs Xcode or its Command Line Tools (`xcode-select --install`), new enough to read the Pony release's LLVM bitcode: Xcode 26 for Pony 0.78.2. An older one fails to link `bin/sparkle` with "Invalid bitcode version"
 Linux | Pony publishes builds per distribution. Set `PONYC_DISTRO` (for example `ubuntu24.04`) if yours is not detected or has no build
 
 On any other host, use `make ponyc-source`.
