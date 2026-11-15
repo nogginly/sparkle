@@ -20,8 +20,37 @@ flowchart LR
 | 2 | Compile Pony text held in memory, in-process, to a binary | Works; the binary runs |
 | 3 | Build the AST in Crystal, compile it, run it | Works; the tree prints identically to the parser's |
 | 3, with an error | Nodes carry `.spk` positions | `main.spk:3:13: couldn't find 'prnt' in 'OutStream'`, with the Sparkle line and a caret |
+| 4 | Tell a field from a method using types, and read types back | Works: three rounds of type checking, then a running binary |
 
-Run `spike/libponyc/build.sh`, then `build/stage1`, `build/stage2`, `build/stage3` and `build/stage3 bad`.
+Run `spike/libponyc/build.sh`, then `build/stage1`, `build/stage2`, `build/stage3`, `build/stage3 bad` and `build/stage4`.
+
+## Stage 4: fields and methods, decided by types
+
+Step 1 emits every `x.name` as a call, because without types it cannot tell a field from a method; hence `env.@out`. Stage 4 takes `env.out.print(env.args.size.string)`, with no `@` and no parentheses, and lets `ponyc` decide:
+
+```mermaid
+flowchart TD
+    L["Lower every bare x.name<br/>as a field read"] --> T["Type-check only<br/>(limit PASS_EXPR)"]
+    T --> Q{{"Any 'can't reference a method<br/>without calling it'?"}}
+    Q -- yes --> C["Make those positions calls,<br/>rebuild the AST"]
+    C --> T
+    Q -- no --> G["Finish the passes, generate"]
+```
+
+```
+round 1 (0.13s): 2 errors; methods at 3:27
+round 2 (0.2s): 2 errors; methods at 3:32
+round 3 (0.14s): 0 errors; methods at none
+  call at 3:32 has type String val
+  call at 3:27 has type USize val
+```
+
+- **It settles in one round per link of a method chain.** `.size` can only be judged once `env.args` has a type, and `.string` once `.size` is a call. Fields such as `.out` and `.args` are never touched. Independent expressions settle in the same rounds.
+- **Errors are read as data.** `errors_get_first` gives each error's file, line, column and message, so the loop matches positions, not text it has to parse out of the terminal.
+- **The default has to be "field".** Calling a field is not an error Pony can report clearly: `env.out()` means `env.out.apply()`, so it fails with "couldn't find 'apply'", or compiles silently if the field's type has an `apply()`. A method referenced without a call, by contrast, always gives the one error above.
+- **Types can be read back.** `ast_type` and `ast_print_type` give each expression's type after `PASS_EXPR`. The type is also an AST, so a printer in Sparkle's syntax can walk it instead of rewriting text.
+- **A round costs about 0.15 s**, because each one reloads `builtin`. Code generation, which runs once, is still the 2 seconds that matter.
+
 
 ## What it takes
 
@@ -49,8 +78,8 @@ Starting a second process costs almost nothing; LLVM's code generation dominates
 ## Not tested
 
 - **macOS.** The archive lives under `lib/arm64`, and on macOS it needs `libc++` and `libz` linked separately, as ponyc's CMake notes.
-- **Reading types back out after `PASS_EXPR`.** That is what step 2's rules need, for example to tell a field from a call.
-- **Types in error messages** still print in Pony's syntax (`String val`, not `val String`), so a type printer is still needed.
+- **Types in error messages** still print in Pony's syntax (`String val`, not `val String`). Stage 4 shows the type AST is available for a printer; none is written.
+- **Larger programs in the field-or-method loop:** locals with inferred types, generics, and errors that cascade from a real mistake.
 - **More than one module, and `use`.**
 
 ## What it means for the plan
@@ -60,7 +89,7 @@ The plan holds, and two parts of it look lighter than DESIGN.md assumed:
 1. Errors against `.spk` files need no fork, only positions on the nodes.
 2. Building the AST needs no fork either. A fork is needed only for behaviour `ponyc` lacks, such as `yield` inlining.
 
-That raises a question for step 2: could rules that need types be written in Crystal, by reading the typed AST after `PASS_EXPR` and rewriting it, before any C patches? Field-versus-call resolution is the obvious candidate.
+Stage 4 answers the question this raised: a rule that needs types can be written in Crystal, by type-checking, reading the result and rebuilding, before any C patches. Field-versus-call resolution works that way, which would retire `env.@out`. A fork is still the route for rules that must change what the type checker does mid-pass, such as `yield` inlining.
 
 ## What happens to `spike/`
 
@@ -69,7 +98,7 @@ It stays frozen as evidence until step 2's real code replaces it, and grows only
 | File | Fate |
 |---|---|
 | `libponyc.cr`, `shim.c` | Move into `src/sparkle/` as the binding layer, built by `make` and tested in CI on both platforms. Token values are generated from `token.h` instead of copied, the archive path comes from the same logic as `make ponyc`, and a spec compiles a small hand-built AST and checks its output and an error position |
-| `stage1.cr` … `stage3.cr`, `build.sh` | Deleted; git history keeps them |
+| `stage1.cr` … `stage4.cr`, `build.sh` | Deleted; git history keeps them, and stage 4's loop is rewritten in `src/` if step 2 adopts it |
 | This document | Kept, as the record of why step 2 is built this way |
 
 Until then nothing builds `spike/`, so a Pony upgrade can break it unnoticed. The pinned Pony version limits that risk.

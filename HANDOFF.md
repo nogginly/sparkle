@@ -17,7 +17,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## What's next
 
-1. **Decision** for the user: how step 2 starts. The spike suggests type-dependent rules might first be written in Crystal against the typed AST after `PASS_EXPR`, before any `ponyc` fork. Untested: reading types back, macOS, multiple modules.
-2. Then plan step 2 (`yield` inlining) in `DESIGN.md`.
+1. `step2-typed-ast-spike` (stage 4): fields and methods told apart by type-checking and rebuilding, and types read back, with no fork. Untested: macOS, multiple modules, larger programs in that loop.
+2. **Decision** for the user: what step 2 builds first, given that some type-dependent rules need no fork.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.

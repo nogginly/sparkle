@@ -178,7 +178,7 @@ flowchart LR
 
 Syntax stays in Crystal. Anything that needs types moves into the fork as C patches, because that is where the types are: `yield` inlining, field-versus-call resolution, capability defaults. The step 1 emitter, source map and diagnostics rewriter are retired at that point; AST nodes carry their own positions, so `ponyc` reports against `.spk` files directly.
 
-A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal links `libponyc-standalone.a`, builds an AST, compiles it to a running binary, and gets errors reported at `.spk` lines from positions set on the nodes. A small C shim sets compiler options and exports enum values. See [docs/spike-libponyc.md](docs/spike-libponyc.md) for the details, costs and what is still untested.
+A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal links `libponyc-standalone.a`, builds an AST, compiles it to a running binary, and gets errors reported at `.spk` lines from positions set on the nodes. A small C shim sets compiler options and exports enum values. A second stage told fields from methods by type-checking, reading `ponyc`'s errors and rebuilding, with no fork. See [docs/spike-libponyc.md](docs/spike-libponyc.md) for the details, costs and what is still untested.
 
 ### Later design notes
 
