@@ -13,7 +13,7 @@
   {% lib_dir = found.gsub(/\/libponyc-standalone\.a$/, "") %}
   {% arch = lib_dir.split("/").last %}
   {% runtime = file_exists?("#{lib_dir.id}/libponyrt-pic.a") ? "#{lib_dir.id}/libponyrt-pic.a" : "#{lib_dir.id}/libponyrt.a" %}
-  {% system_libs = flag?(:darwin) ? "-lc++ -lz" : "-lz -ldl -lpthread -lm" %}
+  {% system_libs = flag?(:darwin) ? "-lc++ -lz" : "-fuse-ld=lld -lz -ldl -lpthread -lm" %}
   {% system("mkdir -p #{root.id}/bin && cc -c -O1 -I#{headers.id}/libponyc -I#{headers.id}/common #{__DIR__.id}/shim.c -o #{shim.id}") %}
 
   # Bindings to the Pony compiler, linked in from the prebuilt release

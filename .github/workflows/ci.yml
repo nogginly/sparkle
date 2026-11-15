@@ -29,6 +29,10 @@ jobs:
       - name: Install ponyc
         run: make ponyc
 
+      - name: Install lld
+        if: runner.os == 'Linux'
+        run: command -v ld.lld || { sudo apt-get update && sudo apt-get install -y lld; }
+
       - name: Read the Crystal version
         id: crystal
         run: echo "version=$(crystal env CRYSTAL_VERSION)" >> "$GITHUB_OUTPUT"

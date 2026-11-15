@@ -7,7 +7,7 @@ How to build, test and change this shard. For how it works, see [DESIGN.md](DESI
 1. Make sure you have the Crystal toolchain installed, version 1.19 or later (`ameba` 1.7 needs it).
    - via `brew install crystal` for macOS and Linux (if you are so inclined)
    - or directly [install Crystal](https://crystal-lang.org/install/) from the website
-2. `make` and `curl`.
+2. `make` and `curl`. On Linux, also `lld` (for example `apt-get install lld`): the Pony compiler's own objects in `libponyc-standalone.a` are LLVM bitcode, which GNU `ld` cannot read.
 3. The Pony compiler, `ponyc`. `make ponyc` fetches it; see below. It is needed to build Sparkle, not only to test it: `bin/sparkle` links its `libponyc-standalone.a`, and the shim compiles against the headers in the `vendor/ponyc` submodule.
 4. Only to build `ponyc` from source: Clang, CMake 3.25 or later, Python 3, and the zlib and OpenSSL development headers.
 
