@@ -28,6 +28,18 @@ void spk_opt_free(pass_opt_t* opt)
   free(opt);
 }
 
+const int spk_pass_expr = PASS_EXPR;
+
+void spk_opt_set_limit(pass_opt_t* opt, int limit)
+{
+  opt->limit = (pass_id)limit;
+}
+
+errors_t* spk_opt_errors(pass_opt_t* opt)
+{
+  return opt->check.errors;
+}
+
 /* The collected errors, printed as ponyc prints them; free() the result. */
 char* spk_errors_text(pass_opt_t* opt)
 {

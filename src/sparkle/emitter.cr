@@ -71,11 +71,11 @@ module Sparkle
     LOOP_METHODS     = Set{"each", "each_with_index", "times"}
 
     # Returns the Pony text and source map for `program`.
-    def self.emit(program : Program, primed : Hash(String, Set(String)) = primed_params([program])) : {String, SourceMap}
-      probe = new(program, false, primed)
+    def self.emit(program : Program, primed : Hash(String, Set(String)) = primed_params([program]), calls : Set({Int32, Int32}) = Set({Int32, Int32}).new) : {String, SourceMap}
+      probe = new(program, false, primed, calls)
       probe.run
       return {probe.text, probe.map} unless probe.uses_collections?
-      final = new(program, true, primed)
+      final = new(program, true, primed, calls)
       final.run
       {final.text, final.map}
     end
@@ -136,7 +136,7 @@ module Sparkle
     @statement = false
     @method_names = Set(String).new
 
-    def initialize(@program : Program, @add_collections : Bool, @primed : Hash(String, Set(String)))
+    def initialize(@program : Program, @add_collections : Bool, @primed : Hash(String, Set(String)), @calls : Set({Int32, Int32}))
       @w = Writer.new
     end
 
@@ -1014,10 +1014,17 @@ module Sparkle
         @w.mark(c.name_line, c.name_col)
       end
       w pony_method_name(c.name, constructor)
+      return if bare_dot?(c) && !@calls.includes?({c.name_line, c.name_col})
       w "("
       emit_call_args(c, constructor)
       w ")"
       w "?" if partial_name?(c.name)
+    end
+
+    private def bare_dot?(c : Call) : Bool
+      recv = c.recv
+      !recv.nil? && !recv.is_a?(TypeRef) && c.args.empty? && c.named.empty? && c.block.nil? &&
+        !c.parens && !c.name.ends_with?('!') && !c.name.ends_with?('?')
     end
 
     private def emit_call_args(c : Call, constructor : Bool) : Nil

@@ -2,7 +2,7 @@ actor Worker
   @stream : OutStream
 
   def self.new(env : Env)
-    @stream = env.@out
+    @stream = env.out
   end
 
   be process(names : iso Array(String))

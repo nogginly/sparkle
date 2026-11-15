@@ -10,6 +10,6 @@ actor Main
     c.incr
     last = c.incr
     a = b = 7
-    env.@out.print("count = #{c.count}, last = #{last}, a = #{a}, b = #{b}")
+    env.out.print("count = #{c.count}, last = #{last}, a = #{a}, b = #{b}")
   end
 end

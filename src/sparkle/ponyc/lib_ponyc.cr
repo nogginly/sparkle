@@ -22,6 +22,22 @@
   lib LibPonyc
     type PassOpt = Void*
     type Ast = Void*
+    type Errors = Void*
+
+    struct ErrorMsg
+      file : LibC::Char*
+      line : LibC::SizeT
+      pos : LibC::SizeT
+      msg : LibC::Char*
+      source : LibC::Char*
+      frame : ErrorMsg*
+      next : ErrorMsg*
+    end
+
+    $spk_pass_expr : LibC::Int
+    fun spk_opt_set_limit(opt : PassOpt, limit : LibC::Int)
+    fun spk_opt_errors(opt : PassOpt) : Errors
+    fun errors_get_first(errors : Errors) : ErrorMsg*
 
     fun spk_opt_new(output : LibC::Char*, bin_name : LibC::Char*, search_paths : LibC::Char*) : PassOpt
     fun spk_opt_free(opt : PassOpt)

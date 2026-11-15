@@ -48,7 +48,7 @@ end
 actor Main
   def self.new(env : Env)
     count : USize = 4
-    sink = Collector.new(env.@out, count)
+    sink = Collector.new(env.out, count)
     workers = [] of Worker
     count.times do |i|
       workers << Worker.new((i + 1).u32, sink)

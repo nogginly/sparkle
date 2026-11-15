@@ -27,6 +27,10 @@ describe "end to end" do
         code, stdout, err = build_and_run(File.join("examples", File.basename(dir), "main.spk"))
         code.should eq(0), err
         stdout.should eq File.read(File.join(dir, "expected.out"))
+        generated = File.read(File.join(ROOT, ".sparkle", File.basename(dir), "main.pony"))
+        expected_path = File.join(dir, "expected.pony")
+        File.write(expected_path, generated) if ENV["UPDATE_GOLDEN"]? == "1"
+        generated.should eq File.read(expected_path)
       end
     end
 
@@ -36,7 +40,7 @@ describe "end to end" do
       code.should_not eq 0
       text = err.to_s
       text.should contain "spec/fixtures/undefined_name/main.spk:4:"
-      text.should contain "    env.@out.print(missing_name)"
+      text.should contain "    env.out.print(missing_name)"
     end
 
     it "prints types in ponyc messages in Sparkle syntax" do
