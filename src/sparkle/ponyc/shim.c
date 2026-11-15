@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "ponyc.h"
@@ -20,6 +21,30 @@ pass_opt_t* spk_opt_new(const char* output, const char* bin_name,
   opt->argv0 = "sparkle";
   module_add_paths(search_paths, opt);
   return opt;
+}
+
+#if defined(__linux__)
+int GC_get_suspend_signal(void);
+int GC_get_thr_restart_signal(void);
+#endif
+
+/* ponyc_init, keeping the garbage collector's thread-suspend signals.
+ * LLVM's crash handlers, installed by ponyc_init, would otherwise intercept
+ * them and print a bug-report banner before passing them on. */
+bool spk_ponyc_init(pass_opt_t* opt)
+{
+#if defined(__linux__)
+  int signals[2] = {GC_get_suspend_signal(), GC_get_thr_restart_signal()};
+  struct sigaction saved[2];
+  for(int i = 0; i < 2; i++)
+    sigaction(signals[i], NULL, &saved[i]);
+#endif
+  bool ok = ponyc_init(opt);
+#if defined(__linux__)
+  for(int i = 0; i < 2; i++)
+    sigaction(signals[i], &saved[i], NULL);
+#endif
+  return ok;
 }
 
 void spk_opt_free(pass_opt_t* opt)

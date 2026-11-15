@@ -37,7 +37,7 @@ module Sparkle::Ponyc
   private def self.with_options(out_dir : String, bin_name : String, home : String, & : LibPonyc::PassOpt -> Bool) : {Bool, String}
     search = {File.join(home, "packages"), File.join(home, "lib", LIB_ARCH)}.join(Process::PATH_DELIMITER)
     opt = LibPonyc.spk_opt_new(out_dir, bin_name, search)
-    ok = LibPonyc.ponyc_init(opt)
+    ok = LibPonyc.spk_ponyc_init(opt)
     ok = yield opt if ok
     text = LibPonyc.spk_errors_text(opt)
     errors = text.null? ? "" : String.new(text)

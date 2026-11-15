@@ -42,7 +42,7 @@
     fun spk_opt_new(output : LibC::Char*, bin_name : LibC::Char*, search_paths : LibC::Char*) : PassOpt
     fun spk_opt_free(opt : PassOpt)
     fun spk_errors_text(opt : PassOpt) : LibC::Char*
-    fun ponyc_init(opt : PassOpt) : Bool
+    fun spk_ponyc_init(opt : PassOpt) : Bool
     fun ponyc_shutdown(opt : PassOpt)
     fun program_load(path : LibC::Char*, opt : PassOpt) : Ast
     fun generate_passes(program : Ast, opt : PassOpt) : Bool
