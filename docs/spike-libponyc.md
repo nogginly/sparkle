@@ -77,7 +77,7 @@ Starting a second process costs almost nothing; LLVM's code generation dominates
 
 ## Not tested
 
-- **macOS.** The archive lives under `lib/arm64`, and on macOS it needs `libc++` and `libz` linked separately, as ponyc's CMake notes.
+- **macOS.** The release keeps its archives under `lib/armv8-a/`, not `lib/arm64/`, and ships `libponyrt.a` but no `libponyrt-pic.a`; ponyc's CMake notes it also needs `libc++` and `libz` linked separately. `src/sparkle/ponyc/` finds the directory and the runtime archive rather than assuming them.
 - **Types in error messages** still print in Pony's syntax (`String val`, not `val String`). Stage 4 shows the type AST is available for a printer; none is written.
 - **Larger programs in the field-or-method loop:** locals with inferred types, generics, and errors that cascade from a real mistake.
 - **More than one module, and `use`.**
@@ -93,7 +93,7 @@ Stage 4 answers the question this raised: a rule that needs types can be written
 
 ## What happens to `spike/`
 
-It stays frozen as evidence until step 2's real code replaces it, and grows only through follow-up spikes such as reading types back. Then:
+It stays frozen as evidence until step 2's real code replaces it, and grows only through follow-up spikes such as reading types back. The in-process compile of Pony text (stage 2) has graduated to `src/sparkle/ponyc/`, built by `make` and tested on Linux and macOS. Building the AST (stages 3 and 4) has not, so those parts remain:
 
 | File | Fate |
 |---|---|

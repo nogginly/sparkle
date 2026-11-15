@@ -13,7 +13,7 @@ flowchart LR
     AST --> EMIT["Emitter"]
     EMIT --> PONY[".pony source"]
     EMIT --> MAP["Source map"]
-    PONY --> PONYC["ponyc<br/>(unmodified)"]
+    PONY --> PONYC["libponyc, linked in<br/>(unmodified)"]
     PONYC --> BIN["Binary"]
     PONYC --> ERR["ponyc errors"]
     ERR --> DIAG["Diagnostics rewriter"]
@@ -25,7 +25,7 @@ Every translation rule is in [docs/step1-spec.md](docs/step1-spec.md). This docu
 
 ## Layers
 
-Each layer is one file in `src/sparkle/` and depends only on the layers above it in this table.
+Each layer is one file in `src/sparkle/`, or a directory for the compiler, and depends only on the layers above it in this table.
 
 | Layer | File | Outcome |
 |---|---|---|
@@ -35,7 +35,8 @@ Each layer is one file in `src/sparkle/` and depends only on the layers above it
 | Emitter | `emitter.cr`, `source_map.cr` | The AST becomes Pony source, plus a map from each Pony position back to Sparkle |
 | Diagnostics | `diagnostics.cr` | `ponyc`'s output is rewritten into Sparkle locations and types |
 | Statistics | `cap_stats.cr` | Capability annotations are counted per file |
-| Driver | `driver.cr`, `src/sparkle.cr` | Files are generated, `ponyc` is found and run, and the CLI is exposed |
+| Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr` | A Pony package is compiled in-process by the linked-in `libponyc`, and its errors come back as text |
+| Driver | `driver.cr`, `src/sparkle.cr` | Files are generated, a Pony installation is found, the package is compiled, and the CLI is exposed |
 
 ### Front end
 
@@ -88,7 +89,9 @@ The rewriter is a pure function of `ponyc`'s output, the source maps and the sou
 
 ### Driver
 
-`sparkle build` treats a directory of `.spk` files as one Pony package. It writes one `.pony` file per source file under `.sparkle/<package>/` and runs `ponyc` on that directory. `ponyc` is looked for in `$SPARKLE_PONYC`, then `.tools/ponyc`, then the vendored build, then `PATH`.
+`sparkle build` treats a directory of `.spk` files as one Pony package. It writes one `.pony` file per source file under `.sparkle/<package>/` and compiles that directory in-process. The standard library comes from the Pony installation holding the first `ponyc` found in `$SPARKLE_PONYC`, then `.tools/ponyc`, then the vendored build, then `PATH`; it should be the release whose `libponyc` was linked in, which `make ponyc` installs.
+
+The compiler is linked from `.tools/ponyc/lib/<arch>/libponyc-standalone.a`, with LLVM, lld and clang inside, so `bin/sparkle` is about 160 MB. The archive's `libponyc` and runtime objects are LLVM bitcode, so on Linux it is linked with `lld`, and on macOS it needs an Xcode whose `libLTO` is at least as new as the clang that built the release. A C shim compiled from `vendor/ponyc`'s headers sets the options that live in `pass_opt_t` and collects the errors as text. Each build runs `ponyc_init` and `ponyc_shutdown` once: one initialisation cannot be shared between option sets, and repeating the pair in one process works.
 
 ## Decisions
 
@@ -163,12 +166,12 @@ Step 1 is built. Where `ponyc` comes from changes as the steps advance:
 
 ### One binary
 
-From step 2 the plan is for the Crystal front end to link `libponyc` and build its AST directly, instead of writing Pony text and starting a second process.
+From step 2 the plan is for the Crystal front end to link `libponyc` and build its AST directly, instead of writing Pony text and starting a second process. The first half is done: `libponyc` is linked in and compiles the generated Pony text in-process.
 
 ```mermaid
 flowchart LR
-    subgraph Now["Step 1: two processes"]
-        A1["Crystal front end"] -- "Pony text" --> A2["ponyc"]
+    subgraph Now["Now: one binary, Pony text"]
+        A1["Crystal front end"] -- "Pony text" --> A2["libponyc<br/>(linked in)"]
     end
     subgraph Later["Step 2 onward: one binary"]
         B1["Crystal front end"] -- "AST, via C API" --> B2["libponyc<br/>(forked)"]

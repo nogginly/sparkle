@@ -7,8 +7,8 @@ How to build, test and change this shard. For how it works, see [DESIGN.md](DESI
 1. Make sure you have the Crystal toolchain installed, version 1.19 or later (`ameba` 1.7 needs it).
    - via `brew install crystal` for macOS and Linux (if you are so inclined)
    - or directly [install Crystal](https://crystal-lang.org/install/) from the website
-2. `make` and `curl`.
-3. The Pony compiler, `ponyc`. `make ponyc` fetches it; see below.
+2. `make` and `curl`. On Linux, also `lld` (for example `apt-get install lld`): the Pony compiler's own objects in `libponyc-standalone.a` are LLVM bitcode, which GNU `ld` cannot read.
+3. The Pony compiler, `ponyc`. `make ponyc` fetches it; see below. It is needed to build Sparkle, not only to test it: `bin/sparkle` links its `libponyc-standalone.a`, and the shim compiles against the headers in the `vendor/ponyc` submodule.
 4. Only to build `ponyc` from source: Clang, CMake 3.25 or later, Python 3, and the zlib and OpenSSL development headers.
 
 Sparkle has no runtime shard dependencies. Its one development dependency is the linter, `ameba`.
@@ -41,7 +41,7 @@ make build
 
 Host  | Note
 ------|--------------------------------------------------------------------------------------------------------------------------------
-macOS | Needs the Xcode Command Line Tools (`xcode-select --install`); `ponyc` uses their SDK to link programs
+macOS | Needs Xcode or its Command Line Tools (`xcode-select --install`), new enough to read the Pony release's LLVM bitcode: Xcode 26 for Pony 0.78.2. An older one fails to link `bin/sparkle` with "Invalid bitcode version"
 Linux | Pony publishes builds per distribution. Set `PONYC_DISTRO` (for example `ubuntu24.04`) if yours is not detected or has no build
 
 On any other host, use `make ponyc-source`.
@@ -121,7 +121,8 @@ The unit and golden tiers prove the translator produces the Pony we expect. Only
 
 ### Things that will bite you
 
-- **End-to-end specs are skipped, not failed, when `ponyc` is missing.** A run that reports pending specs has not checked that the generated Pony compiles. Run `make ponyc` first.
+- **Nothing builds before `make ponyc`.** `bin/sparkle` and the spec binary link the compiler from `.tools/ponyc`; without it the build stops and says so. End-to-end specs are still skipped, not failed, if no Pony installation is found at run time, and a run that reports pending specs has not checked that the generated Pony compiles.
+- **`bin/sparkle` is about 160 MB and takes about 10 seconds to link**, because it holds the Pony compiler with LLVM.
 - **`UPDATE_GOLDEN=1` accepts whatever the emitter writes.** Read the diff of every `expected.pony` before committing it.
 - **`expected.out` is maintained by hand.** Nothing regenerates it.
 - **Actors run concurrently.** An example whose output order depends on message timing will fail now and then. Have one actor do all the printing, as `examples/ring` does.
@@ -165,7 +166,7 @@ Keep `vendor/ponyc` unmodified during step 1. To move to a newer Pony, check out
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-15`, arm64). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and builds `ameba` (cached with `lib/` per Crystal version and `shard.lock`), then runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`, on Linux (`ubuntu-24.04`, x86-64) and macOS (`macos-26`, arm64, whose default Xcode 26 can read the Pony release's bitcode; `macos-15`'s newest Xcode cannot). It installs the prebuilt `ponyc` (cached per `vendor/ponyc/VERSION`) and builds `ameba` (cached with `lib/` per Crystal version and `shard.lock`), then runs the build, the specs, `make lint` and the format check. It fails if any spec is pending, so the end-to-end tier always runs.
 
 ### Keeping the documents current
 

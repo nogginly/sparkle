@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        os: [ubuntu-24.04, macos-26]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -28,6 +28,10 @@ jobs:
 
       - name: Install ponyc
         run: make ponyc
+
+      - name: Install lld
+        if: runner.os == 'Linux'
+        run: command -v ld.lld || { sudo apt-get update && sudo apt-get install -y lld; }
 
       - name: Read the Crystal version
         id: crystal

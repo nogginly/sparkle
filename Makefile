@@ -49,7 +49,7 @@ ponyc-source:
 	cd $(PONYC_DIR) && cmake --build --preset release
 
 clean:
-	rm -rf bin/sparkle .sparkle
+	rm -rf bin/sparkle bin/ponyc_shim.o .sparkle
 
 distclean: clean
 	rm -rf bin .tools
