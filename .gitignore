@@ -7,4 +7,3 @@ examples/*/*.o
 spec/fixtures/*/main
 .tools/
 .claude/worktrees/
-spike/libponyc/build/

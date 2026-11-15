@@ -74,7 +74,6 @@ Path             | Holds
 `spec/fixtures/` | Programs that must fail to compile, for the diagnostics specs
 `examples/`      | Runnable programs, each with its golden Pony and expected output
 `docs/`          | The translation rules, and the `libponyc` spike's findings
-`spike/`         | Throwaway code from spikes, kept as evidence; not built or tested by `make`
 `vendor/ponyc/`  | Pony, as a git submodule pinned to a release tag
 `.tools/`        | The downloaded `ponyc` (not committed)
 `lib/`           | Installed shards, which is only `ameba` (not committed)
