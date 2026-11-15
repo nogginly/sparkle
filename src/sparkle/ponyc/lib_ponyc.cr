@@ -1,21 +1,24 @@
 {% begin %}
-  {% arch = flag?(:aarch64) ? "arm64" : "x86-64" %}
-  {% tools = "#{__DIR__.id}/../../../.tools/ponyc" %}
-  {% shim = "#{__DIR__.id}/../../../bin/ponyc_shim.o" %}
-  {% headers = "#{__DIR__.id}/../../../vendor/ponyc/src" %}
-  {% shim_cmd = "mkdir -p #{__DIR__.id}/../../../bin && cc -c -O1 -I#{headers.id}/libponyc -I#{headers.id}/common #{__DIR__.id}/shim.c -o #{shim.id}" %}
-  {% system_libs = flag?(:darwin) ? "-lc++ -lz" : "-lz -ldl -lpthread -lm" %}
-  {% unless file_exists?("#{tools.id}/lib/#{arch.id}/libponyc-standalone.a") %}
+  {% root = "#{__DIR__.id}/../../.." %}
+  {% tools = "#{root.id}/.tools/ponyc" %}
+  {% headers = "#{root.id}/vendor/ponyc/src" %}
+  {% shim = "#{root.id}/bin/ponyc_shim.o" %}
+  {% found = system("ls -d #{tools.id}/lib/*/libponyc-standalone.a 2>/dev/null | head -n 1").stringify.strip %}
+  {% if found.empty? %}
     {% raise "Sparkle links the Pony compiler from .tools/ponyc: run `make ponyc` first" %}
   {% end %}
   {% unless file_exists?("#{headers.id}/libponyc/ponyc.h") %}
     {% raise "Sparkle needs the Pony headers from vendor/ponyc: run `git submodule update --init` first" %}
   {% end %}
-  {% system(shim_cmd) %}
+  {% lib_dir = found.gsub(/\/libponyc-standalone\.a$/, "") %}
+  {% arch = lib_dir.split("/").last %}
+  {% runtime = file_exists?("#{lib_dir.id}/libponyrt-pic.a") ? "#{lib_dir.id}/libponyrt-pic.a" : "#{lib_dir.id}/libponyrt.a" %}
+  {% system_libs = flag?(:darwin) ? "-lc++ -lz" : "-lz -ldl -lpthread -lm" %}
+  {% system("mkdir -p #{root.id}/bin && cc -c -O1 -I#{headers.id}/libponyc -I#{headers.id}/common #{__DIR__.id}/shim.c -o #{shim.id}") %}
 
   # Bindings to the Pony compiler, linked in from the prebuilt release
   # that `make ponyc` installs.
-  @[Link(ldflags: "{{ shim.id }} {{ tools.id }}/lib/{{ arch.id }}/libponyc-standalone.a {{ tools.id }}/lib/{{ arch.id }}/libponyrt-pic.a {{ system_libs.id }}")]
+  @[Link(ldflags: "{{ shim.id }} {{ found.id }} {{ runtime.id }} {{ system_libs.id }}")]
   lib LibPonyc
     type PassOpt = Void*
     type Ast = Void*
@@ -31,7 +34,8 @@
   end
 
   module Sparkle::Ponyc
-    # The architecture directory under a Pony installation's `lib/`.
+    # The architecture directory under a Pony installation's `lib/`,
+    # as named by the release that was linked in.
     LIB_ARCH = {{ arch }}
   end
 {% end %}
