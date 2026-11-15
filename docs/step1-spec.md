@@ -122,8 +122,8 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | `@n` | `_n` | |
 | `self` | `this` | |
 | `Colour::Green` | `ColourGreen` | an enum member; not checked against the enum *(typeless)*, so `ponyc` reports an unknown one |
-| `x.size` | `x.size()` | *(typeless)* a dot-name is **always a call** |
-| `x.@name` | `x._name` if `name` is an ivar of the enclosing type, otherwise `x.name` | explicit field read; the second form reads a public field of a Pony type (`env.@out`) |
+| `x.size` (no arguments, parentheses or block) | `x.size` or `x.size()` | a **field read unless the type checker says `size` is a method**; `sparkle build` decides, see *Fields and methods* below |
+| `x.@name` | `x._name` if `name` is an ivar of the enclosing type, otherwise `x.name` | explicit field read, never a call |
 | `foo` (not a local or parameter) | `foo()` | call on `this` |
 | `Foo.new(a)` / `Array(String).new` | `Foo.create(a)` / `Array[String].create()` | |
 | `f(x: 1)` | `f(where x = 1)` | named arguments |
@@ -135,6 +135,31 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | `x.empty?` | `x.is_empty()` | |
 | `x.as!(T)` | `(x as T)` | |
 | `x.nil?` | `(x is None)` | |
+
+### Fields and methods
+
+In Crystal `x.name` with no parentheses is a method call, but Pony types also have public fields, such as `env.out`. A bare `x.name` is therefore a field read when `x`'s type has a field `name`, and a call otherwise. The translator has no types, so `sparkle build` asks the compiler:
+
+```mermaid
+flowchart TD
+    E["Emit every bare x.name<br/>as a field read"] --> C["Type-check only"]
+    C --> Q{{"New 'can't reference a method<br/>without calling it' at a bare x.name?"}}
+    Q -- yes --> M["Emit those as calls"]
+    M --> C
+    Q -- no --> B["Compile"]
+```
+
+| Sparkle | Pony that is compiled | Rounds of type checking |
+|---|---|---|
+| `env.out.print("hi")` | `env.out.print("hi")` | 1 |
+| `xs.size` | `xs.size()` | 2 |
+| `env.args.size.string` | `env.args.size().string()` | 3 |
+
+- **Bare** means a call with a receiver, no arguments, no parentheses and no block, whose name does not end in `!` or `?`, and which is not an assignment target. A receiver that is a type (`Foo.new`, `Array(String).new`, `Foo.bar`) is always a call, because Pony types have no fields.
+- A position is reported against the Sparkle name after the dot, so one round settles every bare name whose receiver's type is known; a chain settles one link per round.
+- The default is a field because the reverse cannot work: calling a field means calling `apply()` on its value, which either fails with an unrelated error or compiles with a different meaning.
+- `x.@name` still reads a field and is never a call. `env.@out` keeps working; `env.out` is the ordinary spelling.
+- `sparkle translate` has no type checker, so it prints every bare `x.name` as a field read. The Pony that `build` compiled is in `.sparkle/<package>/`, and the examples' `expected.pony` files hold that resolved Pony.
 
 ### Assignment as a value
 
@@ -232,7 +257,9 @@ sparkle caps PATH...                # capability statistics
 - A variable first assigned inside a branch or loop is scoped to that block, as in Pony.
 - `ticks = 0` is an `Int32`, as in Crystal, so it will not compare with a `USize`. Write `ticks : USize = 0`.
 - A named argument is primed by method name alone. If two types in a package each define `f` and only one primes its parameter `x`, then `f(x: 1)` is primed for both, and `ponyc` reports the call to the other.
-- `x.@name` picks the private field whenever the enclosing type has an ivar of that name, so a type with `@out` cannot also read `env.@out`.
+- `x.@name` picks the private field whenever the enclosing type has an ivar of that name, so a type with `@out` cannot also read `env.@out`; it can read `env.out`.
+- Each link of a chain of bare method names (`a.b.c`) costs one more round of type checking, about 0.15 s.
+- A bare name is resolved once per position, so it cannot be a field for one caller and a method for another, for example in a generic method used with two types.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
 - `def pop` and `def pop!` both become `pop`; `def empty?` and `def is_empty` both become `is_empty`. Defining both is an error from `ponyc`.

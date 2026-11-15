@@ -111,9 +111,9 @@ It is the syntax being imitated, and Crystal calls C libraries without glue code
 
 `@n` becomes Pony's private field `_n`. This is Crystal's rule, and it lets a field and a method share a name (`@count` beside `def count`), which Pony forbids.
 
-### A dot-name is always a call
+### A bare dot-name is a field unless the compiler says otherwise
 
-Without types the translator cannot tell `x.size` the method from `x.size` the field. So `x.size` always emits a call, and a field read is spelled `x.@name`, which is Crystal's own syntax for it. The price is `env.@out`, because `out` is a public field in Pony. A table of known field names was rejected: the Pony standard library has hundreds of public fields.
+Without types the translator cannot tell `x.size` the method from `x.size` the field. Step 1 made every dot-name a call and spelled a field read `x.@name`, at the price of `env.@out`. Now that `libponyc` is linked in, `sparkle build` emits a bare `x.name` as a field read, type-checks, and turns each one the checker reports as "can't reference a method without calling it" into a call, repeating until nothing new is reported. The default is a field because calling a field means calling `apply()` on its value, which fails with an unrelated error or compiles with another meaning. A table of known field names was rejected earlier because the Pony standard library has hundreds of public fields; the type checker already knows them all. The rule is in [docs/step1-spec.md](docs/step1-spec.md#fields-and-methods).
 
 ### `!` means "can fail", `?` means "predicate"
 
