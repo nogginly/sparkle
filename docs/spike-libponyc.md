@@ -63,6 +63,7 @@ round 3 (0.14s): 0 errors; methods at none
 
 - **Magic module paths are compared by pointer.** Pass `program_load` the string interned by `stringtab`, not a fresh copy, or it reports "couldn't locate this path".
 - **Search paths are relative to the executable.** `ponyc` finds `packages/` and `lib/<arch>/` from its own location. An embedding binary sets `PONYPATH` to both.
+- **LLVM's crash handlers take the garbage collector's signals.** `ponyc_init` calls `LLVMEnablePrettyStackTrace`, whose handlers cover `SIGXCPU`, which Crystal's Boehm GC uses on Linux to resume paused threads. The first such signal prints LLVM's "PLEASE submit a bug report" banner before LLVM passes it on. `src/sparkle/ponyc/shim.c` restores the collector's handlers after `ponyc_init`; LLVM installs its handlers only once per process, so they stay out of the way.
 - **The AST shape is internal and moves.** In 0.78.2 a package is `TK_MODULE` and a source file is `TK_FILE`. The builder has to mirror the parser's output exactly, scope flags included, and must be re-checked on every Pony upgrade. `ponyc --pass=parse --astmodule` prints the shape to copy.
 
 ## Costs

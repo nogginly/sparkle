@@ -51,7 +51,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 ## Things that will bite you
 
 - **`make ponyc-source` takes about an hour** and downloads Google Benchmark and GoogleTest from `github.com`. On a restricted network the download fails; `make ponyc` (the prebuilt compiler) is the normal route.
-- **The translator has no type information.** Many odd rules (`env.@out`, `<<` as `push`, ranges fixed at `USize`) follow from that. Check `docs/step1-spec.md` before treating one as a bug.
+- **The translator has no type information.** Many odd rules (`<<` as `push`, ranges fixed at `USize`) follow from that; the one rule that needs types, whether a bare `x.name` is a field or a method, is settled by asking the linked-in compiler. Check `docs/step1-spec.md` before treating one as a bug.
 - **Actors run concurrently.** An example whose output order depends on message timing will fail intermittently.
 
 ## What comes next

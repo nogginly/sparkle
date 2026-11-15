@@ -53,7 +53,7 @@ Command                          | Description
 `make build`                     | Build the translator into `bin/sparkle`
 `make test`                      | Run all specs (`crystal spec`)
 `crystal spec --order random`    | Run the specs in random order
-`UPDATE_GOLDEN=1 crystal spec`   | Rewrite every example's `expected.pony`
+`UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` | Rewrite every example's `expected.pony` from the Pony its build compiled
 `make lint`                      | Lint all source code (`bin/ameba src spec`)
 `make ameba`                     | Install shards and build `bin/ameba`, unless `shards check` passes and `bin/ameba` exists
 `crystal tool format`            | Format all source code
@@ -61,7 +61,7 @@ Command                          | Description
 `make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
 `make clean`                     | Remove `bin/sparkle` and `.sparkle/`; keeps `bin/ameba`
 `make distclean`                 | As `clean`, and remove all of `bin/` and `.tools/` too
-`bin/sparkle translate FILE.spk` | Print the Pony generated for one file
+`bin/sparkle translate FILE.spk` | Print the Pony generated for one file, without types: every bare `x.name` as a field read
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
 
@@ -106,18 +106,16 @@ Command                | Description
 
 ```mermaid
 flowchart TD
-    U["Unit specs<br/>lexer, parser, emitter, pony_type,<br/>source_map, diagnostics, cap_stats, driver"] --> G["Golden specs<br/>examples/*/main.spk → expected.pony"]
-    G --> E["End-to-end specs<br/>build with ponyc, run, compare with expected.out"]
+    U["Unit specs<br/>lexer, parser, emitter, pony_type,<br/>source_map, diagnostics, cap_stats, driver"] --> E["End-to-end specs<br/>build each example, compare its Pony<br/>with expected.pony, run it,<br/>compare with expected.out"]
     E --> F["Failing fixtures<br/>spec/fixtures/*: errors land on the right Sparkle line"]
 ```
 
-Tier       | File                   | Needs `ponyc`
------------|------------------------|--------------
+Tier       | File                   | Needs a Pony installation
+-----------|------------------------|--------------------------
 Unit       | `spec/<layer>_spec.cr` | No
-Golden     | `spec/golden_spec.cr`  | No
 End-to-end | `spec/e2e_spec.cr`     | Yes
 
-The unit and golden tiers prove the translator produces the Pony we expect. Only the end-to-end tier proves that Pony is correct.
+The unit tier proves the translator produces the Pony we expect. The end-to-end tier proves that Pony is correct, and holds the goldens: an example's `expected.pony` is the Pony its build compiled, after the type checker settled which bare `x.name`s are calls, so it needs the compiler too.
 
 ### Things that will bite you
 
@@ -156,11 +154,11 @@ flowchart LR
 2. Teach the lexer or parser the syntax, with a spec.
 3. Teach the emitter the translation, with a spec.
 4. Use the feature in an example under `examples/`, or add a new one with `main.spk`, `expected.pony` and `expected.out`.
-5. Run `UPDATE_GOLDEN=1 crystal spec` and read the golden diff.
+5. Run `UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` and read the golden diff.
 6. Run `make test` with `ponyc` installed, so the end-to-end tier runs.
 7. Run `make lint` and `crystal tool format`.
 
-To see what a snippet becomes, use `bin/sparkle translate FILE.spk`. When `ponyc` reports an error you do not understand, read the generated file under `.sparkle/<package>/`.
+To see what a snippet becomes, use `bin/sparkle translate FILE.spk`; it has no types, so it shows every bare `x.name` as a field read. The Pony that `build` actually compiled, with those settled, is under `.sparkle/<package>/`; read it when `ponyc` reports an error you do not understand.
 
 Keep `vendor/ponyc` unmodified during step 1. To move to a newer Pony, check out the new release tag in the submodule, then run `make ponyc` and `make test`.
 

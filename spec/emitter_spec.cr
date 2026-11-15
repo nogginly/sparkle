@@ -10,6 +10,17 @@ private def decl(src : String) : String
   translate(src)
 end
 
+private def bare_body(statement : String, calls_at_name : Bool = false) : String
+  src = "actor Main\n  def self.new(env : Env)\n    #{statement}\n  end\nend\n"
+  program = Parser.parse(src)
+  calls = Set({Int32, Int32}).new
+  if calls_at_name
+    call = program.items[0].as(TypeDecl).methods[0].body.as(Array(Expr))[0].as(Call)
+    calls << {call.name_line, call.name_col}
+  end
+  Emitter.emit(program, calls: calls)[0].lines.skip(2).first.strip
+end
+
 describe Emitter do
   describe "declarations" do
     it "maps class forms, includes and aliases" do
@@ -112,7 +123,7 @@ describe Emitter do
     it "emits calls, constructors, named arguments and setters" do
       body("x.size\nFoo.new(1)\nArray(String).new\nf(x: 1)\nf(1, y: 2)\nx.name = 3").should eq <<-PONY.chomp
         new create(env: Env) =>
-            x().size()
+            x().size
             Foo.create(1)
             Array[String].create()
             f(where x = 1)
@@ -299,7 +310,7 @@ describe Emitter do
     end
 
     it "turns other blocks into lambda arguments" do
-      body("a.map do |x|\n  x.size\nend").should contain "a().map({(x) => x.size()})"
+      body("a.map do |x|\n  x.size\nend").should contain "a().map({(x) => x.size})"
       body("a.fold(0) { |acc, x| acc + x }").should contain "a().fold(0, {(acc, x) => acc + x})"
       body("a.each_pair do |k, v|\n  k\n  v\nend").should contain "a().each_pair({(k, v) =>\n      k\n      v\n    })"
     end
@@ -378,6 +389,26 @@ describe Emitter do
     it "maps Pony member names back" do
       names = Emitter.enum_names([Parser.parse("enum Colour\n  Red\nend\n")])
       names.should eq({"ColourRed" => "Colour::Red"})
+    end
+  end
+
+  describe "bare dot-names" do
+    it "emits a field read unless the position is a known call" do
+      bare_body("x.size").should eq "x().size"
+      bare_body("x.size", calls_at_name: true).should eq "x().size()"
+    end
+
+    it "keeps calls that cannot be fields" do
+      bare_body("x.size!").should eq "x().size()?"
+      bare_body("x.empty?").should eq "x().is_empty()"
+      bare_body("x.f(1)").should eq "x().f(1)"
+      bare_body("x.f()").should eq "x().f()"
+      bare_body("Foo.new").should eq "Foo.create()"
+      bare_body("Foo.bar").should eq "Foo.bar()"
+    end
+
+    it "emits an explicit field read" do
+      bare_body("x.@out").should eq "x().out"
     end
   end
 end

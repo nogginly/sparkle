@@ -8,9 +8,9 @@ actor Main
   def self.new(env : Env)
     lights = [Light::Red, Light::Amber, Light::Green] of Light
     lights.each do |light|
-      env.@out.print("#{light} = #{light.value}, next #{after(light)}")
+      env.out.print("#{light} = #{light.value}, next #{after(light)}")
       if light == Light::Green
-        env.@out.print("go")
+        env.out.print("go")
       end
     end
   end

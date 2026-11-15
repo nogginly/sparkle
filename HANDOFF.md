@@ -11,13 +11,13 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## Where things stand
 
-- `main` has step 1, its three gaps (assignment value, primed named arguments, `enum`), CI with cached `ponyc` and `ameba`, `make ameba`, and both stages of the `libponyc` spike ([docs/spike-libponyc.md](docs/spike-libponyc.md)).
-- `step2-inprocess-ponyc`: step 2, option 1, part 1. `bin/sparkle` links `libponyc-standalone.a` and compiles the generated Pony in-process (`src/sparkle/ponyc/`); nothing else changes. `make ponyc` is now a build prerequisite, and the binary is about 160 MB.
-- Delegation, three tasks so far: about 36k, 41k and 44k subagent tokens, 2 to 2½ minutes each. Review found one wrong brief, one simplification, and later a Linux-only path.
+- `main` has step 1, its three gaps, CI on Linux and macOS (`macos-26`, for Xcode 26), and `bin/sparkle` with `libponyc` linked in (`src/sparkle/ponyc/`).
+- `step2-field-or-method`: step 2, option 1, part 2. A bare `x.name` is a field unless the type checker reports a method, settled by a type-check loop in `Driver.build`; `env.@out` is now `env.out`. Goldens moved into the end-to-end spec. The shim also keeps Crystal's GC signals out of LLVM's crash handlers, which printed a spurious "PLEASE submit a bug report" banner once per multi-build process since in-process compiling began.
+- Delegation, four tasks so far: about 36k, 41k, 44k and 45k subagent tokens. Review found one wrong brief, one simplification, a Linux-only path found later, and on the fourth task nothing to change; its report flagged the banner, which turned out to be the GC signal clash.
 
 ## What's next
 
-1. Part 2 of option 1: the field-or-method loop from spike stage 4, which retires `env.@out`. It starts with the rule in `docs/step1-spec.md`: a bare `x.name` is a field read unless the type checker says it is a method.
-2. Later: build the AST directly instead of Pony text (spike stage 3), with token values generated from `token.h`; then the `ponyc` fork for `yield` inlining.
+1. Build the AST directly instead of Pony text (spike stage 3), with token values generated from `token.h`. Then the type-check loop can rewrite nodes instead of re-emitting text.
+2. Then the `ponyc` fork for `yield` inlining.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.

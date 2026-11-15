@@ -8,7 +8,9 @@ module Sparkle
   record Translation, source : String, program : Program, pony : String, map : SourceMap
 
   module Driver
-    PONYC_RELATIVES = [".tools/ponyc/bin/ponyc", "vendor/ponyc/build/release/ponyc"]
+    METHOD_WITHOUT_CALL = "can't reference a method without calling it"
+    MAX_ROUNDS          = 50
+    PONYC_RELATIVES     = [".tools/ponyc/bin/ponyc", "vendor/ponyc/build/release/ponyc"]
 
     def self.translate(source : String) : Translation
       program = Parser.parse(source)
@@ -72,7 +74,6 @@ module Sparkle
       gen_dir = File.join(".sparkle", package)
       Dir.mkdir_p(gen_dir)
       Dir.glob(File.join(gen_dir, "*.pony")).each { |stale| File.delete(stale) }
-      generated = [] of GeneratedFile
       sources = files.map { |file| File.read(file) }
       programs = [] of Program
       files.each_with_index do |file, i|
@@ -81,28 +82,44 @@ module Sparkle
         err.print format_error(file, sources[i], e)
         return {1, nil}
       end
-      primed = Emitter.primed_params(programs)
-      names = Emitter.enum_names(programs)
-      files.each_with_index do |file, i|
-        source = sources[i]
-        begin
-          pony, map = Emitter.emit(programs[i], primed)
-        rescue e : ParseError
-          err.print format_error(file, source, e)
-          return {1, nil}
-        end
-        pony_path = File.join(gen_dir, File.basename(file, ".spk") + ".pony")
-        File.write(pony_path, pony)
-        generated << GeneratedFile.new(pony_path, file, map, source)
-      end
       ponyc = find_ponyc
       unless ponyc
         err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
         return {1, nil}
       end
+      home = File.dirname(File.dirname(ponyc))
+      primed = Emitter.primed_params(programs)
+      names = Emitter.enum_names(programs)
+      calls = Hash(String, Set({Int32, Int32})).new
+      generated = [] of GeneratedFile
+      MAX_ROUNDS.times do
+        generated = [] of GeneratedFile
+        files.each_with_index do |file, i|
+          source = sources[i]
+          begin
+            pony, map = Emitter.emit(programs[i], primed, calls[file]? || Set({Int32, Int32}).new)
+          rescue e : ParseError
+            err.print format_error(file, source, e)
+            return {1, nil}
+          end
+          pony_path = File.join(gen_dir, File.basename(file, ".spk") + ".pony")
+          File.write(pony_path, pony)
+          generated << GeneratedFile.new(pony_path, file, map, source)
+        end
+        grown = false
+        Ponyc.check(gen_dir, home).each do |file, line, column, message|
+          next unless message == METHOD_WITHOUT_CALL
+          target = generated.find { |candidate| candidate.pony_path == File.expand_path(file) }
+          next unless target
+          position = target.map.lookup(line, column)
+          next unless position
+          grown = true if (calls[target.spk_path] ||= Set({Int32, Int32}).new).add?(position)
+        end
+        break unless grown
+      end
       out_dir ||= File.join(".sparkle", "bin")
       Dir.mkdir_p(out_dir)
-      ok, errors = Ponyc.compile(gen_dir, out_dir, package, File.dirname(File.dirname(ponyc)))
+      ok, errors = Ponyc.compile(gen_dir, out_dir, package, home)
       err.print Diagnostics.rewrite(errors, generated, names: names)
       {ok ? 0 : 1, File.join(out_dir, package)}
     end
