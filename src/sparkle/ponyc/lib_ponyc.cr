@@ -55,6 +55,7 @@
     $spk_tk_actor : LibC::Int
     $spk_tk_last : LibC::Int
     fun spk_opt_strtab(opt : PassOpt) : Strtab
+    fun spk_ast_text(ast : Ast) : LibC::Char*
     fun spk_source_new(opt : PassOpt, file : LibC::Char*, text : LibC::Char*) : Source
     fun stringtab(strtab : Strtab, string : LibC::Char*) : LibC::Char*
     fun module_add_magic_src(path : LibC::Char*, src : LibC::Char*, opt : PassOpt)

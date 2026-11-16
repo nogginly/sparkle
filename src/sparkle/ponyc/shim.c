@@ -99,3 +99,14 @@ source_t* spk_source_new(pass_opt_t* opt, const char* file, const char* text)
   source->file = stringtab(opt->strtab, file);
   return source;
 }
+
+/* `ast` printed as `ponyc --ast` prints it; free() the result. */
+char* spk_ast_text(ast_t* ast)
+{
+  char* text = NULL;
+  size_t len = 0;
+  FILE* fp = open_memstream(&text, &len);
+  ast_fprint(fp, ast, 80);
+  fclose(fp);
+  return text;
+}
