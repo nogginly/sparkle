@@ -1,5 +1,6 @@
 require "./parser"
 require "./emitter"
+require "./lowerer"
 require "./diagnostics"
 require "./ponyc/compiler"
 
@@ -51,6 +52,50 @@ module Sparkle
       Process.find_executable("ponyc")
     end
 
+    # Builds by lowering to ponyc's AST instead of writing Pony text.
+    # Chosen with `SPARKLE_AST=1` while the lowering is incomplete.
+    private def self.build_tree(files : Array(String), sources : Array(String), programs : Array(Program), package : String, home : String, out_dir : String?, err : IO) : {Int32, String?}
+      current = 0
+      begin
+        calls = tree_calls(files, sources, programs, home) { |i| current = i }
+        out_dir ||= File.join(".sparkle", "bin")
+        Dir.mkdir_p(out_dir)
+        ok, errors = Ponyc.compile_tree(out_dir, package, home) do |tree|
+          files.each_with_index do |file, i|
+            current = i
+            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new).lower(programs[i], file, sources[i])
+          end
+        end
+        err.print Diagnostics.rewrite(errors, [] of GeneratedFile, names: Emitter.enum_names(programs))
+        {ok ? 0 : 1, File.join(out_dir, package)}
+      rescue e : ParseError
+        err.print format_error(files[current], sources[current], e)
+        {1, nil}
+      end
+    end
+
+    # The positions, per file, of the bare `x.name`s the type checker reports
+    # as methods: lowers, type-checks and adds positions until none is new.
+    # Yields the index of each file before lowering it.
+    def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
+      calls = Hash(String, Set({Int32, Int32})).new
+      MAX_ROUNDS.times do
+        found = Ponyc.check_tree(home) do |tree|
+          files.each_with_index do |file, i|
+            yield i
+            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new).lower(programs[i], file, sources[i])
+          end
+        end
+        grown = false
+        found.each do |file, line, column, message|
+          next unless message == METHOD_WITHOUT_CALL && files.includes?(file)
+          grown = true if (calls[file] ||= Set({Int32, Int32}).new).add?({line, column})
+        end
+        break unless grown
+      end
+      calls
+    end
+
     # The Sparkle files and package name for a build path.
     def self.sources_for(path : String) : {Array(String), String}
       if File.directory?(path)
@@ -88,6 +133,7 @@ module Sparkle
         return {1, nil}
       end
       home = File.dirname(File.dirname(ponyc))
+      return build_tree(files, sources, programs, package, home, out_dir, err) if ENV["SPARKLE_AST"]? == "1"
       primed = Emitter.primed_params(programs)
       names = Emitter.enum_names(programs)
       calls = Hash(String, Set({Int32, Int32})).new

@@ -64,6 +64,7 @@ Command                          | Description
 `bin/sparkle translate FILE.spk` | Print the Pony generated for one file, without types: every bare `x.name` as a field read
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
+`SPARKLE_AST=1 bin/sparkle run PATH` | Build through the AST path; a construct it cannot lower yet is reported at its position
 
 ## Where things are
 

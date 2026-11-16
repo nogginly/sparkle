@@ -36,6 +36,7 @@ Each layer is one file in `src/sparkle/`, or a directory for the compiler, and d
 | Diagnostics | `diagnostics.cr` | `ponyc`'s output is rewritten into Sparkle locations and types |
 | Statistics | `cap_stats.cr` | Capability annotations are counted per file |
 | Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | A Pony package, as text or as an AST built node by node, is compiled in-process by the linked-in `libponyc`, and its errors come back as text |
+| Lowering | `lowerer.cr` | The AST becomes ponyc AST nodes with Sparkle positions; opt-in and partial, see [One binary](#one-binary) |
 | Driver | `driver.cr`, `src/sparkle.cr` | Files are generated, a Pony installation is found, the package is compiled, and the CLI is exposed |
 
 ### Front end
@@ -171,7 +172,7 @@ From step 2 the plan is for the Crystal front end to link `libponyc` and build i
 | Stage | Outcome | State |
 |---|---|---|
 | 1. Foundation | `Ponyc::Tree` builds nodes, `Ponyc.compile_tree` compiles them, and `Ponyc::Tk` holds token ids generated at compile time from `token.h`, so a Pony upgrade cannot leave them stale | Done |
-| 2. Lowering | A lowering from Sparkle's AST to ponyc's, grown one example at a time behind an opt-in switch | Next |
+| 2. Lowering | `Lowerer` turns Sparkle's AST into ponyc's, behind `SPARKLE_AST=1`. An example counts as lowered when its tree prints identically to the one ponyc parses from its `expected.pony`, and its binary gives `expected.out` | Started: `examples/fields` |
 | 3. Parity | Every example and fixture passes through the AST path as well as the text path | |
 | 4. Switch | The AST path becomes the default; the field-or-method loop rewrites nodes; the emitter, the source map and the location half of the diagnostics rewriter are retired | |
 
