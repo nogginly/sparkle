@@ -301,7 +301,7 @@ module Sparkle
         @w.nl
         emit_field(field)
       end
-      implicit = implicit_constructor?(d)
+      implicit = Emitter.implicit_constructor?(d)
       if implicit
         @w.nl
         @w.nl unless d.fields.empty?
@@ -321,7 +321,7 @@ module Sparkle
 
     # Classes without a constructor get an explicit `create`, so instances are
     # `ref` (Pony infers `iso` for the implicit one, which cannot be aliased).
-    private def implicit_constructor?(d : TypeDecl) : Bool
+    def self.implicit_constructor?(d : TypeDecl) : Bool
       (d.kind == "class" || d.kind == "struct") && d.methods.none?(&.self_recv) && d.fields.all?(&.init)
     end
 
@@ -335,7 +335,7 @@ module Sparkle
       end
     end
 
-    private def mutating_name?(name : String) : Bool
+    def self.mutating_name?(name : String) : Bool
       REF_BY_DEFAULT.includes?(name) || (name.ends_with?('=') && !%w[== != <= >=].includes?(name))
     end
 
@@ -361,7 +361,7 @@ module Sparkle
       word = m.kind == "be" ? "be" : (constructor ? "new" : "fun")
       w word
       cap = m.cap
-      cap ||= "ref" if !constructor && m.kind != "be" && mutating_name?(m.name)
+      cap ||= "ref" if !constructor && m.kind != "be" && Emitter.mutating_name?(m.name)
       w " #{cap}" if cap
       @w.mark(m.name_line, m.name_col)
       w " #{pony_method_name(m.name, constructor)}("

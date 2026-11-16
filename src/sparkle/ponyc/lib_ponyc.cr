@@ -50,6 +50,13 @@
     fun generate_passes(program : Ast, opt : PassOpt) : Bool
     fun ast_free(ast : Ast)
 
+    struct LexInt
+      low : UInt64
+      high : UInt64
+    end
+
+    fun ast_int(ast : Ast) : LexInt*
+
     $spk_pass_parse : LibC::Int
     $spk_pass_all : LibC::Int
     $spk_tk_actor : LibC::Int

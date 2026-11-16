@@ -35,6 +35,13 @@ module Sparkle::Ponyc
       n
     end
 
+    # An integer literal with `value`.
+    def int(value : UInt64, at : {Int32, Int32}? = nil) : Node
+      n = node(Tk::INT, at)
+      LibPonyc.ast_int(n).value = LibPonyc::LexInt.new(low: value, high: 0_u64)
+      n
+    end
+
     # The placeholder for an absent optional child.
     def none : Node
       node(Tk::NONE)
