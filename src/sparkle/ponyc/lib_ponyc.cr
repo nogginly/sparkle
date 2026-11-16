@@ -23,6 +23,8 @@
     type PassOpt = Void*
     type Ast = Void*
     type Errors = Void*
+    type Strtab = Void*
+    type Source = Void*
 
     struct ErrorMsg
       file : LibC::Char*
@@ -47,7 +49,25 @@
     fun program_load(path : LibC::Char*, opt : PassOpt) : Ast
     fun generate_passes(program : Ast, opt : PassOpt) : Bool
     fun ast_free(ast : Ast)
+
+    $spk_pass_parse : LibC::Int
+    $spk_pass_all : LibC::Int
+    $spk_tk_actor : LibC::Int
+    $spk_tk_last : LibC::Int
+    fun spk_opt_strtab(opt : PassOpt) : Strtab
+    fun spk_source_new(opt : PassOpt, file : LibC::Char*, text : LibC::Char*) : Source
+    fun stringtab(strtab : Strtab, string : LibC::Char*) : LibC::Char*
+    fun module_add_magic_src(path : LibC::Char*, src : LibC::Char*, opt : PassOpt)
+    fun ast_passes_program(program : Ast, opt : PassOpt) : Bool
+    fun ast_blank(id : LibC::Int) : Ast
+    fun ast_append(parent : Ast, child : Ast) : Ast
+    fun ast_child(ast : Ast) : Ast
+    fun ast_scope(ast : Ast)
+    fun ast_set_name(ast : Ast, name : LibC::Char*, strtab : Strtab)
+    fun ast_setpos(ast : Ast, source : Source, line : LibC::SizeT, pos : LibC::SizeT)
   end
+
+  {{ run("./token_ids", "#{headers.id}/libponyc/ast/token.h") }}
 
   module Sparkle::Ponyc
     # The architecture directory under a Pony installation's `lib/`,
