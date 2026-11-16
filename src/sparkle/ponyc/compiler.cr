@@ -1,4 +1,5 @@
 require "./lib_ponyc"
+require "./tree"
 
 module Sparkle::Ponyc
   # Compiles the Pony package in `dir` into the binary `out_dir/bin_name`,
@@ -9,6 +10,26 @@ module Sparkle::Ponyc
       program = LibPonyc.program_load(File.expand_path(dir), opt)
       ok = !program.null? && LibPonyc.generate_passes(program, opt)
       LibPonyc.ast_free(program) unless program.null?
+      ok
+    end
+  end
+
+  # Compiles a program whose one package is built as an AST by the block,
+  # which appends type declarations to the `Tree` it is given. Returns as
+  # `compile` does; errors are reported at the positions set on the nodes.
+  def self.compile_tree(out_dir : String, bin_name : String, home : String, & : Tree -> Nil) : {Bool, String}
+    with_options(out_dir, bin_name, home) do |opt|
+      # An empty in-memory package, parsed only, gives a program to build into.
+      path = LibPonyc.stringtab(LibPonyc.spk_opt_strtab(opt), bin_name)
+      LibPonyc.module_add_magic_src(path, "", opt)
+      LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_parse)
+      program = LibPonyc.program_load(path, opt)
+      next false if program.null?
+      yield Tree.new(opt, LibPonyc.ast_child(LibPonyc.ast_child(program)))
+      # The remaining passes resume from the parse pass on the new nodes.
+      LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_all)
+      ok = LibPonyc.ast_passes_program(program, opt) && LibPonyc.generate_passes(program, opt)
+      LibPonyc.ast_free(program)
       ok
     end
   end

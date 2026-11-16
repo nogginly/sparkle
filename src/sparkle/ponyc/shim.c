@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ponyc.h"
+#include "ast/ast.h"
+#include "ast/source.h"
+#include "ast/stringtab.h"
+#include "ast/token.h"
 #include "ast/error.h"
 #include "pass/pass.h"
 #include "pkg/package.h"
@@ -75,4 +79,23 @@ char* spk_errors_text(pass_opt_t* opt)
   errors_print(opt->check.errors);
   fclose(fp);
   return text;
+}
+
+const int spk_pass_parse = PASS_PARSE;
+const int spk_pass_all = PASS_ALL;
+const int spk_tk_actor = TK_ACTOR;
+const int spk_tk_last = TK_TEST_EXTRA;
+
+strtable_t* spk_opt_strtab(pass_opt_t* opt)
+{
+  return opt->strtab;
+}
+
+/* A source named `file` holding `text`, for positions set with ast_setpos.
+ * It lives until the process ends, because errors refer to it. */
+source_t* spk_source_new(pass_opt_t* opt, const char* file, const char* text)
+{
+  source_t* source = source_open_string(text);
+  source->file = stringtab(opt->strtab, file);
+  return source;
 }

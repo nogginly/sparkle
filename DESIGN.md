@@ -35,7 +35,7 @@ Each layer is one file in `src/sparkle/`, or a directory for the compiler, and d
 | Emitter | `emitter.cr`, `source_map.cr` | The AST becomes Pony source, plus a map from each Pony position back to Sparkle |
 | Diagnostics | `diagnostics.cr` | `ponyc`'s output is rewritten into Sparkle locations and types |
 | Statistics | `cap_stats.cr` | Capability annotations are counted per file |
-| Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr` | A Pony package is compiled in-process by the linked-in `libponyc`, and its errors come back as text |
+| Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | A Pony package, as text or as an AST built node by node, is compiled in-process by the linked-in `libponyc`, and its errors come back as text |
 | Driver | `driver.cr`, `src/sparkle.cr` | Files are generated, a Pony installation is found, the package is compiled, and the CLI is exposed |
 
 ### Front end
@@ -166,7 +166,16 @@ Step 1 is built. Where `ponyc` comes from changes as the steps advance:
 
 ### One binary
 
-From step 2 the plan is for the Crystal front end to link `libponyc` and build its AST directly, instead of writing Pony text and starting a second process. The first half is done: `libponyc` is linked in and compiles the generated Pony text in-process.
+From step 2 the plan is for the Crystal front end to link `libponyc` and build its AST directly, instead of writing Pony text and starting a second process. The first half is done: `libponyc` is linked in and compiles the generated Pony text in-process. The second half, building the AST, goes in stages, with the text emitter as the default until the last:
+
+| Stage | Outcome | State |
+|---|---|---|
+| 1. Foundation | `Ponyc::Tree` builds nodes, `Ponyc.compile_tree` compiles them, and `Ponyc::Tk` holds token ids generated at compile time from `token.h`, so a Pony upgrade cannot leave them stale | Done |
+| 2. Lowering | A lowering from Sparkle's AST to ponyc's, grown one example at a time behind an opt-in switch | Next |
+| 3. Parity | Every example and fixture passes through the AST path as well as the text path | |
+| 4. Switch | The AST path becomes the default; the field-or-method loop rewrites nodes; the emitter, the source map and the location half of the diagnostics rewriter are retired | |
+
+The AST's shape is internal to ponyc. `ponyc --pass=parse --astmodule` prints what the parser builds, and the lowering must match it, so it is re-checked on every Pony upgrade.
 
 ```mermaid
 flowchart LR
