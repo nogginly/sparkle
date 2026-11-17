@@ -5,7 +5,7 @@ include Sparkle
 private HOME = Driver.find_ponyc(exe_path: File.join(ROOT, "bin", "sparkle"), cwd: ROOT).try { |ponyc| File.dirname(File.dirname(ponyc)) }
 
 # The examples the AST path lowers so far; stage 3 is done when this is all of them.
-private LOWERED = %w[fields counter fizzbuzz]
+private LOWERED = %w[fields counter fizzbuzz handoff]
 
 describe Lowerer do
   if home = HOME

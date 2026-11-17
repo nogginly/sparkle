@@ -108,13 +108,20 @@ module Sparkle
       ], scope: true)
     end
 
+    # A named type with its type arguments, capability and ephemeral marker.
     private def type(t : TypeNode) : Node
-      unsupported(t, "this type") unless t.is_a?(NamedType) && t.args.empty? && t.cap.nil? && t.eph.nil?
-      nominal(PonyType::TO_PONY[t.name]? || t.name, at(t))
+      unsupported(t, "this type") unless t.is_a?(NamedType)
+      cap = t.cap
+      cap_id = cap && (Tk.parse?(cap.upcase) || unsupported(t, "this capability"))
+      eph_id = case t.eph
+               when "^" then Tk::EPHEMERAL
+               when "!" then Tk::ALIASED
+               end
+      @tree.nominal(PonyType::TO_PONY[t.name]? || t.name, at(t), t.args.map { |arg| type(arg) }, cap_id, eph_id)
     end
 
     private def nominal(name : String, at : {Int32, Int32}) : Node
-      @tree.node(Tk::NOMINAL, at, [none, id(name, at), none, none, none])
+      @tree.nominal(name, at)
     end
 
     private def reference(name : String, at : {Int32, Int32}) : Node
@@ -200,8 +207,16 @@ module Sparkle
     end
 
     private def binary(e : Binary) : Node
+      return push(e) if e.op == "<<"
       kind = BINARY[e.op]? || unsupported(e, "this operator")
       @tree.node(kind, at(e), [operand(e.left), operand(e.right), none])
+    end
+
+    private def push(e : Binary) : Node
+      name_at = at(e)
+      callee = @tree.node(Tk::DOT, name_at, [expr(e.left), id("push", name_at)])
+      args = @tree.node(Tk::POSITIONALARGS, name_at, [@tree.node(Tk::SEQ, at(e.right), [expr(e.right)])])
+      @tree.node(Tk::CALL, name_at, [callee, args, none, none])
     end
 
     private def range(at : {Int32, Int32}, from : Node, to : Node, exclusive : Bool) : Node
@@ -219,8 +234,12 @@ module Sparkle
       iterable = case c.name
                  when "each"
                    inner = unparen(recv)
-                   unsupported(c, "each over a value") unless inner.is_a?(RangeLit)
-                   range(at(c), expr(inner.from), expr(inner.to), inner.exclusive)
+                   if inner.is_a?(RangeLit)
+                     range(at(c), expr(inner.from), expr(inner.to), inner.exclusive)
+                   else
+                     values = @tree.node(Tk::DOT, at(c), [expr(recv), id("values", at(c))])
+                     @tree.node(Tk::CALL, at(c), [values, none, none, none])
+                   end
                  when "times" then range(at(c), @tree.int(0_u64, at(c)), expr(recv), true)
                  else              unsupported(c, "this block")
                  end
@@ -232,7 +251,13 @@ module Sparkle
     # In value position the assignment becomes `(target = value; target)`.
     private def assign(e : Assign, value : Bool) : Node
       target = e.target
-      unsupported(e, "this assignment") unless target.is_a?(Ident) && e.type.nil?
+      if target.is_a?(IVarRef)
+        unsupported(e, "a typed field assignment") if e.type
+        name = "_#{target.name}"
+        result = @tree.node(Tk::ASSIGN, at(e), [reference(name, at(target)), expr(e.value)])
+        return value ? with_value(e, result, reference(name, at(target))) : result
+      end
+      unsupported(e, "this assignment") unless target.is_a?(Ident)
       rhs = expr(e.value)
       name = Emitter.pony_ident(target.name)
       left = if @scope.includes?(target.name)
@@ -240,7 +265,14 @@ module Sparkle
              else
                @scope << target.name
                default = e.value
-               type = default.is_a?(IntLit) && default.suffix.nil? ? nominal("I32", at(target)) : none
+               declared = e.type
+               type = if declared
+                        type(declared)
+                      elsif default.is_a?(IntLit) && default.suffix.nil?
+                        nominal("I32", at(target))
+                      else
+                        none
+                      end
                @tree.node(Tk::VAR, at(target), [id(name, at(target)), type])
              end
       result = @tree.node(Tk::ASSIGN, at(e), [left, rhs])
@@ -285,6 +317,8 @@ module Sparkle
       when StrLit    then string(e)
       when ArrayLit  then array(e)
       when Binary    then binary(e)
+      when Consume   then @tree.node(Tk::CONSUME, at(e), [none, expr(e.expr)])
+      when Recover   then recover(e)
       when If        then if_(e, true)
       when While     then while_(e)
       when Case      then case_(e, true)
@@ -294,6 +328,12 @@ module Sparkle
       end
     end
 
+    private def recover(e : Recover) : Node
+      cap = e.cap
+      cap_node = cap ? @tree.node(Tk.parse?(cap.upcase) || unsupported(e, "this capability"), at(e)) : none
+      @tree.node(Tk::RECOVER, at(e), [cap_node, seq(e, e.body, true)])
+    end
+
     private def ident(e : Ident) : Node
       reference = @tree.node(Tk::REFERENCE, at(e), [id(Emitter.pony_ident(e.name), at(e))])
       @scope.includes?(e.name) ? reference : @tree.node(Tk::CALL, at(e), [reference, none, none, none])
@@ -301,8 +341,11 @@ module Sparkle
 
     private def type_ref(e : TypeRef) : Node
       type = e.type
-      unsupported(e, "this type") unless type.is_a?(NamedType) && type.args.empty? && type.cap.nil? && type.eph.nil?
-      reference(PonyType::TO_PONY[type.name]? || type.name, at(e))
+      unsupported(e, "this type") unless type.is_a?(NamedType) && type.cap.nil? && type.eph.nil?
+      name = reference(PonyType::TO_PONY[type.name]? || type.name, at(e))
+      return name if type.args.empty?
+      args = @tree.node(Tk::TYPEARGS, at(e), type.args.map { |arg| type(arg) })
+      @tree.node(Tk::QUALIFY, at(e), [name, args])
     end
 
     private def call(c : Call) : Node

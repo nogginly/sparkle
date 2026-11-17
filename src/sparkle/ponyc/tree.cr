@@ -43,6 +43,17 @@ module Sparkle::Ponyc
       n
     end
 
+    # A named type: `name`, its type arguments, and an optional capability and
+    # ephemeral (`^`) or aliased (`!`) marker, given as token kinds.
+    def nominal(name : String, at : {Int32, Int32}, args : Array(Node) = [] of Node, cap : Tk? = nil, eph : Tk? = nil) : Node
+      node(Tk::NOMINAL, at, [
+        none, named(Tk::ID, name, at),
+        args.empty? ? none : node(Tk::TYPEARGS, at, args),
+        cap ? node(cap, at) : none,
+        eph ? node(eph, at) : none,
+      ])
+    end
+
     # The placeholder for an absent optional child.
     def none : Node
       node(Tk::NONE)
