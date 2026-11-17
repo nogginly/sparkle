@@ -10,6 +10,7 @@ module Sparkle::Ponyc
     def initialize(@opt : LibPonyc::PassOpt, @file : Node)
       @strtab = LibPonyc.spk_opt_strtab(@opt)
       @source = Pointer(Void).null.as(LibPonyc::Source)
+      @uses = Set(String).new
     end
 
     # Makes `text`, named `file` in error messages, the source of the
@@ -45,6 +46,12 @@ module Sparkle::Ponyc
     # The placeholder for an absent optional child.
     def none : Node
       node(Tk::NONE)
+    end
+
+    # Puts `use "path"` before everything else in the package, once per path.
+    def use(path : String) : Nil
+      return unless @uses.add?(path)
+      LibPonyc.ast_add(@file, node(Tk::USE, nil, [none, named(Tk::STRING, path), none]))
     end
 
     # Appends a type declaration to the package.
