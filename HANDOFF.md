@@ -18,7 +18,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## What's next
 
-1. Stage 2, one example per task, smallest first: `ring`, then `traffic`. Add each name to `LOWERED` in `spec/lowerer_spec.cr`; the spec demands a tree that prints identically to ponyc's parse of `expected.pony`, which makes these tasks delegable. Print the target with `ponyc --pass=parse --astmodule`. Known gaps in `Lowerer`: scope tracking is one flat set per method, with no priming; string escapes; assignments as values.
+1. Stage 2, one example per task, smallest first: `ring`, then `traffic`. Add each name to `LOWERED` in `spec/lowerer_spec.cr`; the spec demands a tree that prints identically to ponyc's parse of `expected.pony`, which makes these tasks delegable. Print the target with `ponyc --pass=parse --astmodule`. Known gaps in `Lowerer`: string escapes, `if` with `else`/`elsif`, `and`/`or`, `case` forms other than a tuple, an empty array literal, `begin` without `rescue` or with `ensure`; each raises "does not lower … yet".
 2. Stages 3 and 4, then the `ponyc` fork for `yield` inlining.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.
