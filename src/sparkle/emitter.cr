@@ -384,7 +384,8 @@ module Sparkle
 
     # --- expressions -------------------------------------------------------
 
-    private def atomic?(e : Expr) : Bool
+    # Whether `e` needs no parentheses as an operand or receiver.
+    def self.atomic?(e : Expr) : Bool
       case e
       when Ident, IVarRef, SelfRef, IntLit, FloatLit, CharLit, BoolLit, NilLit, TypeRef, EnumRef,
            Index, FieldRead, Paren, ArrayLit, TupleLit, AsCast, AmpMethod, Lambda
@@ -399,7 +400,7 @@ module Sparkle
     end
 
     private def emit_operand(e : Expr) : Nil
-      if atomic?(e) || e.is_a?(Unary) || e.is_a?(Consume)
+      if Emitter.atomic?(e) || e.is_a?(Unary) || e.is_a?(Consume)
         emit(e)
       else
         w "("
@@ -409,7 +410,7 @@ module Sparkle
     end
 
     private def emit_receiver(e : Expr) : Nil
-      if atomic?(e)
+      if Emitter.atomic?(e)
         emit(e)
       else
         w "("
