@@ -19,10 +19,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 ## What's next
 
 1. Enum predicates are implemented: `red?` on each member (`is_red`), and `when .red?` as the member's type pattern when exactly one enum in the package has it, on both the text and AST paths (`examples/traffic` uses both).
-2. Stage 3, parity, in three PRs:
-   1. Done: every fixture builds on both paths in `spec/e2e_spec.cr` and must give identical error text and exit code. Both do, with positions taken from the nodes and no source map.
-   2. Done (`step3-lowering-gaps`): `examples/control` pins down the last gaps (string escapes, `if` with `else`/`elsif`, `unless`, `&&`/`||`, `begin` with `ensure`, negative enum values); `Lowerer` also lowers `!`, unary `-` and `true`/`false`. Escapes ponyc's strings cannot hold (NUL) still raise "does not lower … yet".
-   3. Next: the e2e spec builds every example on both paths, the gate for stage 4.
-3. Stage 4 (switch, retire the emitter and source map), then the `ponyc` fork for `yield` inlining.
+2. Stage 3, parity, is done. Every example in `examples/` must lower (`spec/lowerer_spec.cr` lists them from the directory, so a new example cannot skip the AST path), and every fixture must give identical errors on both paths (`spec/e2e_spec.cr`). Escapes ponyc's strings cannot hold (NUL) still raise "does not lower … yet".
+3. Stage 4: make the AST path the default, let the field-or-method loop rewrite nodes instead of re-lowering, and retire the emitter, the source map and the location half of the diagnostics rewriter (keep `sparkle translate` or decide its fate), then the `ponyc` fork for `yield` inlining.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.
