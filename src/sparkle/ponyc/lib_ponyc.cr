@@ -72,6 +72,7 @@
     fun ast_add(parent : Ast, child : Ast) : Ast
     fun ast_child(ast : Ast) : Ast
     fun ast_scope(ast : Ast)
+    fun ast_setannotation(ast : Ast, annotation : Ast)
     fun ast_set_name(ast : Ast, name : LibC::Char*, strtab : Strtab)
     fun ast_setpos(ast : Ast, source : Source, line : LibC::SizeT, pos : LibC::SizeT)
   end
