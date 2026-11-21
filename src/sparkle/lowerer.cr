@@ -23,8 +23,9 @@ module Sparkle
     @method_names = Set(String).new
     @collections = false
 
-    # `calls` holds the positions of the bare `x.name`s that are method calls.
-    def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new)
+    # `calls` holds the positions of the bare `x.name`s that are method calls;
+    # `primed` is `Emitter.primed_params` over the package.
+    def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, @primed : Hash(String, Set(String)) = Hash(String, Set(String)).new)
     end
 
     # Appends the type declarations of `program`, read from `source` and
@@ -58,7 +59,6 @@ module Sparkle
     end
 
     private def entity(d : TypeDecl) : Node
-      unsupported(d, "a capability on a type") if d.cap
       unsupported(d, "more than one include") if d.includes.size > 1
       @ivars = d.fields.map(&.name).to_set
       @method_names = d.methods.map { |method| Emitter.pony_method_name(method.name, method.self_recv) }.to_set
@@ -67,8 +67,10 @@ module Sparkle
       members.concat(d.methods.map { |method| method(method) })
       tparams = d.tparams.empty? ? none : @tree.node(Tk::TYPEPARAMS, at(d), d.tparams.map { |tparam| type_param(tparam) })
       provides = d.includes.empty? ? none : @tree.node(Tk::PROVIDES, at(d), d.includes.map { |trait| type(trait) })
+      cap = d.cap
+      cap_node = cap ? @tree.node(capability(d, cap), at(d)) : none
       @tree.node(ENTITIES[d.kind], at(d), [
-        id(d.name, at(d)), tparams, none, provides, @tree.node(Tk::MEMBERS, at(d), members), none, none,
+        id(d.name, at(d)), tparams, cap_node, provides, @tree.node(Tk::MEMBERS, at(d), members), none, none,
       ], scope: true)
     end
 
@@ -266,25 +268,38 @@ module Sparkle
       @tree.node(Tk::CALL, at, [callee, @tree.node(Tk::POSITIONALARGS, at, args), none, none])
     end
 
-    # `each` over a range and `times` become `for` loops, as in `Emitter`.
+    # `each`, `each_with_index` and `times` become `for` loops, as in `Emitter`.
     private def for_loop(c : Call, recv : Expr, block : Lambda) : Node
       names = block.params.map(&.name)
-      unsupported(c, "this block") unless Emitter::LOOP_METHODS.includes?(c.name) && c.args.empty? && c.named.empty? && names.size <= 1
-      iterable = case c.name
-                 when "each"
-                   inner = unparen(recv)
-                   if inner.is_a?(RangeLit)
-                     range(at(c), expr(inner.from), expr(inner.to), inner.exclusive)
-                   else
-                     values = @tree.node(Tk::DOT, at(c), [receiver(recv), id("values", at(c))])
-                     @tree.node(Tk::CALL, at(c), [values, none, none, none])
-                   end
-                 when "times" then range(at(c), @tree.int(0_u64, at(c)), expr(recv), true)
-                 else              unsupported(c, "this block")
-                 end
-      name = names.first? || "_"
-      binding = @tree.node(Tk::LET, at(c), [id(local(name), at(block.params.first? || c)), none])
-      @tree.node(Tk::FOR, at(c), [binding, @tree.node(Tk::SEQ, at(c), [iterable]), seq(c, block.body, false, names, scope: false), none])
+      fits = c.name == "each_with_index" ? names.size == 2 : names.size <= 1
+      unsupported(c, "this block") unless Emitter::LOOP_METHODS.includes?(c.name) && c.args.empty? && c.named.empty? && fits
+      iterable = @tree.node(Tk::SEQ, at(c), [loop_iterable(c, recv)])
+      binding = loop_binding(c, block)
+      @tree.node(Tk::FOR, at(c), [binding, iterable, seq(c, block.body, false, names, scope: false), none])
+    end
+
+    private def loop_iterable(c : Call, recv : Expr) : Node
+      case c.name
+      when "each"
+        inner = unparen(recv)
+        return range(at(c), expr(inner.from), expr(inner.to), inner.exclusive) if inner.is_a?(RangeLit)
+        method_call(c, receiver(recv), "values")
+      when "each_with_index" then method_call(c, receiver(recv), "pairs")
+      else                        range(at(c), @tree.int(0_u64, at(c)), expr(recv), true)
+      end
+    end
+
+    # `recv.name()`.
+    private def method_call(at : ::Sparkle::Node, recv : Node, name : String) : Node
+      @tree.node(Tk::CALL, at(at), [@tree.node(Tk::DOT, at(at), [recv, id(name, at(at))]), none, none, none])
+    end
+
+    # The loop variable, or `(index, element)` for `each_with_index`.
+    private def loop_binding(c : Call, block : Lambda) : Node
+      params = block.params
+      lets = params.map { |param| @tree.node(Tk::LET, at(c), [id(local(param.name), at(param)), none]) }
+      return lets.first? || @tree.node(Tk::LET, at(c), [id("_", at(c)), none]) unless c.name == "each_with_index"
+      @tree.node(Tk::TUPLE, at(c), lets.reverse.map { |let| @tree.node(Tk::SEQ, at(c), [let]) })
     end
 
     # In value position the assignment becomes `(target = value; target)`.
@@ -423,15 +438,27 @@ module Sparkle
       if (block = c.block) && recv
         return for_loop(c, recv, block)
       end
-      unsupported(c, "this call") if !c.named.empty? || c.block
+      unsupported(c, "this call") if c.block
       name_at = {c.name_line, c.name_col}
       return @tree.node(Tk::SEQ, at(c), [@tree.node(Tk::IS, at(c), [receiver(recv), reference("None", at(c))])]) if recv && c.name == "nil?" && c.args.empty?
-      name = id(Emitter.pony_method_name(c.name, recv.is_a?(TypeRef) && c.name == "new"), name_at)
+      method = Emitter.pony_method_name(c.name, recv.is_a?(TypeRef) && c.name == "new")
+      name = id(method, name_at)
       callee = recv ? @tree.node(Tk::DOT, name_at, [receiver(recv), name]) : @tree.node(Tk::REFERENCE, name_at, [name])
       return callee if recv && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?(name_at)
       args = c.args.map { |arg| @tree.node(Tk::SEQ, at(arg), [expr(arg)]) }
       partial = c.name.ends_with?('!') ? @tree.node(Tk::QUESTION, name_at) : none
-      @tree.node(Tk::CALL, name_at, [callee, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, name_at, args), none, partial])
+      @tree.node(Tk::CALL, name_at, [callee, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, name_at, args), named_args(c, method), partial])
+    end
+
+    # Named arguments, with the names of primed parameters primed as in `Emitter`.
+    private def named_args(c : Call, method : String) : Node
+      return none if c.named.empty?
+      primed = @primed[method]?
+      args = c.named.map do |arg|
+        n = Emitter.pony_ident(arg.name)
+        @tree.node(Tk::NAMEDARG, at(arg), [id(primed && primed.includes?(n) ? "#{n}'" : n, at(arg)), @tree.node(Tk::SEQ, at(arg.value), [expr(arg.value)])])
+      end
+      @tree.node(Tk::NAMEDARGS, at(c), args)
     end
 
     private def bare?(c : Call) : Bool
@@ -455,9 +482,15 @@ module Sparkle
       parts.reduce { |left, right| @tree.node(Tk::PLUS, at(e), [left, right, none]) }
     end
 
+    # `Array[T].create()`.
+    private def empty_array(e : ArrayLit, of_type : TypeNode) : Node
+      type = @tree.node(Tk::QUALIFY, at(e), [reference("Array", at(e)), @tree.node(Tk::TYPEARGS, at(e), [type(of_type)])])
+      method_call(e, type, "create")
+    end
+
     private def array(e : ArrayLit) : Node
       of_type = e.of_type
-      unsupported(e, "an empty array literal") if e.elems.empty?
+      return empty_array(e, of_type || unsupported(e, "an empty array literal")) if e.elems.empty?
       # The parser keeps each `;` between elements as a leaf, which the sugar pass removes.
       elems = e.elems.flat_map { |elem| [@tree.node(Tk::SEMI, at(elem)), expr(elem)] }.skip(1)
       @tree.node(Tk::ARRAY, at(e), [of_type ? type(of_type) : none, @tree.node(Tk::SEQ, at(e), elems)])
