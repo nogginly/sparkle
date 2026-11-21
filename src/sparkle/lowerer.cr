@@ -36,6 +36,7 @@ module Sparkle
       program.items.each do |item|
         case item
         when TypeDecl then @tree.add(entity(item))
+        when EnumDecl then enum_decl(item).each { |node| @tree.add(node) }
         else               unsupported(item, "this declaration")
         end
       end
@@ -56,6 +57,39 @@ module Sparkle
 
     private def id(name : String, at : {Int32, Int32}) : Node
       @tree.named(Tk::ID, name, at)
+    end
+
+    # One primitive per member, then the type alias that unions them, as in `Emitter#emit_enum`.
+    private def enum_decl(d : EnumDecl) : Array(Node)
+      nodes = d.members.map { |member| enum_member(d, member) }
+      pos = at(d)
+      union = d.members.map { |member| nominal("#{d.name}#{member.name}", pos) }.reduce { |left, right| @tree.node(Tk::UNIONTYPE, pos, [left, right]) }
+      nodes << @tree.node(Tk::TYPE, pos, [id(d.name, pos), none, none, @tree.node(Tk::PROVIDES, pos, [union]), @tree.node(Tk::MEMBERS, pos), none, none], scope: true)
+    end
+
+    private def enum_member(d : EnumDecl, member : EnumMember) : Node
+      unsupported(member, "a negative enum value") if member.value < 0
+      pos = at(member)
+      text = @tree.node(Tk::CALL, pos, [@tree.node(Tk::DOT, pos, [@tree.named(Tk::STRING, member.name, pos), id("clone", pos)]), none, none, none])
+      methods = [
+        enum_fun("value", nominal("I32", pos), @tree.int(member.value.to_u64, pos), pos),
+        enum_fun("string", @tree.nominal("String", pos, Array(Node).new, Tk::ISO, Tk::EPHEMERAL), text, pos),
+        enum_comparison("eq", d, false, pos),
+        enum_comparison("ne", d, true, pos),
+      ]
+      @tree.node(Tk::PRIMITIVE, pos, [id("#{d.name}#{member.name}", pos), none, none, none, @tree.node(Tk::MEMBERS, pos, methods), none, none], scope: true)
+    end
+
+    # `fun eq(that: E): Bool => that is this`, or its negation.
+    private def enum_comparison(name : String, d : EnumDecl, negated : Bool, pos : {Int32, Int32}) : Node
+      same = @tree.node(Tk::IS, pos, [reference("that", pos), @tree.node(Tk::THIS, pos)])
+      body = negated ? @tree.node(Tk::NOT, pos, [@tree.node(Tk::SEQ, pos, [same])]) : same
+      params = @tree.node(Tk::PARAMS, pos, [@tree.node(Tk::PARAM, pos, [id("that", pos), nominal(d.name, pos), none])])
+      enum_fun(name, nominal("Bool", pos), body, pos, params)
+    end
+
+    private def enum_fun(name : String, ret : Node, body : Node, pos : {Int32, Int32}, params : Node = none) : Node
+      @tree.node(Tk::FUN, pos, [none, id(name, pos), none, params, ret, none, none, @tree.node(Tk::SEQ, pos, [body]), none], scope: true)
     end
 
     private def entity(d : TypeDecl) : Node
@@ -212,30 +246,37 @@ module Sparkle
 
     private def case_(e : Case, value : Bool) : Node
       subject = e.subject
-      unsupported(e, "this case") if e.exhaustive || !subject.is_a?(TupleLit)
+      head = subject.is_a?(TupleLit) ? tuple(subject, subject.items) : expr(subject)
       cases = e.whens.map { |branch| when_(branch, value) }
       other = e.else_
-      @tree.node(Tk::MATCH, at(e), [
-        @tree.node(Tk::SEQ, at(e), [tuple(subject, subject.items)]),
+      match = @tree.node(Tk::MATCH, at(e), [
+        @tree.node(Tk::SEQ, at(e), [head]),
         @tree.node(Tk::CASES, at(e), cases, scope: true),
         other ? seq(e, other, value) : none,
       ], scope: true)
+      @tree.annotate(match, "exhaustive", at(e)) if e.exhaustive
+      match
     end
 
     private def when_(branch : When, value : Bool) : Node
-      pattern = branch.patterns.first
-      unsupported(branch, "this pattern") unless branch.patterns.size == 1 && pattern.is_a?(TuplePattern)
-      items = pattern.items.map { |item| @tree.node(Tk::SEQ, at(item), [pattern(item)]) }
+      unsupported(branch, "this pattern") unless branch.patterns.size == 1
       scoped do
-        @tree.node(Tk::CASE, at(branch), [@tree.node(Tk::TUPLE, at(pattern), items), none, seq(branch, branch.body, value, scope: false)], scope: true)
+        @tree.node(Tk::CASE, at(branch), [when_pattern(branch.patterns.first), none, seq(branch, branch.body, value, scope: false)], scope: true)
       end
+    end
+
+    private def when_pattern(pattern : Expr) : Node
+      return pattern(pattern) unless pattern.is_a?(TuplePattern)
+      items = pattern.items.map { |item| @tree.node(Tk::SEQ, at(item), [pattern(item)]) }
+      @tree.node(Tk::TUPLE, at(pattern), items)
     end
 
     private def pattern(e : Expr) : Node
       case e
-      when IntLit then int(e)
-      when Ident  then e.name == "_" ? reference("_", at(e)) : unsupported(e, "a pattern that names a value")
-      else             unsupported(e, "this pattern")
+      when IntLit  then int(e)
+      when EnumRef then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal("#{e.enum_name}#{e.member}", at(e))])
+      when Ident   then e.name == "_" ? reference("_", at(e)) : unsupported(e, "a pattern that names a value")
+      else              unsupported(e, "this pattern")
       end
     end
 
@@ -371,6 +412,7 @@ module Sparkle
       when Assign                                       then assign(e, true)
       when OpAssign                                     then op_assign(e, true)
       when TypeRef                                      then type_ref(e)
+      when EnumRef                                      then reference("#{e.enum_name}#{e.member}", at(e))
       when Call                                         then call(e)
       when FieldRead                                    then @tree.node(Tk::DOT, at(e), [receiver(e.recv), id("#{@ivars.includes?(e.name) ? "_" : ""}#{Emitter.pony_ident(e.name)}", at(e))])
       when Index                                        then index(e)

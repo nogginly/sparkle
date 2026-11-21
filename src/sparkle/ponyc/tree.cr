@@ -54,6 +54,13 @@ module Sparkle::Ponyc
       ])
     end
 
+    # Marks `target` with the annotation `\name\`.
+    def annotate(target : Node, name : String, at : {Int32, Int32}) : Nil
+      elem = named(Tk::ID, name, at)
+      LibPonyc.ast_append(elem, none)
+      LibPonyc.ast_setannotation(target, node(Tk::ANNOTATION, at, [elem]))
+    end
+
     # The placeholder for an absent optional child.
     def none : Node
       node(Tk::NONE)
