@@ -5,7 +5,7 @@ include Sparkle
 private HOME = Driver.find_ponyc(exe_path: File.join(ROOT, "bin", "sparkle"), cwd: ROOT).try { |ponyc| File.dirname(File.dirname(ponyc)) }
 
 # The examples the AST path lowers so far; stage 3 is done when this is all of them.
-private LOWERED = %w[fields counter fizzbuzz handoff shapes]
+private LOWERED = %w[fields counter fizzbuzz handoff shapes ring]
 
 describe Lowerer do
   if home = HOME
@@ -16,8 +16,9 @@ describe Lowerer do
 
       it "lowers examples/#{name} to the tree ponyc parses from its expected.pony" do
         program = Parser.parse(source)
-        calls = Driver.tree_calls([file], [source], [program], home) { }
-        lowered = Ponyc.tree_text(home) { |tree| Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new).lower(program, file, source) }
+        primed = Emitter.primed_params([program])
+        calls = Driver.tree_calls([file], [source], [program], home, primed) { }
+        lowered = Ponyc.tree_text(home) { |tree| Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed).lower(program, file, source) }
         lowered.should eq Ponyc.parse_text(dir, home)
       end
 

@@ -57,13 +57,14 @@ module Sparkle
     private def self.build_tree(files : Array(String), sources : Array(String), programs : Array(Program), package : String, home : String, out_dir : String?, err : IO) : {Int32, String?}
       current = 0
       begin
-        calls = tree_calls(files, sources, programs, home) { |i| current = i }
+        primed = Emitter.primed_params(programs)
+        calls = tree_calls(files, sources, programs, home, primed) { |i| current = i }
         out_dir ||= File.join(".sparkle", "bin")
         Dir.mkdir_p(out_dir)
         ok, errors = Ponyc.compile_tree(out_dir, package, home) do |tree|
           files.each_with_index do |file, i|
             current = i
-            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new).lower(programs[i], file, sources[i])
+            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed).lower(programs[i], file, sources[i])
           end
         end
         err.print Diagnostics.rewrite(errors, [] of GeneratedFile, names: Emitter.enum_names(programs))
@@ -77,13 +78,13 @@ module Sparkle
     # The positions, per file, of the bare `x.name`s the type checker reports
     # as methods: lowers, type-checks and adds positions until none is new.
     # Yields the index of each file before lowering it.
-    def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
+    def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)) = Emitter.primed_params(programs), & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
       calls = Hash(String, Set({Int32, Int32})).new
       MAX_ROUNDS.times do
         found = Ponyc.check_tree(home) do |tree|
           files.each_with_index do |file, i|
             yield i
-            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new).lower(programs[i], file, sources[i])
+            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed).lower(programs[i], file, sources[i])
           end
         end
         grown = false
