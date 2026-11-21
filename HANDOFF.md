@@ -19,7 +19,10 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 ## What's next
 
 1. Enum predicates are implemented: `red?` on each member (`is_red`), and `when .red?` as the member's type pattern when exactly one enum in the package has it, on both the text and AST paths (`examples/traffic` uses both).
-2. Stage 3, parity: run the fixtures (`spec/fixtures/`) and every example through the AST path in the e2e spec, with errors reported at the same Sparkle positions as the text path. `examples/control` closed the known gaps (string escapes, `if` with `else`/`elsif`, `unless`, `and`/`or`, `begin` with `ensure`, negative enum values); `Lowerer` also lowers `!`, unary `-` and `true`/`false` now. Still to do: the fixtures, and the rest of what raises "does not lower … yet".
+2. Stage 3, parity, in three PRs:
+   1. Done: every fixture builds on both paths in `spec/e2e_spec.cr` and must give identical error text and exit code. Both do, with positions taken from the nodes and no source map.
+   2. Done (`step3-lowering-gaps`): `examples/control` pins down the last gaps (string escapes, `if` with `else`/`elsif`, `unless`, `&&`/`||`, `begin` with `ensure`, negative enum values); `Lowerer` also lowers `!`, unary `-` and `true`/`false`. Escapes ponyc's strings cannot hold (NUL) still raise "does not lower … yet".
+   3. Next: the e2e spec builds every example on both paths, the gate for stage 4.
 3. Stage 4 (switch, retire the emitter and source map), then the `ponyc` fork for `yield` inlining.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.
