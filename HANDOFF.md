@@ -12,7 +12,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 ## Where things stand
 
 - `main` has step 1, its three gaps, CI on Linux and macOS (`macos-26`, for Xcode 26), `bin/sparkle` with `libponyc` linked in (`src/sparkle/ponyc/`), and the field-or-method loop (`env.out`, no `@`). `spike/` is deleted; its findings are in [docs/spike-libponyc.md](docs/spike-libponyc.md).
-- Building ponyc's AST directly, in four stages (`DESIGN.md`, "One binary"). Stage 1 is on `main`: `Ponyc::Tree`, `Ponyc.compile_tree`, generated `Ponyc::Tk`. `step2-ast-lowering` starts stage 2: `Lowerer`, used when `SPARKLE_AST=1`, lowers `fields`, `counter`, `fizzbuzz`, `handoff`, `shapes`, `ring` and `traffic`, which completes stage 2; anything else raises "the AST path does not lower … yet" at its position.
+- Building ponyc's AST directly, in four stages (`DESIGN.md`, "One binary"). Stage 1 is on `main`: `Ponyc::Tree`, `Ponyc.compile_tree`, generated `Ponyc::Tk`. `step2-ast-lowering` starts stage 2: `Lowerer`, used when `SPARKLE_AST=1`, lowers `fields`, `counter`, `fizzbuzz`, `handoff`, `shapes`, `ring`, `traffic` and `control`, which completes stage 2; anything else raises "the AST path does not lower … yet" at its position.
 - Open question for the user, in `DESIGN.md`: what happens to Pony's standard library after step 6. Settle before step 3.
 - Delegation, four tasks so far: about 36k to 45k subagent tokens each. Review found one wrong brief, one simplification, a Linux-only path found later, and nothing on the fourth.
 
@@ -20,9 +20,9 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 1. Enum predicates are implemented: `red?` on each member (`is_red`), and `when .red?` as the member's type pattern when exactly one enum in the package has it, on both the text and AST paths (`examples/traffic` uses both).
 2. Stage 3, parity, in three PRs:
-   1. Done (`step3-ast-fixtures`): every fixture builds on both paths in `spec/e2e_spec.cr` and must give identical error text and exit code. Both do, with positions taken from the nodes and no source map.
-   2. Next: close the lowering gaps, each with a small example or fixture: string escapes, `if` with `else`/`elsif`, `and`/`or`, `begin` without `rescue` or with `ensure`, negative enum values. Delegable.
-   3. Then: the e2e spec builds every example on both paths, the gate for stage 4.
+   1. Done: every fixture builds on both paths in `spec/e2e_spec.cr` and must give identical error text and exit code. Both do, with positions taken from the nodes and no source map.
+   2. Done (`step3-lowering-gaps`): `examples/control` pins down the last gaps (string escapes, `if` with `else`/`elsif`, `unless`, `&&`/`||`, `begin` with `ensure`, negative enum values); `Lowerer` also lowers `!`, unary `-` and `true`/`false`. Escapes ponyc's strings cannot hold (NUL) still raise "does not lower … yet".
+   3. Next: the e2e spec builds every example on both paths, the gate for stage 4.
 3. Stage 4 (switch, retire the emitter and source map), then the `ponyc` fork for `yield` inlining.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.
