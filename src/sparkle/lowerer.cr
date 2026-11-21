@@ -18,6 +18,12 @@ module Sparkle
       "==" => Tk::EQ, "!=" => Tk::NE, "<" => Tk::LT, "<=" => Tk::LE, ">" => Tk::GT, ">=" => Tk::GE,
     }
 
+    LOGICAL = {"&&" => Tk::AND, "||" => Tk::OR}
+
+    ESCAPES = {'a' => '\a', 'b' => '\b', 'e' => '\e', 'f' => '\f', 'n' => '\n', 'r' => '\r', 't' => '\t', 'v' => '\v', '\\' => '\\', '"' => '"'}
+
+    HEX_ESCAPES = {'x' => 2, 'u' => 4, 'U' => 6}
+
     @scope = Set(String).new
     @ivars = Set(String).new
     @method_names = Set(String).new
@@ -69,17 +75,21 @@ module Sparkle
     end
 
     private def enum_member(d : EnumDecl, member : EnumMember) : Node
-      unsupported(member, "a negative enum value") if member.value < 0
       pos = at(member)
       text = @tree.node(Tk::CALL, pos, [@tree.node(Tk::DOT, pos, [@tree.named(Tk::STRING, member.name, pos), id("clone", pos)]), none, none, none])
       methods = [
-        enum_fun("value", nominal("I32", pos), @tree.int(member.value.to_u64, pos), pos),
+        enum_fun("value", nominal("I32", pos), enum_value(member.value, pos), pos),
         enum_fun("string", @tree.nominal("String", pos, Array(Node).new, Tk::ISO, Tk::EPHEMERAL), text, pos),
         enum_comparison("eq", d, false, pos),
         enum_comparison("ne", d, true, pos),
       ]
       methods.concat(d.members.map { |other| enum_predicate(other, other == member, pos) })
       @tree.node(Tk::PRIMITIVE, pos, [id("#{d.name}#{member.name}", pos), none, none, none, @tree.node(Tk::MEMBERS, pos, methods), none, none], scope: true)
+    end
+
+    private def enum_value(value : Int, pos : {Int32, Int32}) : Node
+      return @tree.int(value.to_u64, pos) unless value < 0
+      @tree.node(Tk::UNARY_MINUS, pos, [@tree.int((-value.to_i64).to_u64, pos)])
     end
 
     # `fun eq(that: E): Bool => that is this`, or its negation.
@@ -232,9 +242,17 @@ module Sparkle
       @tree.node(Tk::SEQ, at(e), [expr(e)])
     end
 
+    # An `elsif` is an `if` in the else slot; `unless` negates the condition.
     private def if_(e : If, value : Bool) : Node
-      unsupported(e, "this conditional") if e.negate || e.is_elsif || e.else_
-      @tree.node(Tk::IF, at(e), [single(e.cond), seq(e, e.then_, value), none], scope: true)
+      cond = e.negate ? @tree.node(Tk::SEQ, at(e), [@tree.node(Tk::NOT, at(e), [single(e.cond)])]) : single(e.cond)
+      @tree.node(Tk::IF, at(e), [cond, seq(e, e.then_, value), else_branch(e, value)], scope: true)
+    end
+
+    private def else_branch(e : If, value : Bool) : Node
+      stmts = e.else_
+      return none unless stmts
+      nxt = stmts.first
+      stmts.size == 1 && nxt.is_a?(If) && nxt.is_elsif ? if_(nxt, value) : seq(e, stmts, value)
     end
 
     private def ternary(e : Ternary) : Node
@@ -243,8 +261,12 @@ module Sparkle
 
     private def begin_(e : Begin, value : Bool) : Node
       rescue_body = e.rescue_body
-      unsupported(e, "this begin block") if rescue_body.nil? || e.ensure_body
-      @tree.node(Tk::TRY, at(e), [seq(e, e.body, value), seq(e, rescue_body, value), none])
+      ensure_body = e.ensure_body
+      @tree.node(Tk::TRY, at(e), [
+        seq(e, e.body, value),
+        rescue_body ? seq(e, rescue_body, value) : none,
+        ensure_body ? seq(e, ensure_body, false) : none,
+      ])
     end
 
     private def while_(e : While) : Node
@@ -299,8 +321,29 @@ module Sparkle
 
     private def binary(e : Binary) : Node
       return push(e) if e.op == "<<"
-      kind = BINARY[e.op]? || unsupported(e, "this operator")
+      kind = BINARY[e.op]? || LOGICAL[e.op]? || unsupported(e, "this operator")
       @tree.node(kind, at(e), [operand(e.left), operand(e.right), none])
+    end
+
+    private def keyword(e : NilLit | BoolLit) : Node
+      e.is_a?(BoolLit) ? @tree.node(e.value ? Tk::TRUE : Tk::FALSE, at(e)) : reference("None", at(e))
+    end
+
+    private def operation(e : Binary | Unary | Consume) : Node
+      case e
+      when Binary then binary(e)
+      when Unary  then unary(e)
+      else             @tree.node(Tk::CONSUME, at(e), [none, expr(e.expr)])
+      end
+    end
+
+    private def unary(e : Unary) : Node
+      kind = case e.op
+             when "!" then Tk::NOT
+             when "-" then Tk::UNARY_MINUS
+             else          unsupported(e, "this operator")
+             end
+      @tree.node(kind, at(e), [operand(e.operand)])
     end
 
     private def push(e : Binary) : Node
@@ -426,11 +469,10 @@ module Sparkle
       when FieldRead                                    then @tree.node(Tk::DOT, at(e), [receiver(e.recv), id("#{@ivars.includes?(e.name) ? "_" : ""}#{Emitter.pony_ident(e.name)}", at(e))])
       when Index                                        then index(e)
       when Paren                                        then paren(e)
-      when NilLit                                       then reference("None", at(e))
+      when NilLit, BoolLit                              then keyword(e)
       when StrLit                                       then string(e)
       when ArrayLit                                     then array(e)
-      when Binary                                       then binary(e)
-      when Consume                                      then @tree.node(Tk::CONSUME, at(e), [none, expr(e.expr)])
+      when Binary, Unary, Consume                       then operation(e)
       when Recover                                      then recover(e)
       when Ternary, Begin, If, While, Case, Break, Next then control(e)
       else                                                   unsupported(e, "this expression")
@@ -521,16 +563,43 @@ module Sparkle
       parts = e.parts.map do |part|
         case part
         in String
-          unsupported(e, "an escape in a string") if part.includes?('\\')
-          @tree.named(Tk::STRING, part, at(e))
+          @tree.named(Tk::STRING, unescape(e, part), at(e))
         in Expr
           next expr(part) if part.is_a?(StrLit) && part.parts.all?(String)
           @tree.node(Tk::CALL, at(part), [@tree.node(Tk::DOT, at(part), [receiver(part), id("string", at(part))]), none, none, none])
         end
       end
-      return @tree.named(Tk::STRING, e.parts.join, at(e)) if e.parts.all?(String)
+      return @tree.named(Tk::STRING, e.parts.join { |part| unescape(e, part.as(String)) }, at(e)) if e.parts.all?(String)
       parts.unshift(@tree.named(Tk::STRING, "", at(e))) if parts.size == 1
       parts.reduce { |left, right| @tree.node(Tk::PLUS, at(e), [left, right, none]) }
+    end
+
+    # The text `source` denotes: a Pony escape becomes the character it stands for.
+    private def unescape(at : ::Sparkle::Node, source : String) : String
+      return source unless source.includes?('\\')
+      bytes = IO::Memory.new
+      chars = Deque.new(source.chars)
+      until chars.empty?
+        char = chars.shift
+        char == '\\' ? escape(at, chars, bytes) : bytes << char
+      end
+      String.new(bytes.to_slice)
+    end
+
+    # Reads what follows a backslash from `chars`.
+    private def escape(at : ::Sparkle::Node, chars : Deque(Char), bytes : IO::Memory) : Nil
+      char = chars.shift? || unsupported(at, "this escape in a string")
+      if simple = ESCAPES[char]?
+        bytes << simple
+      elsif digits = HEX_ESCAPES[char]?
+        hex = Array.new(Math.min(digits, chars.size)) { chars.shift }.join
+        code = hex.to_i?(16, prefix: false, underscore: false, whitespace: false)
+        valid = code && hex.size == digits && code > 0 && code <= 0x10FFFF && !(0xD800..0xDFFF).includes?(code)
+        code && valid || unsupported(at, "this escape in a string")
+        char == 'x' ? bytes.write_byte(code.to_u8) : bytes << code.chr
+      else
+        unsupported(at, "this escape in a string")
+      end
     end
 
     # `Array[T].create()`.

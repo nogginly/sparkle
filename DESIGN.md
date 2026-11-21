@@ -173,7 +173,7 @@ From step 2 the plan is for the Crystal front end to link `libponyc` and build i
 |---|---|---|
 | 1. Foundation | `Ponyc::Tree` builds nodes, `Ponyc.compile_tree` compiles them, and `Ponyc::Tk` holds token ids generated at compile time from `token.h`, so a Pony upgrade cannot leave them stale | Done |
 | 2. Lowering | `Lowerer` turns Sparkle's AST into ponyc's, behind `SPARKLE_AST=1`. An example counts as lowered when its tree prints identically to the one ponyc parses from its `expected.pony`, and its binary gives `expected.out` | Done: `fields`, `counter`, `fizzbuzz`, `handoff`, `shapes`, `ring`, `traffic` |
-| 3. Parity | Every example and fixture passes through the AST path as well as the text path | |
+| 3. Parity | Every example and fixture passes through the AST path as well as the text path | String escapes, `if` with `else`/`elsif`, `unless`, `&&`/`||`, `begin` with `ensure` and negative enum values are lowered (`examples/control`) |
 | 4. Switch | The AST path becomes the default; the field-or-method loop rewrites nodes; the emitter, the source map and the location half of the diagnostics rewriter are retired | |
 
 The AST's shape is internal to ponyc. `ponyc --pass=parse --astmodule` prints what the parser builds, and the lowering must match it, so it is re-checked on every Pony upgrade.

@@ -1,0 +1,51 @@
+enum Temp
+  Cold = -5
+  Mild
+end
+
+actor Main
+  def self.new(env : Env)
+    env.out.print("tab\there \"quoted\" back\\slash")
+    n = 7
+    if n < 5
+      env.out.print("small")
+    elsif n < 10
+      env.out.print("medium")
+    else
+      env.out.print("large")
+    end
+    size = if n < 5
+      "small"
+    elsif n < 10
+      "medium"
+    else
+      "large"
+    end
+    env.out.print("size is #{size}")
+    unless n > 8
+      env.out.print("not above 8")
+    else
+      env.out.print("above 8")
+    end
+    a = true
+    b = false
+    env.out.print("and #{a && b}, or #{a || b}")
+    env.out.print("nested #{a && (b || a)}, #{a || (b && a)}")
+    xs = [1, 2] of I32
+    begin
+      env.out.print("body")
+      xs[5]!
+      env.out.print("not reached")
+    rescue
+      env.out.print("rescued")
+    ensure
+      env.out.print("ensured")
+    end
+    begin
+      env.out.print("plain body")
+    ensure
+      env.out.print("plain ensure")
+    end
+    env.out.print("#{Temp::Cold} = #{Temp::Cold.value}, #{Temp::Mild} = #{Temp::Mild.value}")
+  end
+end
