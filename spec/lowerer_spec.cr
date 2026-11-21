@@ -17,8 +17,9 @@ describe Lowerer do
       it "lowers examples/#{name} to the tree ponyc parses from its expected.pony" do
         program = Parser.parse(source)
         primed = Emitter.primed_params([program])
-        calls = Driver.tree_calls([file], [source], [program], home, primed) { }
-        lowered = Ponyc.tree_text(home) { |tree| Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed).lower(program, file, source) }
+        predicates = Emitter.enum_predicates([program])
+        calls = Driver.tree_calls([file], [source], [program], home, primed, predicates) { }
+        lowered = Ponyc.tree_text(home) { |tree| Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(program, file, source) }
         lowered.should eq Ponyc.parse_text(dir, home)
       end
 

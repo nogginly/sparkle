@@ -58,13 +58,14 @@ module Sparkle
       current = 0
       begin
         primed = Emitter.primed_params(programs)
-        calls = tree_calls(files, sources, programs, home, primed) { |i| current = i }
+        predicates = Emitter.enum_predicates(programs)
+        calls = tree_calls(files, sources, programs, home, primed, predicates) { |i| current = i }
         out_dir ||= File.join(".sparkle", "bin")
         Dir.mkdir_p(out_dir)
         ok, errors = Ponyc.compile_tree(out_dir, package, home) do |tree|
           files.each_with_index do |file, i|
             current = i
-            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed).lower(programs[i], file, sources[i])
+            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(programs[i], file, sources[i])
           end
         end
         err.print Diagnostics.rewrite(errors, [] of GeneratedFile, names: Emitter.enum_names(programs))
@@ -78,13 +79,13 @@ module Sparkle
     # The positions, per file, of the bare `x.name`s the type checker reports
     # as methods: lowers, type-checks and adds positions until none is new.
     # Yields the index of each file before lowering it.
-    def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)) = Emitter.primed_params(programs), & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
+    def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)) = Emitter.primed_params(programs), predicates : Emitter::Predicates = Emitter.enum_predicates(programs), & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
       calls = Hash(String, Set({Int32, Int32})).new
       MAX_ROUNDS.times do
         found = Ponyc.check_tree(home) do |tree|
           files.each_with_index do |file, i|
             yield i
-            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed).lower(programs[i], file, sources[i])
+            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(programs[i], file, sources[i])
           end
         end
         grown = false
@@ -137,6 +138,7 @@ module Sparkle
       return build_tree(files, sources, programs, package, home, out_dir, err) if ENV["SPARKLE_AST"]? == "1"
       primed = Emitter.primed_params(programs)
       names = Emitter.enum_names(programs)
+      predicates = Emitter.enum_predicates(programs)
       calls = Hash(String, Set({Int32, Int32})).new
       generated = [] of GeneratedFile
       MAX_ROUNDS.times do
@@ -144,7 +146,7 @@ module Sparkle
         files.each_with_index do |file, i|
           source = sources[i]
           begin
-            pony, map = Emitter.emit(programs[i], primed, calls[file]? || Set({Int32, Int32}).new)
+            pony, map = Emitter.emit(programs[i], primed, calls[file]? || Set({Int32, Int32}).new, predicates)
           rescue e : ParseError
             err.print format_error(file, source, e)
             return {1, nil}

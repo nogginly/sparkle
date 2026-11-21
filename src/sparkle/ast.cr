@@ -70,6 +70,7 @@ module Sparkle
   node If, Expr, cond : Expr, then_ : Array(Expr), else_ : Array(Expr)?, negate : Bool = false, is_elsif : Bool = false, modifier : Bool = false
   node While, Expr, cond : Expr, body : Array(Expr), inverted : Bool = false
   node TypePattern, Expr, name : String, type : TypeNode
+  node PredicatePattern, Expr, name : String
   node TuplePattern, Expr, items : Array(Expr)
   node When, Node, patterns : Array(Expr), body : Array(Expr)
   node Case, Expr, subject : Expr, whens : Array(When), else_ : Array(Expr)?, exhaustive : Bool = false

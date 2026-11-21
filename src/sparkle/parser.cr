@@ -924,6 +924,9 @@ module Sparkle
         end
         expect_op("}")
         TuplePattern.new(t.line, t.col, items)
+      elsif t.op?(".") && peek.kind.ident?
+        advance
+        PredicatePattern.new(t.line, t.col, advance.text)
       elsif t.kind.ident? && peek.op?(":")
         advance
         advance
