@@ -71,11 +71,11 @@ module Sparkle
     LOOP_METHODS     = Set{"each", "each_with_index", "times"}
 
     # Returns the Pony text and source map for `program`.
-    def self.emit(program : Program, primed : Hash(String, Set(String)) = primed_params([program]), calls : Set({Int32, Int32}) = Set({Int32, Int32}).new) : {String, SourceMap}
-      probe = new(program, false, primed, calls)
+    def self.emit(program : Program, primed : Hash(String, Set(String)) = primed_params([program]), calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, predicates : Emitter::Predicates = enum_predicates([program])) : {String, SourceMap}
+      probe = new(program, false, primed, calls, predicates)
       probe.run
       return {probe.text, probe.map} unless probe.uses_collections?
-      final = new(program, true, primed, calls)
+      final = new(program, true, primed, calls, predicates)
       final.run
       {final.text, final.map}
     end
@@ -110,6 +110,39 @@ module Sparkle
       names
     end
 
+    # The predicate of an enum member: `DarkGreen` gives `dark_green?`.
+    def self.predicate(member : String) : String
+      "#{member.gsub(/(?<=.)[A-Z]/) { |capital| "_#{capital}" }.downcase}?"
+    end
+
+    # Each enum predicate name (`red?`) and the members that have it, as
+    # their Pony and Sparkle names (`{"LightRed", "Light::Red"}`).
+    alias Predicates = Hash(String, Array({String, String}))
+
+    def self.enum_predicates(programs : Array(Program)) : Predicates
+      table = Predicates.new
+      programs.each do |program|
+        program.items.each do |decl|
+          next unless decl.is_a?(EnumDecl)
+          decl.members.each do |member|
+            (table[predicate(member.name)] ||= [] of {String, String}) << {"#{decl.name}#{member.name}", "#{decl.name}::#{member.name}"}
+          end
+        end
+      end
+      table
+    end
+
+    # The Pony name of the one enum member whose predicate the pattern names;
+    # raises a `ParseError` at the pattern when there is not exactly one.
+    def self.resolve_predicate(p : PredicatePattern, table : Predicates) : String
+      unless p.name.ends_with?('?')
+        raise ParseError.new("only enum predicates such as `.red?` can be patterns", p.line, p.col)
+      end
+      hits = table[p.name]? || raise ParseError.new("no enum member has the predicate `.#{p.name}`", p.line, p.col)
+      return hits.first[0] if hits.size == 1
+      raise ParseError.new("`.#{p.name}` names a member of several enums (#{hits.join(", ", &.[1])}); write the member instead", p.line, p.col)
+    end
+
     def self.pony_ident(name : String) : String
       PONY_RESERVED.includes?(name) ? "#{name}_" : name
     end
@@ -136,7 +169,7 @@ module Sparkle
     @statement = false
     @method_names = Set(String).new
 
-    def initialize(@program : Program, @add_collections : Bool, @primed : Hash(String, Set(String)), @calls : Set({Int32, Int32}))
+    def initialize(@program : Program, @add_collections : Bool, @primed : Hash(String, Set(String)), @calls : Set({Int32, Int32}), @predicates : Emitter::Predicates)
       @w = Writer.new
     end
 
@@ -262,6 +295,10 @@ module Sparkle
         w "fun eq(that: #{d.name}): Bool => that is this"
         @w.nl
         w "fun ne(that: #{d.name}): Bool => not (that is this)"
+        d.members.each do |other|
+          @w.nl
+          w "fun #{pony_method_name(Emitter.predicate(other.name), false)}(): Bool => #{other == member}"
+        end
         @w.indent -= 1
         @w.nl
         @w.nl
@@ -600,7 +637,7 @@ module Sparkle
       w " as #{PonyType.to_pony(e.type)})"
     end
 
-    private def emit_node(e : TypePattern | TuplePattern) : Nil
+    private def emit_node(e : TypePattern | TuplePattern | PredicatePattern) : Nil
       emit_pattern(e)
     end
 
@@ -902,6 +939,8 @@ module Sparkle
         w ")"
       when EnumRef
         w "let _: #{p.enum_name}#{p.member}"
+      when PredicatePattern
+        w "let _: #{Emitter.resolve_predicate(p, @predicates)}"
       when Ident
         w(p.name == "_" ? "_" : local(p.name))
       else

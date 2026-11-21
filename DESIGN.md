@@ -138,7 +138,7 @@ Step 1 has no `yield`. `each`, `each_with_index` and `times` with a block become
 
 ### An enum is a set of primitives
 
-Pony has no `enum`. Each member becomes a `primitive`, prefixed with the enum's name so that two enums can both have a `Red`, and the enum becomes a union of them, which makes `case … in` exhaustive. Each member carries `value`, `string`, `eq` and `ne`. Because Pony does not count a primitive with its own `eq` towards an exhaustive match, a member in a `case` pattern is matched by type (`let _: ColourRed`), not by value.
+Pony has no `enum`. Each member becomes a `primitive`, prefixed with the enum's name so that two enums can both have a `Red`, and the enum becomes a union of them, which makes `case … in` exhaustive. Each member carries `value`, `string`, `eq`, `ne` and a predicate per member of its enum (`red?` is `is_red`), and `when .red?` in a `case` is the member's type pattern when exactly one enum in the package has that member. Because Pony does not count a primitive with its own `eq` towards an exhaustive match, a member in a `case` pattern is matched by type (`let _: ColourRed`), not by value.
 
 ### Dropped on purpose
 

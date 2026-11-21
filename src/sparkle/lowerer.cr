@@ -24,8 +24,9 @@ module Sparkle
     @collections = false
 
     # `calls` holds the positions of the bare `x.name`s that are method calls;
-    # `primed` is `Emitter.primed_params` over the package.
-    def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, @primed : Hash(String, Set(String)) = Hash(String, Set(String)).new)
+    # `primed` is `Emitter.primed_params` and `predicates` is
+    # `Emitter.enum_predicates`, both over the package.
+    def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, @primed : Hash(String, Set(String)) = Hash(String, Set(String)).new, @predicates : Emitter::Predicates = Emitter::Predicates.new)
     end
 
     # Appends the type declarations of `program`, read from `source` and
@@ -77,6 +78,7 @@ module Sparkle
         enum_comparison("eq", d, false, pos),
         enum_comparison("ne", d, true, pos),
       ]
+      methods.concat(d.members.map { |other| enum_predicate(other, other == member, pos) })
       @tree.node(Tk::PRIMITIVE, pos, [id("#{d.name}#{member.name}", pos), none, none, none, @tree.node(Tk::MEMBERS, pos, methods), none, none], scope: true)
     end
 
@@ -86,6 +88,12 @@ module Sparkle
       body = negated ? @tree.node(Tk::NOT, pos, [@tree.node(Tk::SEQ, pos, [same])]) : same
       params = @tree.node(Tk::PARAMS, pos, [@tree.node(Tk::PARAM, pos, [id("that", pos), nominal(d.name, pos), none])])
       enum_fun(name, nominal("Bool", pos), body, pos, params)
+    end
+
+    # `fun is_red(): Bool => true`, or `false` for another member.
+    private def enum_predicate(member : EnumMember, same : Bool, pos : {Int32, Int32}) : Node
+      name = Emitter.pony_method_name(Emitter.predicate(member.name), false)
+      enum_fun(name, nominal("Bool", pos), @tree.node(same ? Tk::TRUE : Tk::FALSE, pos), pos)
     end
 
     private def enum_fun(name : String, ret : Node, body : Node, pos : {Int32, Int32}, params : Node = none) : Node
@@ -273,10 +281,11 @@ module Sparkle
 
     private def pattern(e : Expr) : Node
       case e
-      when IntLit  then int(e)
-      when EnumRef then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal("#{e.enum_name}#{e.member}", at(e))])
-      when Ident   then e.name == "_" ? reference("_", at(e)) : unsupported(e, "a pattern that names a value")
-      else              unsupported(e, "this pattern")
+      when IntLit           then int(e)
+      when EnumRef          then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal("#{e.enum_name}#{e.member}", at(e))])
+      when PredicatePattern then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal(Emitter.resolve_predicate(e, @predicates), at(e))])
+      when Ident            then e.name == "_" ? reference("_", at(e)) : unsupported(e, "a pattern that names a value")
+      else                       unsupported(e, "this pattern")
       end
     end
 

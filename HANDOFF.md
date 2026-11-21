@@ -18,7 +18,7 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## What's next
 
-1. **Decision pending from the user:** enum predicates (`red?` on each member) and `when .red?` in a `case`, mapped to the member's type pattern when exactly one enum in the package has that member, so `case … in` stays exhaustive. Proposed: enum predicates only; ambiguous names are an error; keep Sparkle's `case x in` + `when` spelling. A language change: spec first, then emitter, lowerer and `examples/traffic`.
+1. Enum predicates are implemented: `red?` on each member (`is_red`), and `when .red?` as the member's type pattern when exactly one enum in the package has it, on both the text and AST paths (`examples/traffic` uses both).
 2. Stage 3, parity: run the fixtures (`spec/fixtures/`) and every example through the AST path in the e2e spec, with errors reported at the same Sparkle positions as the text path. Known gaps in `Lowerer`, each raising "does not lower … yet": string escapes, `if` with `else`/`elsif`, `and`/`or`, `begin` without `rescue` or with `ensure`, negative enum values.
 3. Stage 4 (switch, retire the emitter and source map), then the `ponyc` fork for `yield` inlining.
 

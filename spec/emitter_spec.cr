@@ -359,18 +359,27 @@ describe Emitter do
           fun string(): String iso^ => "Red".clone()
           fun eq(that: Colour): Bool => that is this
           fun ne(that: Colour): Bool => not (that is this)
+          fun is_red(): Bool => true
+          fun is_green(): Bool => false
+          fun is_blue(): Bool => false
 
         primitive ColourGreen
           fun value(): I32 => 5
           fun string(): String iso^ => "Green".clone()
           fun eq(that: Colour): Bool => that is this
           fun ne(that: Colour): Bool => not (that is this)
+          fun is_red(): Bool => false
+          fun is_green(): Bool => true
+          fun is_blue(): Bool => false
 
         primitive ColourBlue
           fun value(): I32 => 6
           fun string(): String iso^ => "Blue".clone()
           fun eq(that: Colour): Bool => that is this
           fun ne(that: Colour): Bool => not (that is this)
+          fun is_red(): Bool => false
+          fun is_green(): Bool => false
+          fun is_blue(): Bool => true
 
         type Colour is (ColourRed | ColourGreen | ColourBlue)
 
@@ -380,6 +389,24 @@ describe Emitter do
     it "emits member references and patterns" do
       body("c = Colour::Green").should contain "var c = ColourGreen"
       body("c = Colour::Green\ncase c in\nwhen Colour::Red then 1\nend").should contain "| let _: ColourRed =>"
+    end
+
+    it "emits a predicate per member" do
+      decl("enum Colour\n  Red\n  DarkGreen\nend\n").should contain "fun is_dark_green(): Bool => false"
+      Emitter.predicate("DarkGreen").should eq "dark_green?"
+    end
+
+    it "emits when .red? as the member's pattern" do
+      src = "enum Light\n  Red\nend\nactor Main\n  def self.new(env : Env)\n    case Light::Red in\n    when .red? then 1\n    end\n  end\nend\n"
+      translate(src).should contain "| let _: LightRed =>"
+    end
+
+    it "rejects a predicate pattern that is unknown, ambiguous or lacks ?" do
+      enums = "enum Light\n  Red\nend\nenum Signal\n  Red\nend\n"
+      main = ->(pattern : String) { "actor Main\n  def self.new(env : Env)\n    case 1\n    when #{pattern} then 1\n    end\n  end\nend\n" }
+      expect_raises(ParseError, "no enum member has the predicate `.blue?`") { translate("enum Light\n  Red\nend\n" + main.call(".blue?")) }
+      expect_raises(ParseError, "`.red?` names a member of several enums (Light::Red, Signal::Red); write the member instead") { translate(enums + main.call(".red?")) }
+      expect_raises(ParseError, "only enum predicates such as `.red?` can be patterns") { translate("enum Light\n  Red\nend\n" + main.call(".red")) }
     end
 
     it "parenthesises a single member" do

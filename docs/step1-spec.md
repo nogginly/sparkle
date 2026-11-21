@@ -65,6 +65,9 @@ primitive ColourRed
   fun string(): String iso^ => "Red".clone()
   fun eq(that: Colour): Bool => that is this
   fun ne(that: Colour): Bool => not (that is this)
+  fun is_red(): Bool => true
+  fun is_green(): Bool => false
+  fun is_blue(): Bool => false
 
 primitive ColourGreen
   …                                  // value 5
@@ -77,6 +80,7 @@ type Colour is (ColourRed | ColourGreen | ColourBlue)
 
 - A member is a constant on its own line, optionally `= n` with an integer literal (which may be negative). Values start at 0 and each unvalued member is one more than the previous. `value` is always `Int32`.
 - `string` gives the member's name, so `"#{c}"` prints `Green` and a member is `Stringable`. `eq` and `ne` make `==` and `!=` work.
+- Each member has a **predicate per member of its enum**, as in Crystal: `c.green?` is true only for `Colour::Green`. The predicate's name is the member's in snake case (`DarkGreen` gives `dark_green?`), and like every `?` method it becomes `is_…` in Pony.
 - An enum needs at least one member, and member names must be distinct. Methods, flags (`@[Flags]`) and a base type (`enum Colour : UInt8`) are not supported: anything but a member in the body is a parse error.
 
 Operator method names: `+ add`, `- sub`, `* mul`, `/ div`, `% rem`, `== eq`, `!= ne`, `< lt`, `<= le`, `> gt`, `>= ge`, `<< push`, `>> shr`, `[] apply`, `[]! apply … ?`, `[]= update`.
@@ -209,6 +213,7 @@ Pony has no operator precedence, so the emitter parenthesises every nested binar
 | `case x when 1, 2 … when s : String … when {a, b} … else … end` | `match x \| 1 \| 2 => … \| let s: String => … \| (a, b) => … else … end` |
 | `case x in …` | `match \exhaustive\ x …` |
 | `when Colour::Red` / `in Colour::Red` | `\| let _: ColourRed =>` | matched by type, because Pony does not count a primitive with its own `eq` towards exhaustiveness |
+| `when .red?` | `\| let _: ColourRed =>` | an enum predicate as a pattern, as Crystal writes it. It names the one member of an enum in the package whose predicate is `red?`, so an exhaustive `case … in` stays exhaustive. It is an error when no enum, or more than one, has such a member (write `when Colour::Red`), and for any other `when .name` |
 | `begin … rescue … ensure … end` | `try … else … then … end` |
 | `raise` (takes no value) | `error` |
 | `consume x` | `consume x` |

@@ -104,6 +104,12 @@ describe Parser do
       expect_raises(ParseError, "only members are allowed in an enum body") { Parser.parse("enum E\n  A\n  def f\n  end\nend\n") }
     end
 
+    it "parses when .red? as a PredicatePattern" do
+      program = Parser.parse("actor Main\n  def self.new(env : Env)\n    case 1\n    when .red? then 1\n    end\n  end\nend\n")
+      pattern = program.items[0].as(TypeDecl).methods[0].body.as(Array(Expr))[0].as(Case).whens[0].patterns[0]
+      pattern.as(PredicatePattern).name.should eq "red?"
+    end
+
     it "parses Colour::Red as an EnumRef" do
       ref = expr("Colour::Red").as(EnumRef)
       {ref.enum_name, ref.member}.should eq({"Colour", "Red"})
