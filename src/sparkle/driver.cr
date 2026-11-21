@@ -52,28 +52,81 @@ module Sparkle
       Process.find_executable("ponyc")
     end
 
-    # Builds by lowering to ponyc's AST instead of writing Pony text.
-    # Chosen with `SPARKLE_AST=1` while the lowering is incomplete.
-    private def self.build_tree(files : Array(String), sources : Array(String), programs : Array(Program), package : String, home : String, out_dir : String?, err : IO) : {Int32, String?}
+    # Everything `build` and `tree_text` need once the sources parse.
+    private record Project, files : Array(String), package : String, sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)), predicates : Emitter::Predicates
+
+    # Parses the Sparkle files at `path` and finds ponyc; nil, with the
+    # reason on `err`, if either fails.
+    private def self.load_project(path : String, err : IO) : Project?
+      files, package = sources_for(path)
+      if files.empty?
+        err.puts "sparkle: no .spk files in #{path}"
+        return
+      end
+      sources = files.map { |file| File.read(file) }
+      programs = [] of Program
+      files.each_with_index do |file, i|
+        programs << Parser.parse(sources[i])
+      rescue e : ParseError
+        err.print format_error(file, sources[i], e)
+        return
+      end
+      ponyc = find_ponyc
+      unless ponyc
+        err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
+        return
+      end
+      Project.new(files, package, sources, programs, File.dirname(File.dirname(ponyc)), Emitter.primed_params(programs), Emitter.enum_predicates(programs))
+    end
+
+    private def self.lower_files(tree : Ponyc::Tree, files : Array(String), sources : Array(String), programs : Array(Program), calls : Hash(String, Set({Int32, Int32})), primed : Hash(String, Set(String)), predicates : Emitter::Predicates, & : Int32 -> Nil) : Nil
+      files.each_with_index do |file, i|
+        yield i
+        Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(programs[i], file, sources[i])
+      end
+    end
+
+    private def self.lower_project(tree : Ponyc::Tree, project : Project, calls : Hash(String, Set({Int32, Int32})), & : Int32 -> Nil) : Nil
+      lower_files(tree, project.files, project.sources, project.programs, calls, project.primed, project.predicates) { |i| yield i }
+    end
+
+    # The lowered tree of the package at `path`, as `build` compiles it,
+    # printed as `ponyc --astmodule` prints one.
+    def self.tree_text(path : String, err : IO) : {Int32, String?}
+      project = load_project(path, err) || return {1, nil}
       current = 0
       begin
-        primed = Emitter.primed_params(programs)
-        predicates = Emitter.enum_predicates(programs)
-        calls = tree_calls(files, sources, programs, home, primed, predicates) { |i| current = i }
-        out_dir ||= File.join(".sparkle", "bin")
-        Dir.mkdir_p(out_dir)
-        ok, errors = Ponyc.compile_tree(out_dir, package, home) do |tree|
-          files.each_with_index do |file, i|
-            current = i
-            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(programs[i], file, sources[i])
-          end
+        calls = tree_calls(project) { |i| current = i }
+        text = Ponyc.tree_text(project.home) do |tree|
+          lower_project(tree, project, calls) { |i| current = i }
         end
-        err.print Diagnostics.rewrite(errors, [] of GeneratedFile, names: Emitter.enum_names(programs))
-        {ok ? 0 : 1, File.join(out_dir, package)}
+        {0, text}
       rescue e : ParseError
-        err.print format_error(files[current], sources[current], e)
+        err.print format_error(project.files[current], project.sources[current], e)
         {1, nil}
       end
+    end
+
+    # Builds by lowering to ponyc's AST, without writing Pony text.
+    private def self.build_tree(project : Project, out_dir : String?, err : IO) : {Int32, String?}
+      current = 0
+      begin
+        calls = tree_calls(project) { |i| current = i }
+        out_dir ||= File.join(".sparkle", "bin")
+        Dir.mkdir_p(out_dir)
+        ok, errors = Ponyc.compile_tree(out_dir, project.package, project.home) do |tree|
+          lower_project(tree, project, calls) { |i| current = i }
+        end
+        err.print Diagnostics.rewrite(errors, [] of GeneratedFile, names: Emitter.enum_names(project.programs))
+        {ok ? 0 : 1, File.join(out_dir, project.package)}
+      rescue e : ParseError
+        err.print format_error(project.files[current], project.sources[current], e)
+        {1, nil}
+      end
+    end
+
+    private def self.tree_calls(project : Project, & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
+      tree_calls(project.files, project.sources, project.programs, project.home, project.primed, project.predicates) { |i| yield i }
     end
 
     # The positions, per file, of the bare `x.name`s the type checker reports
@@ -83,10 +136,7 @@ module Sparkle
       calls = Hash(String, Set({Int32, Int32})).new
       MAX_ROUNDS.times do
         found = Ponyc.check_tree(home) do |tree|
-          files.each_with_index do |file, i|
-            yield i
-            Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(programs[i], file, sources[i])
-          end
+          lower_files(tree, files, sources, programs, calls, primed, predicates) { |i| yield i }
         end
         grown = false
         found.each do |file, line, column, message|
@@ -108,37 +158,25 @@ module Sparkle
       end
     end
 
-    # Translates, writes `.sparkle/<package>/*.pony` and compiles it with the
-    # linked-in Pony compiler, against the standard library of the Pony
-    # installation that holds the `ponyc` found by `find_ponyc`. Returns the
-    # exit code. `out_dir` receives the binary.
+    # Compiles the `.spk` file or package at `path` with the linked-in Pony
+    # compiler, against the standard library of the Pony installation that
+    # holds the `ponyc` found by `find_ponyc`. It lowers to ponyc's AST,
+    # unless `SPARKLE_TEXT=1` asks for the text path, which writes
+    # `.sparkle/<package>/*.pony`. Returns the exit code and the binary's
+    # path, which lands in `out_dir`.
     def self.build(path : String, out_dir : String?, err : IO = STDERR) : {Int32, String?}
-      files, package = sources_for(path)
-      if files.empty?
-        err.puts "sparkle: no .spk files in #{path}"
-        return {1, nil}
-      end
-      gen_dir = File.join(".sparkle", package)
+      project = load_project(path, err) || return {1, nil}
+      return build_tree(project, out_dir, err) unless ENV["SPARKLE_TEXT"]? == "1"
+      build_text(project, out_dir, err)
+    end
+
+    private def self.build_text(project : Project, out_dir : String?, err : IO) : {Int32, String?}
+      files, sources, programs, home = project.files, project.sources, project.programs, project.home
+      primed, predicates = project.primed, project.predicates
+      gen_dir = File.join(".sparkle", project.package)
       Dir.mkdir_p(gen_dir)
       Dir.glob(File.join(gen_dir, "*.pony")).each { |stale| File.delete(stale) }
-      sources = files.map { |file| File.read(file) }
-      programs = [] of Program
-      files.each_with_index do |file, i|
-        programs << Parser.parse(sources[i])
-      rescue e : ParseError
-        err.print format_error(file, sources[i], e)
-        return {1, nil}
-      end
-      ponyc = find_ponyc
-      unless ponyc
-        err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
-        return {1, nil}
-      end
-      home = File.dirname(File.dirname(ponyc))
-      return build_tree(files, sources, programs, package, home, out_dir, err) if ENV["SPARKLE_AST"]? == "1"
-      primed = Emitter.primed_params(programs)
       names = Emitter.enum_names(programs)
-      predicates = Emitter.enum_predicates(programs)
       calls = Hash(String, Set({Int32, Int32})).new
       generated = [] of GeneratedFile
       MAX_ROUNDS.times do
@@ -168,9 +206,9 @@ module Sparkle
       end
       out_dir ||= File.join(".sparkle", "bin")
       Dir.mkdir_p(out_dir)
-      ok, errors = Ponyc.compile(gen_dir, out_dir, package, home)
+      ok, errors = Ponyc.compile(gen_dir, out_dir, project.package, home)
       err.print Diagnostics.rewrite(errors, generated, names: names)
-      {ok ? 0 : 1, File.join(out_dir, package)}
+      {ok ? 0 : 1, File.join(out_dir, project.package)}
     end
   end
 end

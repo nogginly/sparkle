@@ -1,0 +1,131 @@
+(module:scope
+  (file:scope
+    (class:scope
+      (id Counter)
+      x
+      x
+      x
+      (members
+        (fvar (id _n) (nominal x (id U64) x x x) 0 x)
+        (new:scope x (id create) x x x x x (seq (reference (id None))) x)
+        (fun:scope
+          ref
+          (id incr)
+          x
+          x
+          (nominal x (id U64) x x x)
+          x
+          x
+          (seq
+            (seq
+              (= (reference (id _n)) (+ (reference (id _n)) 1 x))
+              ;
+              (reference (id _n))
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id count)
+          x
+          x
+          (nominal x (id U64) x x x)
+          x
+          x
+          (seq (reference (id _n)))
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id c) x)
+              (call (. (reference (id Counter)) (id create)) x x x)
+            )
+            (call (. (reference (id c)) (id incr)) x x x)
+            (= (var (id last) x) (call (. (reference (id c)) (id incr)) x x x))
+            (=
+              (var (id a) x)
+              (seq
+                (= (var (id b) (nominal x (id I32) x x x)) 7)
+                ;
+                (reference (id b))
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        (+
+                          (+
+                            (+
+                              (+
+                                "count = "
+                                (call
+                                  (.
+                                    (call
+                                      (. (reference (id c)) (id count))
+                                      x
+                                      x
+                                      x
+                                    )
+                                    (id string)
+                                  )
+                                  x
+                                  x
+                                  x
+                                )
+                                x
+                              )
+                              ", last = "
+                              x
+                            )
+                            (call (. (reference (id last)) (id string)) x x x)
+                            x
+                          )
+                          ", a = "
+                          x
+                        )
+                        (call (. (reference (id a)) (id string)) x x x)
+                        x
+                      )
+                      ", b = "
+                      x
+                    )
+                    (call (. (reference (id b)) (id string)) x x x)
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

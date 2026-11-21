@@ -1,0 +1,743 @@
+(module:scope
+  (file:scope
+    (use x "collections" x)
+    (trait:scope
+      (id Shape)
+      x
+      x
+      x
+      (members
+        (fun:scope x (id area) x x (nominal x (id U32) x x x) x x x x)
+        (fun:scope x (id name) x x (nominal x (id String) x x x) x x x x)
+        (fun:scope
+          x
+          (id describe)
+          x
+          x
+          (nominal x (id String) x x x)
+          x
+          x
+          (seq
+            (+
+              (+
+                (call (. (call (reference (id name)) x x x) (id string)) x x x)
+                " with area "
+                x
+              )
+              (call (. (call (reference (id area)) x x x) (id string)) x x x)
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id is_big)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (> (call (reference (id area)) x x x) 10 x))
+          x
+        )
+      )
+      x
+      x
+    )
+    (class:scope
+      (id Circle)
+      x
+      x
+      (provides (nominal x (id Shape) x x x))
+      (members
+        (fvar (id _r) (nominal x (id U32) x x x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id r) (nominal x (id U32) x x x) x))
+          x
+          x
+          x
+          (seq (= (reference (id _r)) (reference (id r))))
+          x
+        )
+        (fun:scope
+          x
+          (id area)
+          x
+          x
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq (* (seq (* 3 (reference (id _r)) x)) (reference (id _r)) x))
+          x
+        )
+        (fun:scope
+          x
+          (id name)
+          x
+          x
+          (nominal x (id String) x x x)
+          x
+          x
+          (seq "circle")
+          x
+        )
+      )
+      x
+      x
+    )
+    (class:scope
+      (id Square)
+      x
+      x
+      (provides (nominal x (id Shape) x x x))
+      (members
+        (fvar (id _side) (nominal x (id U32) x x x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id side) (nominal x (id U32) x x x) x))
+          x
+          x
+          x
+          (seq (= (reference (id _side)) (reference (id side))))
+          x
+        )
+        (fun:scope
+          x
+          (id area)
+          x
+          x
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq (* (reference (id _side)) (reference (id _side)) x))
+          x
+        )
+        (fun:scope
+          x
+          (id name)
+          x
+          x
+          (nominal x (id String) x x x)
+          x
+          x
+          (seq "square")
+          x
+        )
+      )
+      x
+      x
+    )
+    (class:scope
+      (id Vec2)
+      x
+      x
+      x
+      (members
+        (fvar (id _x) (nominal x (id U32) x x x) x x)
+        (fvar (id _y) (nominal x (id U32) x x x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params
+            (param (id x') (nominal x (id U32) x x x) x)
+            (param (id y') (nominal x (id U32) x x x) x)
+          )
+          x
+          x
+          x
+          (seq
+            (= (reference (id _x)) (reference (id x')))
+            (= (reference (id _y)) (reference (id y')))
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id x)
+          x
+          x
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq (reference (id _x)))
+          x
+        )
+        (fun:scope
+          x
+          (id y)
+          x
+          x
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq (reference (id _y)))
+          x
+        )
+        (fun:scope
+          x
+          (id add)
+          x
+          (params (param (id o) (nominal x (id Vec2) x x x) x))
+          (nominal x (id Vec2) x x x)
+          x
+          x
+          (seq
+            (call
+              (. (reference (id Vec2)) (id create))
+              (positionalargs
+                (seq (+ (reference (id _x)) (. (reference (id o)) (id _x)) x))
+                (seq (+ (reference (id _y)) (. (reference (id o)) (id _y)) x))
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (class:scope
+      (id Stack)
+      (typeparams (typeparam (id A) (nominal x (id Any) x val x) x))
+      x
+      x
+      (members
+        (fvar
+          (id _items)
+          (nominal x (id Array) (typeargs (nominal x (id A) x x x)) x x)
+          (call
+            (.
+              (qualify
+                (reference (id Array))
+                (typeargs (nominal x (id A) x x x))
+              )
+              (id create)
+            )
+            x
+            x
+            x
+          )
+          x
+        )
+        (new:scope x (id create) x x x x x (seq (reference (id None))) x)
+        (fun:scope
+          ref
+          (id push)
+          x
+          (params (param (id item) (nominal x (id A) x x x) x))
+          x
+          x
+          x
+          (seq
+            (call
+              (. (reference (id _items)) (id push))
+              (positionalargs (seq (reference (id item))))
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id pop)
+          x
+          x
+          (nominal x (id A) x x x)
+          x
+          ?
+          (seq (call (. (reference (id _items)) (id pop)) x x ?))
+          x
+        )
+        (fun:scope
+          x
+          (id size)
+          x
+          x
+          (nominal x (id USize) x x x)
+          x
+          x
+          (seq (call (. (reference (id _items)) (id size)) x x x))
+          x
+        )
+        (fun:scope
+          x
+          (id is_empty)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (== (call (. (reference (id _items)) (id size)) x x x) 0 x))
+          x
+        )
+      )
+      x
+      x
+    )
+    (primitive:scope
+      (id Report)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id pop_or)
+          x
+          (params
+            (param
+              (id stack)
+              (nominal x (id Stack) (typeargs (nominal x (id U32) x x x)) x x)
+              x
+            )
+            (param (id fallback) (nominal x (id U32) x x x) x)
+          )
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq
+            (try
+              (seq:scope (call (. (reference (id stack)) (id pop)) x x ?))
+              (seq:scope (reference (id fallback)))
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id at_or)
+          x
+          (params
+            (param
+              (id names)
+              (nominal
+                x
+                (id Array)
+                (typeargs (nominal x (id String) x x x))
+                x
+                x
+              )
+              x
+            )
+            (param (id i) (nominal x (id USize) x x x) x)
+          )
+          (nominal x (id String) x x x)
+          x
+          x
+          (seq
+            (try
+              (seq:scope
+                (call
+                  (reference (id names))
+                  (positionalargs (seq (reference (id i))))
+                  x
+                  ?
+                )
+              )
+              (seq:scope "none")
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id tag_for)
+          x
+          (params (param (id n) (nominal x (id U32) x x x) x))
+          (uniontype (nominal x (id String) x x x) (nominal x (id None) x x x))
+          x
+          x
+          (seq
+            (if:scope
+              (seq (== (reference (id n)) 0 x))
+              (seq:scope (reference (id None)))
+              (seq:scope
+                (+ "n" (call (. (reference (id n)) (id string)) x x x) x)
+              )
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id shapes) x)
+              (array
+                (nominal x (id Shape) x x x)
+                (seq
+                  (call
+                    (. (reference (id Circle)) (id create))
+                    (positionalargs (seq 1))
+                    x
+                    x
+                  )
+                  ;
+                  (call
+                    (. (reference (id Square)) (id create))
+                    (positionalargs (seq 4))
+                    x
+                    x
+                  )
+                  ;
+                  (call
+                    (. (reference (id Circle)) (id create))
+                    (positionalargs (seq 3))
+                    x
+                    x
+                  )
+                )
+              )
+            )
+            (for
+              (let (id s) x)
+              (seq (call (. (reference (id shapes)) (id values)) x x x))
+              (seq
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        (+
+                          (call
+                            (.
+                              (call (. (reference (id s)) (id describe)) x x x)
+                              (id string)
+                            )
+                            x
+                            x
+                            x
+                          )
+                          " big="
+                          x
+                        )
+                        (call
+                          (.
+                            (call (. (reference (id s)) (id is_big)) x x x)
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (=
+              (var (id sum) x)
+              (+
+                (call
+                  (. (reference (id Vec2)) (id create))
+                  (positionalargs (seq 1) (seq 2))
+                  x
+                  x
+                )
+                (call
+                  (. (reference (id Vec2)) (id create))
+                  (positionalargs (seq 3) (seq 4))
+                  x
+                  x
+                )
+                x
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        (+
+                          "sum = ("
+                          (call
+                            (.
+                              (call (. (reference (id sum)) (id x)) x x x)
+                              (id string)
+                            )
+                            x
+                            x
+                            x
+                          )
+                          x
+                        )
+                        ", "
+                        x
+                      )
+                      (call
+                        (.
+                          (call (. (reference (id sum)) (id y)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                    ")"
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (=
+              (var (id stack) x)
+              (call
+                (.
+                  (qualify
+                    (reference (id Stack))
+                    (typeargs (nominal x (id U32) x x x))
+                  )
+                  (id create)
+                )
+                x
+                x
+                x
+              )
+            )
+            (call
+              (. (reference (id stack)) (id push))
+              (positionalargs (seq 10))
+              x
+              x
+            )
+            (call
+              (. (reference (id stack)) (id push))
+              (positionalargs (seq 20))
+              x
+              x
+            )
+            (for
+              (let (id _) x)
+              (seq
+                (call
+                  (.
+                    (qualify
+                      (reference (id Range))
+                      (typeargs (nominal x (id USize) x x x))
+                    )
+                    (id till)
+                  )
+                  (positionalargs (seq 0) (seq 3))
+                  x
+                  x
+                )
+              )
+              (seq
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "popped "
+                        (call
+                          (.
+                            (call
+                              (. (reference (id Report)) (id pop_or))
+                              (positionalargs
+                                (seq (reference (id stack)))
+                                (seq 0)
+                              )
+                              x
+                              x
+                            )
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        "empty = "
+                        (call
+                          (.
+                            (call
+                              (. (reference (id stack)) (id is_empty))
+                              x
+                              x
+                              x
+                            )
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                      " size = "
+                      x
+                    )
+                    (call
+                      (.
+                        (call (. (reference (id stack)) (id size)) x x x)
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (= (var (id names) x) (array x (seq "ada" ; "grace")))
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (call
+                    (. (reference (id Report)) (id at_or))
+                    (positionalargs (seq (reference (id names))) (seq 1))
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (call
+                    (. (reference (id Report)) (id at_or))
+                    (positionalargs (seq (reference (id names))) (seq 7))
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (=
+              (var (id missing) x)
+              (call
+                (. (reference (id Report)) (id tag_for))
+                (positionalargs (seq 0))
+                x
+                x
+              )
+            )
+            (=
+              (var (id present) x)
+              (call
+                (. (reference (id Report)) (id tag_for))
+                (positionalargs (seq 5))
+                x
+                x
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        "missing nil = "
+                        (call
+                          (.
+                            (seq
+                              (is
+                                (reference (id missing))
+                                (reference (id None))
+                              )
+                            )
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                      ", present nil = "
+                      x
+                    )
+                    (call
+                      (.
+                        (seq
+                          (is (reference (id present)) (reference (id None)))
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

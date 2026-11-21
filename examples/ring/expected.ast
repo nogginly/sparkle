@@ -1,0 +1,315 @@
+(module:scope
+  (file:scope
+    (use x "collections" x)
+    (class:scope
+      (id Job)
+      x
+      val
+      x
+      (members
+        (fvar (id _id) (nominal x (id U32) x x x) x x)
+        (fvar (id _payload) (nominal x (id U32) x x x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params
+            (param (id id') (nominal x (id U32) x x x) x)
+            (param (id payload') (nominal x (id U32) x x x) x)
+          )
+          x
+          x
+          x
+          (seq
+            (= (reference (id _id)) (reference (id id')))
+            (= (reference (id _payload)) (reference (id payload')))
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id id)
+          x
+          x
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq (reference (id _id)))
+          x
+        )
+        (fun:scope
+          x
+          (id payload)
+          x
+          x
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq (reference (id _payload)))
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Collector)
+      x
+      x
+      x
+      (members
+        (fvar (id _stream) (nominal x (id OutStream) x x x) x x)
+        (fvar (id _pending) (nominal x (id USize) x x x) x x)
+        (fvar (id _total) (nominal x (id U64) x x x) 0 x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params
+            (param (id stream) (nominal x (id OutStream) x x x) x)
+            (param (id expected) (nominal x (id USize) x x x) x)
+          )
+          x
+          x
+          x
+          (seq
+            (= (reference (id _stream)) (reference (id stream)))
+            (= (reference (id _pending)) (reference (id expected)))
+          )
+          x
+        )
+        (be:scope
+          x
+          (id collect)
+          x
+          (params
+            (param (id id) (nominal x (id U32) x x x) x)
+            (param (id value) (nominal x (id U64) x x x) x)
+          )
+          x
+          x
+          x
+          (seq
+            (=
+              (reference (id _total))
+              (+ (reference (id _total)) (reference (id value)) x)
+            )
+            (= (reference (id _pending)) (- (reference (id _pending)) 1 x))
+            (if:scope
+              (seq (== (reference (id _pending)) 0 x))
+              (seq:scope
+                (call
+                  (. (reference (id _stream)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "collected total = "
+                        (call (. (reference (id _total)) (id string)) x x x)
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Worker)
+      x
+      x
+      x
+      (members
+        (fvar (id _id) (nominal x (id U32) x x x) x x)
+        (fvar (id _sink) (nominal x (id Collector) x tag x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params
+            (param (id id) (nominal x (id U32) x x x) x)
+            (param (id sink) (nominal x (id Collector) x tag x) x)
+          )
+          x
+          x
+          x
+          (seq
+            (= (reference (id _id)) (reference (id id)))
+            (= (reference (id _sink)) (reference (id sink)))
+          )
+          x
+        )
+        (be:scope
+          x
+          (id run)
+          x
+          (params (param (id job) (nominal x (id Job) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id value) x)
+              (*
+                (call
+                  (.
+                    (call (. (reference (id job)) (id payload)) x x x)
+                    (id u64)
+                  )
+                  x
+                  x
+                  x
+                )
+                (call (. (reference (id _id)) (id u64)) x x x)
+                x
+              )
+            )
+            (call
+              (. (reference (id _sink)) (id collect))
+              (positionalargs
+                (seq (call (. (reference (id job)) (id id)) x x x))
+                (seq (reference (id value)))
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (= (var (id count) (nominal x (id USize) x x x)) 4)
+            (=
+              (var (id sink) x)
+              (call
+                (. (reference (id Collector)) (id create))
+                (positionalargs
+                  (seq (. (reference (id env)) (id out)))
+                  (seq (reference (id count)))
+                )
+                x
+                x
+              )
+            )
+            (=
+              (var (id workers) x)
+              (call
+                (.
+                  (qualify
+                    (reference (id Array))
+                    (typeargs (nominal x (id Worker) x x x))
+                  )
+                  (id create)
+                )
+                x
+                x
+                x
+              )
+            )
+            (for
+              (let (id i) x)
+              (seq
+                (call
+                  (.
+                    (qualify
+                      (reference (id Range))
+                      (typeargs (nominal x (id USize) x x x))
+                    )
+                    (id till)
+                  )
+                  (positionalargs (seq 0) (seq (reference (id count))))
+                  x
+                  x
+                )
+              )
+              (seq
+                (call
+                  (. (reference (id workers)) (id push))
+                  (positionalargs
+                    (seq
+                      (call
+                        (. (reference (id Worker)) (id create))
+                        (positionalargs
+                          (seq
+                            (call
+                              (. (seq (+ (reference (id i)) 1 x)) (id u32))
+                              x
+                              x
+                              x
+                            )
+                          )
+                          (seq (reference (id sink)))
+                        )
+                        x
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (for
+              (tuple (seq (let (id i) x)) (seq (let (id w) x)))
+              (seq (call (. (reference (id workers)) (id pairs)) x x x))
+              (seq
+                (call
+                  (. (reference (id w)) (id run))
+                  (positionalargs
+                    (seq
+                      (call
+                        (. (reference (id Job)) (id create))
+                        x
+                        (namedargs
+                          (namedarg
+                            (id id')
+                            (seq (call (. (reference (id i)) (id u32)) x x x))
+                          )
+                          (namedarg (id payload') (seq 10))
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

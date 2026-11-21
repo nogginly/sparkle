@@ -36,14 +36,17 @@ describe Driver do
     File.write(File.join(dir, "main.spk"), "actor Main\n  def self.new(env : Env)\n    j = Job.new(payload: 1)\n  end\nend\n")
     gen_dir = File.join(".sparkle", File.basename(dir))
     previous = ENV["SPARKLE_PONYC"]?
+    previous_text = ENV["SPARKLE_TEXT"]?
     begin
       with_ponyc("bin") do |_, ponyc|
         ENV["SPARKLE_PONYC"] = ponyc
+        ENV["SPARKLE_TEXT"] = "1"
         Driver.build(dir, out_dir, IO::Memory.new)
       end
       File.read(File.join(gen_dir, "main.pony")).should contain "where payload' = 1"
     ensure
       ENV["SPARKLE_PONYC"] = previous
+      ENV["SPARKLE_TEXT"] = previous_text
       FileUtils.rm_rf(gen_dir)
       FileUtils.rm_rf(dir)
       FileUtils.rm_rf(out_dir)

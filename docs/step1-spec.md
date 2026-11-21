@@ -163,7 +163,7 @@ flowchart TD
 - A position is reported against the Sparkle name after the dot, so one round settles every bare name whose receiver's type is known; a chain settles one link per round.
 - The default is a field because the reverse cannot work: calling a field means calling `apply()` on its value, which either fails with an unrelated error or compiles with a different meaning.
 - `x.@name` still reads a field and is never a call. `env.@out` keeps working; `env.out` is the ordinary spelling.
-- `sparkle translate` has no type checker, so it prints every bare `x.name` as a field read. The Pony that `build` compiled is in `.sparkle/<package>/`, and the examples' `expected.pony` files hold that resolved Pony.
+- `sparkle translate` prints the lowered tree, after the type checker settled which bare `x.name`s are calls. The text path (`SPARKLE_TEXT=1`) writes the Pony it compiled to `.sparkle/<package>/`, and the examples' `expected.pony` files hold that Pony.
 
 ### Assignment as a value
 
@@ -243,7 +243,7 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 ## 6. CLI
 
 ```
-sparkle translate FILE.spk          # print the generated Pony
+sparkle translate PATH              # print the lowered tree, in ponyc's AST notation
 sparkle build PATH [-o DIR]         # PATH is a .spk file or a directory (one Pony package)
 sparkle run PATH [-- args]          # build, then run the binary
 sparkle caps PATH...                # capability statistics
