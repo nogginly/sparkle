@@ -70,6 +70,13 @@ module Sparkle::Ponyc
     end
 
     # The placeholder for an absent optional child.
+    # Marks `n` for ponyc's passes to leave as written, as its parser marks a
+    # lambda's parameters, return type and body; returns `n`.
+    def preserve(n : Node) : Node
+      LibPonyc.ast_setflag(n, LibPonyc.spk_flag_preserve)
+      n
+    end
+
     def none : Node
       node(Tk::NONE)
     end
