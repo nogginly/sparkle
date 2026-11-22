@@ -21,7 +21,7 @@ end
 describe Driver do
   it "formats parse errors with the source line and a caret" do
     src = "class A\n  def f\n    1 +\n  end\nend\n"
-    err = expect_raises(ParseError) { Driver.translate(src) }
+    err = expect_raises(ParseError) { Parser.parse(src) }
     text = Driver.format_error("a.spk", src, err)
     text.should start_with "a.spk:4:3: "
     text.lines[1].should eq "  end"
@@ -29,27 +29,17 @@ describe Driver do
   end
 
   it "primes named arguments across the files of a package" do
+    RULE_HOME || pending!("ponyc not found")
     dir = File.join(Dir.tempdir, "sparkle-spec-#{Process.pid}-#{Random.rand(1_000_000)}")
-    out_dir = "#{dir}-out"
     Dir.mkdir_p(dir)
     File.write(File.join(dir, "job.spk"), "class val Job\n  @payload : UInt32\n  def self.new(payload : UInt32)\n    @payload = payload\n  end\n  def payload : UInt32 = @payload\nend\n")
     File.write(File.join(dir, "main.spk"), "actor Main\n  def self.new(env : Env)\n    j = Job.new(payload: 1)\n  end\nend\n")
-    gen_dir = File.join(".sparkle", File.basename(dir))
-    previous = ENV["SPARKLE_PONYC"]?
-    previous_text = ENV["SPARKLE_TEXT"]?
     begin
-      with_ponyc("bin") do |_, ponyc|
-        ENV["SPARKLE_PONYC"] = ponyc
-        ENV["SPARKLE_TEXT"] = "1"
-        Driver.build(dir, out_dir, IO::Memory.new)
-      end
-      File.read(File.join(gen_dir, "main.pony")).should contain "where payload' = 1"
+      code, tree = Driver.tree_text(dir, IO::Memory.new)
+      code.should eq 0
+      (tree || "").should contain "(namedarg (id payload') (seq 1))"
     ensure
-      ENV["SPARKLE_PONYC"] = previous
-      ENV["SPARKLE_TEXT"] = previous_text
-      FileUtils.rm_rf(gen_dir)
       FileUtils.rm_rf(dir)
-      FileUtils.rm_rf(out_dir)
     end
   end
 

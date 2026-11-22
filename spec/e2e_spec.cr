@@ -13,16 +13,6 @@ private def build_and_run(path : String) : {Int32, String, String}
   end
 end
 
-private def with_text_path(&)
-  previous = ENV["SPARKLE_TEXT"]?
-  begin
-    ENV["SPARKLE_TEXT"] = "1"
-    yield
-  ensure
-    ENV["SPARKLE_TEXT"] = previous
-  end
-end
-
 private def golden(path : String, actual : String) : Nil
   File.write(path, actual) if ENV["UPDATE_GOLDEN"]? == "1"
   actual.should eq File.read(path)
@@ -48,11 +38,6 @@ describe "end to end" do
         tree_code, tree = Dir.cd(ROOT) { Sparkle::Driver.tree_text(relative, tree_err) }
         tree_code.should eq(0), tree_err.to_s
         golden(File.join(dir, "expected.ast"), tree || "")
-
-        code, stdout, err = with_text_path { build_and_run(relative) }
-        code.should eq(0), err
-        stdout.should eq File.read(File.join(dir, "expected.out"))
-        golden(File.join(dir, "expected.pony"), File.read(File.join(ROOT, ".sparkle", File.basename(dir), "main.pony")))
       end
     end
 
@@ -74,20 +59,6 @@ describe "end to end" do
       text.should contain "parameter type requires iso^ Array(val String)"
       text.should contain "spec/fixtures/iso_mismatch/main.spk:11:5: right side must be a subtype of left side"
       text.should_not contain "Array[String"
-    end
-
-    Dir.glob(File.join(ROOT, "spec", "fixtures", "*", "main.spk")).sort.each do |spk|
-      fixture = File.join("spec", "fixtures", File.basename(File.dirname(spk)), "main.spk")
-
-      it "reports the same errors for #{fixture} between the AST and text paths" do
-        text = IO::Memory.new
-        tree = IO::Memory.new
-        tree_code = Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), tree)[0] }
-        text_code = with_text_path { Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), text)[0] } }
-        text_code.should_not eq 0
-        tree_code.should eq text_code
-        tree.to_s.should eq text.to_s
-      end
     end
   end
 end

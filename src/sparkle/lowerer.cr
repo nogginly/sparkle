@@ -1,11 +1,11 @@
 require "./ast"
-require "./emitter"
+require "./rules"
 require "./pony_type"
 require "./ponyc/tree"
 
 module Sparkle
   # Lowers a Sparkle program to ponyc AST nodes, in the shape ponyc's parser
-  # builds for the Pony that `Emitter` writes. Constructs it cannot lower yet
+  # builds for the equivalent Pony. Constructs it cannot lower yet
   # raise a `ParseError` at their position.
   class Lowerer
     alias Node = Ponyc::Tree::Node
@@ -36,9 +36,9 @@ module Sparkle
     @collections = false
 
     # `calls` holds the positions of the bare `x.name`s that are method calls;
-    # `primed` is `Emitter.primed_params` and `predicates` is
-    # `Emitter.enum_predicates`, both over the package.
-    def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, @primed : Hash(String, Set(String)) = Hash(String, Set(String)).new, @predicates : Emitter::Predicates = Emitter::Predicates.new)
+    # `primed` is `Rules.primed_params` and `predicates` is
+    # `Rules.enum_predicates`, both over the package.
+    def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, @primed : Hash(String, Set(String)) = Hash(String, Set(String)).new, @predicates : Rules::Predicates = Rules::Predicates.new)
     end
 
     # Appends the type declarations of `program`, read from `source` and
@@ -76,7 +76,7 @@ module Sparkle
       @tree.named(Tk::ID, name, at)
     end
 
-    # One primitive per member, then the type alias that unions them, as in `Emitter#emit_enum`.
+    # One primitive per member, then the type alias that unions them.
     private def enum_decl(d : EnumDecl) : Array(Node)
       nodes = d.members.map { |member| enum_member(d, member) }
       pos = at(d)
@@ -117,7 +117,7 @@ module Sparkle
 
     # `fun is_red(): Bool => true`, or `false` for another member.
     private def enum_predicate(member : EnumMember, same : Bool, pos : {Int32, Int32}) : Node
-      name = Emitter.pony_method_name(Emitter.predicate(member.name), false)
+      name = Rules.pony_method_name(Rules.predicate(member.name), false)
       enum_fun(name, nominal("Bool", pos), @tree.node(same ? Tk::TRUE : Tk::FALSE, pos), pos)
     end
 
@@ -127,9 +127,9 @@ module Sparkle
 
     private def entity(d : TypeDecl) : Node
       @ivars = d.fields.map(&.name).to_set
-      @method_names = d.methods.map { |method| Emitter.pony_method_name(method.name, method.self_recv) }.to_set
+      @method_names = d.methods.map { |method| Rules.pony_method_name(method.name, method.self_recv) }.to_set
       members = d.fields.map { |field| field(field) }
-      members << implicit_constructor(d) if Emitter.implicit_constructor?(d)
+      members << implicit_constructor(d) if Rules.implicit_constructor?(d)
       members.concat(d.methods.map { |method| method(method) })
       tparams = d.tparams.empty? ? none : @tree.node(Tk::TYPEPARAMS, at(d), d.tparams.map { |tparam| type_param(tparam) })
       provides = d.includes.empty? ? none : @tree.node(Tk::PROVIDES, at(d), [d.includes.map { |trait| type(trait) }.reduce { |left, right| @tree.node(Tk::ISECTTYPE, at(d), [left, right]) }])
@@ -158,7 +158,7 @@ module Sparkle
     # A parameter, binding or local; primed when it equals a method name of
     # the enclosing type, because Pony forbids that overlap.
     private def local(name : String) : String
-      n = Emitter.pony_ident(name)
+      n = Rules.pony_ident(name)
       @method_names.includes?(n) ? "#{n}'" : n
     end
 
@@ -181,7 +181,7 @@ module Sparkle
       constructor = m.self_recv
       kind = m.kind == "be" ? Tk::BE : (constructor ? Tk::NEW : Tk::FUN)
       cap = m.cap
-      cap ||= "ref" if !constructor && m.kind != "be" && Emitter.mutating_name?(m.name)
+      cap ||= "ref" if !constructor && m.kind != "be" && Rules.mutating_name?(m.name)
       cap_node = cap ? @tree.node(capability(m, cap), at(m)) : none
       name_at = {m.name_line, m.name_col}
       @scope = Set(String).new
@@ -197,7 +197,7 @@ module Sparkle
       body = stmts ? seq(m, stmts, returns_value, scope: false) : none
       partial = m.name.ends_with?('!') || m.name == "[]!"
       @tree.node(kind, at(m), [
-        cap_node, id(Emitter.pony_method_name(m.name, constructor), name_at), none,
+        cap_node, id(Rules.pony_method_name(m.name, constructor), name_at), none,
         params.empty? ? none : @tree.node(Tk::PARAMS, at(m), params),
         ret ? type(ret) : none, none, partial ? @tree.node(Tk::QUESTION, at(m)) : none, body, none,
       ], scope: true)
@@ -325,7 +325,7 @@ module Sparkle
       when TuplePattern     then @tree.node(Tk::TUPLE, at(e), e.items.map { |item| @tree.node(Tk::SEQ, at(item), [pattern(item)]) })
       when TypePattern      then type_pattern(e)
       when EnumRef          then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal("#{e.enum_name}#{e.member}", at(e))])
-      when PredicatePattern then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal(Emitter.resolve_predicate(e, @predicates), at(e))])
+      when PredicatePattern then @tree.node(Tk::LET, at(e), [id("_", at(e)), nominal(Rules.resolve_predicate(e, @predicates), at(e))])
       when Ident            then reference(e.name == "_" ? "_" : local(e.name), at(e))
       else                       expr(e)
       end
@@ -389,11 +389,11 @@ module Sparkle
     end
 
     # `loop`, `each`, `each_with_index` and `times` with a block become loops,
-    # as in `Emitter`; nil for any other call.
+    # nil for any other call.
     private def loop_sugar(c : Call, recv : Expr?, block : Lambda) : Node?
       return unless c.args.empty? && c.named.empty?
       return endless(c, block) if recv.nil? && c.name == "loop"
-      return unless recv && Emitter::LOOP_METHODS.includes?(c.name)
+      return unless recv && Rules::LOOP_METHODS.includes?(c.name)
       names = block.params.map(&.name)
       return unless c.name == "each_with_index" ? names.size == 2 : names.size <= 1
       for_loop(c, recv, block)
@@ -463,7 +463,7 @@ module Sparkle
 
     # An assignment to an index, a setter or a field of another object; it has no value.
     private def other_assign(e : Assign, target : Expr, value : Bool) : Node
-      raise ParseError.new(Emitter::NON_VALUE_ASSIGN, e.line, e.col) if value
+      raise ParseError.new(Rules::NON_VALUE_ASSIGN, e.line, e.col) if value
       case target
       when Call
         name_at = {target.name_line, target.name_col}
@@ -482,7 +482,7 @@ module Sparkle
       target = e.target
       kind = BINARY[e.op]? || unsupported(e, "this assignment")
       unless target.is_a?(IVarRef | Ident)
-        raise ParseError.new(Emitter::NON_VALUE_ASSIGN, e.line, e.col) if value
+        raise ParseError.new(Rules::NON_VALUE_ASSIGN, e.line, e.col) if value
         return other_op_assign(e, target, kind)
       end
       name = target.is_a?(IVarRef) ? "_#{target.name}" : local(target.name)
@@ -497,7 +497,7 @@ module Sparkle
       when Call
         name_at = {target.name_line, target.name_col}
         recv = setter_receiver(target)
-        current = @tree.node(Tk::CALL, name_at, [@tree.node(Tk::DOT, name_at, [receiver(recv), id(Emitter.pony_method_name(target.name, false), name_at)]), none, none, none])
+        current = @tree.node(Tk::CALL, name_at, [@tree.node(Tk::DOT, name_at, [receiver(recv), id(Rules.pony_method_name(target.name, false), name_at)]), none, none, none])
         sum = @tree.node(kind, at(e), [current, operand(e.value), none])
         setter = @tree.node(Tk::DOT, name_at, [receiver(recv), id("set_#{target.name}", name_at)])
         @tree.node(Tk::CALL, name_at, [setter, @tree.node(Tk::POSITIONALARGS, name_at, [@tree.node(Tk::SEQ, at(e), [sum])]), none, none])
@@ -523,7 +523,7 @@ module Sparkle
     end
 
     private def parenthesized(e : Expr) : Node
-      Emitter.atomic?(e) ? expr(e) : @tree.node(Tk::SEQ, at(e), [expr(e)])
+      Rules.atomic?(e) ? expr(e) : @tree.node(Tk::SEQ, at(e), [expr(e)])
     end
 
     # A number: a leading `-` is a unary minus, and a suffix a call of the
@@ -563,7 +563,7 @@ module Sparkle
       when Assign                                                      then assign(e, true)
       when OpAssign                                                    then op_assign(e, true)
       when Call                                                        then call(e)
-      when FieldRead                                                   then @tree.node(Tk::DOT, at(e), [receiver(e.recv), id("#{@ivars.includes?(e.name) ? "_" : ""}#{Emitter.pony_ident(e.name)}", at(e))])
+      when FieldRead                                                   then @tree.node(Tk::DOT, at(e), [receiver(e.recv), id("#{@ivars.includes?(e.name) ? "_" : ""}#{Rules.pony_ident(e.name)}", at(e))])
       when Index                                                       then index(e)
       when Paren                                                       then paren(e)
       when Binary, Unary, Consume                                      then operation(e)
@@ -623,7 +623,7 @@ module Sparkle
     private def ident(e : Ident) : Node
       return reference(local(e.name), at(e)) if @scope.includes?(e.name)
       partial = e.name.ends_with?('!') ? @tree.node(Tk::QUESTION, at(e)) : none
-      @tree.node(Tk::CALL, at(e), [reference(Emitter.pony_method_name(e.name, false), at(e)), none, none, partial])
+      @tree.node(Tk::CALL, at(e), [reference(Rules.pony_method_name(e.name, false), at(e)), none, none, partial])
     end
 
     private def paren(e : Paren) : Node
@@ -655,7 +655,7 @@ module Sparkle
       end
       name_at = {c.name_line, c.name_col}
       return @tree.node(Tk::SEQ, at(c), [@tree.node(Tk::IS, at(c), [receiver(recv), reference("None", at(c))])]) if recv && c.name == "nil?" && c.args.empty?
-      method = Emitter.pony_method_name(c.name, recv.is_a?(TypeRef) && c.name == "new")
+      method = Rules.pony_method_name(c.name, recv.is_a?(TypeRef) && c.name == "new")
       name = id(method, name_at)
       callee = recv ? @tree.node(Tk::DOT, name_at, [receiver(recv), name]) : @tree.node(Tk::REFERENCE, name_at, [name])
       return callee if recv && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?(name_at)
@@ -665,12 +665,12 @@ module Sparkle
       @tree.node(Tk::CALL, name_at, [callee, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, name_at, args), named_args(c, method), partial])
     end
 
-    # Named arguments, with the names of primed parameters primed as in `Emitter`.
+    # Named arguments, with the names of primed parameters primed.
     private def named_args(c : Call, method : String) : Node
       return none if c.named.empty?
       primed = @primed[method]?
       args = c.named.map do |arg|
-        n = Emitter.pony_ident(arg.name)
+        n = Rules.pony_ident(arg.name)
         @tree.node(Tk::NAMEDARG, at(arg), [id(primed && primed.includes?(n) ? "#{n}'" : n, at(arg)), @tree.node(Tk::SEQ, at(arg.value), [expr(arg.value)])])
       end
       @tree.node(Tk::NAMEDARGS, at(c), args)
@@ -698,7 +698,7 @@ module Sparkle
         count += 1
       end
       partial = e.name.ends_with?('!') ? @tree.node(Tk::QUESTION, at(e)) : none
-      callee = @tree.node(Tk::DOT, at(e), [reference(var, at(e)), id(Emitter.pony_method_name(e.name, false), at(e))])
+      callee = @tree.node(Tk::DOT, at(e), [reference(var, at(e)), id(Rules.pony_method_name(e.name, false), at(e))])
       call = @tree.node(Tk::CALL, at(e), [callee, none, none, partial])
       lambda_node(e, [@tree.node(Tk::PARAM, at(e), [id(var, at(e)), none, none])], @tree.node(Tk::SEQ, at(e), [call]))
     end
