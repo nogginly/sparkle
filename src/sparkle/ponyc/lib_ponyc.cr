@@ -56,6 +56,7 @@
     end
 
     fun ast_int(ast : Ast) : LexInt*
+    fun ast_from_float(ast : Ast, value : Float64) : Ast
 
     $spk_pass_parse : LibC::Int
     $spk_pass_all : LibC::Int
