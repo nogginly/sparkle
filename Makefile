@@ -7,8 +7,10 @@ PONYC_ARCH = $(strip $(if $(filter x86_64 amd64,$(HOST_ARCH)),x86-64,$(if $(filt
 PONYC_PLATFORM = $(strip $(if $(filter Darwin,$(HOST_OS)),apple-darwin,$(if $(filter Linux,$(HOST_OS)),$(if $(PONYC_DISTRO),unknown-linux-$(PONYC_DISTRO)))))
 PONYC_URL = https://dl.cloudsmith.io/public/ponylang/releases/raw/versions/$(PONYC_VERSION)/ponyc-$(PONYC_ARCH)-$(PONYC_PLATFORM).tar.gz
 TOOLS_PONYC ?= .tools/ponyc
+PREFIX ?= $(HOME)/.local/sparkle
+SPARKLE_VERSION = $(shell sed -n 's/^version: *//p' shard.yml)
 
-.PHONY: ponyc ponyc-source ameba build test lint clean distclean
+.PHONY: ponyc ponyc-source ameba build test lint install uninstall clean distclean
 
 build:
 	@mkdir -p bin
@@ -26,6 +28,12 @@ ameba:
 	else \
 		echo "ameba is up to date"; \
 	fi
+
+install: build
+	@SPARKLE_VERSION=$(SPARKLE_VERSION) PONYC_VERSION=$(PONYC_VERSION) sh script/install.sh install "$(PREFIX)" "$(TOOLS_PONYC)"
+
+uninstall:
+	@sh script/install.sh uninstall "$(PREFIX)"
 
 ponyc:
 	@if [ -x $(TOOLS_PONYC)/bin/ponyc ] && [ "$$(cat $(TOOLS_PONYC)/VERSION-installed 2>/dev/null)" = "$(PONYC_VERSION)" ]; then \

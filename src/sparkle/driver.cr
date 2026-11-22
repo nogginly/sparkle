@@ -9,11 +9,24 @@ module Sparkle
     METHOD_WITHOUT_CALL = "can't reference a method without calling it"
     MAX_ROUNDS          = 50
     PONYC_RELATIVES     = [".tools/ponyc/bin/ponyc", "vendor/ponyc/build/release/ponyc"]
+    INSTALLED_PONY_HOME = "lib/pony"
 
     # Formats a parse error as `file:line:col: message`, the source line and a caret.
     def self.format_error(path : String, source : String, err : ParseError) : String
       line = source.lines(chomp: true)[err.line - 1]? || ""
       "#{path}:#{err.line}:#{err.col}: #{err.message}\n#{line}\n#{Diagnostics.caret_padding(line, err.col)}^\n"
+    end
+
+    # The Pony installation whose standard library and runtime `build` uses:
+    # the one holding `$SPARKLE_PONYC`, else `lib/pony` beside an installed
+    # `bin/sparkle` (see `make install`), else the one holding the `ponyc`
+    # found by `find_ponyc`.
+    def self.find_pony_home(env_value : String? = ENV["SPARKLE_PONYC"]?, exe_path : String? = Process.executable_path, cwd : String = Dir.current) : String?
+      if exe_path && (env_value.nil? || env_value.empty?)
+        installed = File.join(File.dirname(File.dirname(File.expand_path(exe_path))), INSTALLED_PONY_HOME)
+        return installed if File.directory?(File.join(installed, "packages", "builtin"))
+      end
+      find_ponyc(env_value, exe_path, cwd).try { |ponyc| File.dirname(File.dirname(ponyc)) }
     end
 
     # Locates ponyc: `$SPARKLE_PONYC`, then `.tools/ponyc`, then the vendored
@@ -62,12 +75,12 @@ module Sparkle
         err.print format_error(file, sources[i], e)
         return
       end
-      ponyc = find_ponyc
-      unless ponyc
+      home = find_pony_home
+      unless home
         err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
         return
       end
-      Project.new(files, package, sources, programs, File.dirname(File.dirname(ponyc)), Rules.primed_params(programs), Rules.enum_predicates(programs))
+      Project.new(files, package, sources, programs, home, Rules.primed_params(programs), Rules.enum_predicates(programs))
     end
 
     private def self.lower_files(tree : Ponyc::Tree, files : Array(String), sources : Array(String), programs : Array(Program), calls : Hash(String, Set({Int32, Int32})), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : Nil
@@ -149,8 +162,8 @@ module Sparkle
     end
 
     # Compiles the `.spk` file or package at `path` with the linked-in Pony
-    # compiler, against the standard library of the Pony installation that
-    # holds the `ponyc` found by `find_ponyc`. It lowers to ponyc's AST.
+    # compiler, against the standard library of the Pony installation found
+    # by `find_pony_home`. It lowers to ponyc's AST.
     # Returns the exit code and the binary's path, which lands in `out_dir`.
     def self.build(path : String, out_dir : String?, err : IO = STDERR) : {Int32, String?}
       project = load_project(path, err) || return {1, nil}
