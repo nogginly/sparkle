@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-private DOCS_PONYC = Sparkle::Driver.find_ponyc(exe_path: File.join(ROOT, "bin", "sparkle"), cwd: ROOT)
+private DOCS_PONYC  = Sparkle::Driver.find_ponyc(exe_path: File.join(ROOT, "bin", "sparkle"), cwd: ROOT)
 private DECLARATION = /\A(class|struct|actor|primitive|trait|interface|enum|alias|use)\b/
 
 # A `crystal` code block in the language docs, and the `text` block right after
