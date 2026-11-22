@@ -91,6 +91,7 @@ Path             | Holds
 `spec/fixtures/` | Programs that must fail to compile, for the diagnostics specs
 `examples/`      | Runnable programs, each with its golden tree and expected output
 `docs/`          | The translation rules, and the `libponyc` spike's findings
+`skills/sparkle/` | The language skill and reference, for users and coding agents
 `vendor/ponyc/`  | Pony, as a git submodule pinned to a release tag
 `.tools/`        | The downloaded `ponyc` (not committed)
 `lib/`           | Installed shards, which is only `ameba` (not committed)
@@ -131,6 +132,7 @@ Tier       | File                   | Needs a Pony installation
 -----------|------------------------|--------------------------
 Unit       | `spec/<layer>_spec.cr` | Only `rules`, `lowerer` and `driver`
 End-to-end | `spec/e2e_spec.cr`     | Yes
+Docs       | `spec/docs_spec.cr`    | Yes
 
 The unit tier proves the translator produces the Pony we expect. The `rules` and `lowerer` specs write the expected Pony by hand and compare the lowered tree with ponyc's parse of it, so they need the compiler. The end-to-end tier proves that the examples compile and run, and holds the goldens. Each example has `expected.ast`, the lowered tree that the build compiles (what `sparkle translate` prints), and `expected.out`, the output of its run.
 
@@ -162,18 +164,28 @@ flowchart LR
     R["1. Add the rule to<br/>docs/step1-spec.md"] --> P["2. Lexer or parser<br/>+ unit spec"]
     P --> E["3. Lowerer<br/>+ unit spec"]
     E --> X["4. Use it in an example"]
-    X --> G["5. Regenerate goldens,<br/>read the diff"]
-    G --> T["6. make test<br/>with ponyc installed"]
-    T --> L["7. make lint,<br/>crystal tool format"]
+    X --> D["5. Document it in<br/>skills/sparkle/reference/"]
+    D --> G["6. Regenerate goldens,<br/>read the diff"]
+    G --> T["7. make test<br/>with ponyc installed"]
+    T --> L["8. make lint,<br/>crystal tool format"]
 ```
 
 1. Write the rule in [docs/step1-spec.md](docs/step1-spec.md) first: Sparkle on the left, Pony on the right.
 2. Teach the lexer or parser the syntax, with a spec.
 3. Teach the lowerer the translation, with a spec in `spec/rules_spec.cr`: the Sparkle, and the Pony it must lower to.
 4. Use the feature in an example under `examples/`, or add a new one with `main.spk`, `expected.ast` and `expected.out`.
-5. Run `UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` and read the golden diff.
-6. Run `make test` with `ponyc` installed, so the end-to-end tier runs.
-7. Run `make lint` and `crystal tool format`.
+5. Describe it for users on its page in `skills/sparkle/reference/`, with a small example (see below).
+6. Run `UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` and read the golden diff.
+7. Run `make test` with `ponyc` installed, so the end-to-end tier runs.
+8. Run `make lint` and `crystal tool format`.
+
+### Language docs
+
+`skills/sparkle/` is a skill for coding agents and the user reference at once: `SKILL.md` is a one-screen overview with an index, and `reference/` has a page per feature. `spec/docs_spec.cr` compiles every `crystal` block in it:
+
+- A block with `actor Main` is a whole program; one that starts with a declaration gets an empty `Main`; anything else runs as statements in `Main.new`, with `env` in scope.
+- A `text` block right after a `crystal` block is the program's exact output: the program is built and run, which costs a few seconds. Without one, it is only checked with `sparkle check`.
+- So a `crystal` block must compile. Show code that fails in prose, or as a compiler message in a `text` block that does not follow a `crystal` block.
 
 To see what a snippet becomes, use `bin/sparkle translate PATH`, which prints the lowered tree that `build` compiles. To read it as Pony, write the Pony you expect by hand and run `ponyc --pass=parse --astmodule` on it; the two trees should match. Do this when `ponyc` reports an error you do not understand.
 
@@ -192,6 +204,7 @@ Document                                 | Update it when
 [docs/step1-spec.md](docs/step1-spec.md) | A translation rule or a known gap changes
 [docs/spike-libponyc.md](docs/spike-libponyc.md) | A spike finding is confirmed or overturned
 DEVELOPMENT.md                           | The way to build, test or lint changes
+[skills/sparkle/](skills/sparkle)         | A language feature, its syntax or a limit changes, from the user's side
 [HANDOFF.md](HANDOFF.md)                 | A piece of work ends: rewrite it, do not append
 [.claude/](.claude)                      | The way work is delegated, or a review yields a lesson for `implementer.md`
 

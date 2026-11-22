@@ -10,6 +10,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 | [DESIGN.md](DESIGN.md) | Layers, decisions, roadmap, what is not built |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Build, test, lint, and the workflow for a change |
 | [docs/step1-spec.md](docs/step1-spec.md) | Every translation rule and known gap |
+| [skills/sparkle/SKILL.md](skills/sparkle/SKILL.md) | The language as a user writes it |
 | [HANDOFF.md](HANDOFF.md) | Where the work stands and what's next |
 
 ## Before you call a change done
@@ -22,7 +23,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 ## Rules
 
-- **A language change starts in the spec.** Add the rule to `docs/step1-spec.md` first, then follow the workflow in `DEVELOPMENT.md`.
+- **A language change starts in the spec.** Add the rule to `docs/step1-spec.md` first, then follow the workflow in `DEVELOPMENT.md`, which ends with the user reference in `skills/sparkle/`.
 - **Do not work around the type system by editing an example.** If reasonable Sparkle fails to compile, fix the translator. Change the example only when Pony genuinely forbids the program, and say so.
 - **`vendor/ponyc` stays unmodified** until step 2's fork; Sparkle builds ponyc's AST but patches nothing. It is pinned to a release tag.
 - **No lint suppressions.** No inline `ameba:disable`, no excluded files. Fix the code, or raise a threshold in `.ameba.yml` with a reason.
