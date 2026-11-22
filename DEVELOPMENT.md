@@ -64,6 +64,7 @@ Command                          | Description
 `make clean`                     | Remove `bin/sparkle` and `.sparkle/`; keeps `bin/ameba`
 `make distclean`                 | As `clean`, and remove all of `bin/` and `.tools/` too
 `bin/sparkle translate PATH`     | Print the lowered tree of a `.spk` file or directory, in ponyc's AST notation
+`bin/sparkle check PATH`         | Type-check a `.spk` file or directory without generating code
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
 
@@ -75,10 +76,11 @@ Command                          | Description
 ~/.local/sparkle/
 ├── bin/sparkle           the compiler
 ├── lib/pony/             Pony's packages/ and lib/<arch>/ (runtime), from .tools/ponyc
+├── share/sparkle/skills/ the language skill and reference, for coding agents
 └── .sparkle-install      marker, with the Sparkle and Pony versions
 ```
 
-Add `~/.local/sparkle/bin` to `PATH`. `make install` again replaces the directory whole, and `make uninstall` deletes it; both pass `PREFIX=DIR` for another location. `script/install.sh` does the work: it builds the new copy beside the old one and swaps it in, and it refuses a `PREFIX` that exists without the marker, so it never deletes a directory it did not make. An installed `sparkle` uses its own `lib/pony` unless `SPARKLE_PONYC` names another Pony.
+Add `~/.local/sparkle/bin` to `PATH`. To teach a coding agent the language, point it at `share/sparkle/skills/sparkle`; for Claude Code, `ln -s ~/.local/sparkle/share/sparkle/skills/sparkle ~/.claude/skills/sparkle`. `make install` again replaces the directory whole, and `make uninstall` deletes it; both pass `PREFIX=DIR` for another location. `script/install.sh` does the work: it builds the new copy beside the old one and swaps it in, and it refuses a `PREFIX` that exists without the marker, so it never deletes a directory it did not make. An installed `sparkle` uses its own `lib/pony` unless `SPARKLE_PONYC` names another Pony.
 
 ## Where things are
 

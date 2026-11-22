@@ -5,7 +5,8 @@
 #   script/install.sh uninstall PREFIX
 #
 # PREFIX/bin/sparkle is the compiler, PREFIX/lib/pony the Pony standard
-# library and runtime it builds against, and PREFIX/.sparkle-install the
+# library and runtime it builds against, PREFIX/share/sparkle/skills the
+# language skill and its reference, and PREFIX/.sparkle-install the
 # marker that lets a later install or uninstall replace the whole directory.
 # A PREFIX that exists without the marker, and is not empty, is left alone.
 # SPARKLE_VERSION and PONYC_VERSION, when set, are written into the marker.
@@ -39,10 +40,11 @@ case $action in
     mkdir -p "$(dirname "$prefix")"
     stage="$prefix.new.$$"
     trap 'rm -rf "$stage"' EXIT
-    mkdir -p "$stage/bin" "$stage/lib/pony"
+    mkdir -p "$stage/bin" "$stage/lib/pony" "$stage/share/sparkle"
     cp bin/sparkle "$stage/bin/"
     cp -R "$home/packages" "$home/lib" "$stage/lib/pony/"
     rm -f "$stage"/lib/pony/lib/*/libponyc*.a
+    cp -R skills "$stage/share/sparkle/"
     printf 'sparkle %s\nponyc %s\n' "${SPARKLE_VERSION:-unknown}" "${PONYC_VERSION:-unknown}" > "$stage/$MARK"
     rm -rf "$prefix"
     mv "$stage" "$prefix"
@@ -50,6 +52,7 @@ case $action in
     echo "installed Sparkle in $prefix"
     echo "add it to your PATH, for example in ~/.profile:"
     echo "  export PATH=\"$prefix/bin:\$PATH\""
+    echo "the language skill for coding agents is in $prefix/share/sparkle/skills/sparkle"
     ;;
   *)
     echo "usage: $0 install PREFIX PONY_HOME | uninstall PREFIX" >&2

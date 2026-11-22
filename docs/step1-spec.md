@@ -242,6 +242,7 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 
 ```
 sparkle translate PATH              # print the lowered tree, in ponyc's AST notation
+sparkle check PATH                  # type-check only, no code generation
 sparkle build PATH [-o DIR]         # PATH is a .spk file or a directory (one Pony package)
 sparkle run PATH [-- args]          # build, then run the binary
 sparkle caps PATH...                # capability statistics

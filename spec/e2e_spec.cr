@@ -41,6 +41,21 @@ describe "end to end" do
       end
     end
 
+    it "checks an example without generating code" do
+      Dir.cd(ROOT) { Sparkle::Driver.check("examples/ring/main.spk", IO::Memory.new) }.should eq 0
+    end
+
+    Dir.glob(File.join(ROOT, "spec", "fixtures", "*", "main.spk")).sort.each do |spk|
+      fixture = Path[spk].relative_to(ROOT).to_s
+      it "reports the same errors for #{fixture} from check as from build" do
+        built = IO::Memory.new
+        checked = IO::Memory.new
+        Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), built) }
+        Dir.cd(ROOT) { Sparkle::Driver.check(fixture, checked) }.should eq 1
+        checked.to_s.should eq built.to_s
+      end
+    end
+
     it "reports errors at the Sparkle line" do
       err = IO::Memory.new
       code = Dir.cd(ROOT) { Sparkle::Driver.build("spec/fixtures/undefined_name/main.spk", File.join(".sparkle", "bin"), err)[0] }

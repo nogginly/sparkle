@@ -35,6 +35,19 @@ module Sparkle::Ponyc
     found
   end
 
+  # Type-checks the package built as an AST by the block, without generating
+  # code. Returns whether it passed and ponyc's error text.
+  def self.check_tree_text(home : String, & : Tree -> Nil) : {Bool, String}
+    with_options("", "check", home) do |opt|
+      program = load_tree(opt, "check") { |tree| yield tree }
+      next false if program.null?
+      LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_expr)
+      ok = LibPonyc.ast_passes_program(program, opt)
+      LibPonyc.ast_free(program)
+      ok
+    end
+  end
+
   # The package built by the block, printed as `ponyc --astmodule` prints one.
   def self.tree_text(home : String, & : Tree -> Nil) : String
     text = ""
