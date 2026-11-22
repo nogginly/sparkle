@@ -24,6 +24,6 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 ## What's next
 
 1. Roadmap step 2: the `ponyc` fork for `yield` inlining. Read the spike doc's "Not tested" first.
-2. Deferred unless it proves slow: the field-or-method loop rewriting settled nodes instead of lowering the package again (about 0.15 s a round).
+2. The field-or-method loop is slow with `use "collections"`: each round reloads every package, about 2.4 s, so `examples/ring` spends 7 s in three rounds (about 0.2 s a round with `builtin` alone). Rewriting nodes in place would not help; keeping packages loaded between rounds might. Measure before changing.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.

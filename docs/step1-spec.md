@@ -262,7 +262,7 @@ sparkle caps PATH...                # capability statistics
 - `ticks = 0` is an `Int32`, as in Crystal, so it will not compare with a `USize`. Write `ticks : USize = 0`.
 - A named argument is primed by method name alone. If two types in a package each define `f` and only one primes its parameter `x`, then `f(x: 1)` is primed for both, and `ponyc` reports the call to the other.
 - `x.@name` picks the private field whenever the enclosing type has an ivar of that name, so a type with `@out` cannot also read `env.@out`; it can read `env.out`.
-- Each link of a chain of bare method names (`a.b.c`) costs one more round of type checking, about 0.15 s.
+- Each link of a chain of bare method names (`a.b.c`) costs one more round of type checking: about 0.2 s, or about 2.4 s when the package uses `collections`.
 - A bare name is resolved once per position, so it cannot be a field for one caller and a method for another, for example in a generic method used with two types.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
