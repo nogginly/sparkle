@@ -87,9 +87,27 @@ module Sparkle::Ponyc
     program
   end
 
+  # The tree as ponyc prints it, then, when any node carries ponyc's
+  # preserve flag, a `preserved:` line listing their child-index paths, which
+  # the printed tree does not show.
   private def self.ast_text(ast : LibPonyc::Ast) : String
     text = LibPonyc.spk_ast_text(ast)
-    String.new(text).tap { LibC.free(text.as(Void*)) }
+    printed = String.new(text).tap { LibC.free(text.as(Void*)) }
+    paths = [] of String
+    preserved(ast, "", paths)
+    paths.empty? ? printed : "#{printed}preserved: #{paths.join(' ')}\n"
+  end
+
+  private def self.preserved(ast : LibPonyc::Ast, path : String, paths : Array(String)) : Nil
+    child = LibPonyc.ast_child(ast)
+    i = 0
+    until child.null?
+      at = path.empty? ? i.to_s : "#{path}.#{i}"
+      paths << at if LibPonyc.ast_checkflag(child, LibPonyc.spk_flag_preserve) != 0
+      preserved(child, at, paths)
+      child = LibPonyc.ast_sibling(child)
+      i += 1
+    end
   end
 
   private def self.errors(opt : LibPonyc::PassOpt) : Array({String, Int32, Int32, String})

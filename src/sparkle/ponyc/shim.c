@@ -83,6 +83,7 @@ char* spk_errors_text(pass_opt_t* opt)
 
 const int spk_pass_parse = PASS_PARSE;
 const int spk_pass_all = PASS_ALL;
+const unsigned int spk_flag_preserve = AST_FLAG_PRESERVE;
 const int spk_tk_actor = TK_ACTOR;
 const int spk_tk_last = TK_TEST_EXTRA;
 
