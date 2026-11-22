@@ -1,6 +1,6 @@
 # Working on Sparkle
 
-Guidance for coding agents, and for anyone new to the repository. Sparkle is an experimental language: Crystal's syntax on Pony's capabilities and actors. Today it is a translator from `.spk` source to Pony.
+Guidance for coding agents, and for anyone new to the repository. Sparkle is an experimental language: Crystal's syntax on Pony's capabilities and actors. Today it is a translator that lowers `.spk` source to ponyc's AST.
 
 ## Read first
 
@@ -18,13 +18,13 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 2. `make test` passes with **no pending specs**. Pending means `ponyc` was not found and the generated Pony was never compiled; run `make ponyc` first.
 3. `make lint` is clean.
 4. `crystal tool format --check src spec` is clean.
-5. If a golden file changed, you have read its diff. `UPDATE_GOLDEN=1` accepts whatever the emitter writes.
+5. If a golden file changed, you have read its diff. `UPDATE_GOLDEN=1` accepts whatever the lowerer builds.
 
 ## Rules
 
 - **A language change starts in the spec.** Add the rule to `docs/step1-spec.md` first, then follow the workflow in `DEVELOPMENT.md`.
 - **Do not work around the type system by editing an example.** If reasonable Sparkle fails to compile, fix the translator. Change the example only when Pony genuinely forbids the program, and say so.
-- **`vendor/ponyc` stays unmodified** while Sparkle is a source-to-source translator. It is pinned to a release tag.
+- **`vendor/ponyc` stays unmodified** until step 2's fork; Sparkle builds ponyc's AST but patches nothing. It is pinned to a release tag.
 - **No lint suppressions.** No inline `ameba:disable`, no excluded files. Fix the code, or raise a threshold in `.ameba.yml` with a reason.
 - **Keep the documents current** in the same change. `DEVELOPMENT.md` lists which document owns what.
 - **Report results as they are.** If a spec is pending, a step was skipped, or something is untested, say so.

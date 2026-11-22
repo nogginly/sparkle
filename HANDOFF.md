@@ -11,15 +11,19 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 
 ## Where things stand
 
-- `main` has step 1, its three gaps, CI on Linux and macOS (`macos-26`, for Xcode 26), `bin/sparkle` with `libponyc` linked in (`src/sparkle/ponyc/`), and the field-or-method loop (`env.out`, no `@`). `spike/` is deleted; its findings are in [docs/spike-libponyc.md](docs/spike-libponyc.md).
-- Building ponyc's AST directly, in four stages (`DESIGN.md`, "One binary"). Stage 1 is on `main`: `Ponyc::Tree`, `Ponyc.compile_tree`, generated `Ponyc::Tk`. `step2-ast-lowering` starts stage 2: `Lowerer` lowers `fields`, `counter`, `fizzbuzz`, `handoff`, `shapes`, `ring`, `traffic` and `control`, which completes stage 2; anything else raises "the AST path does not lower … yet" at its position.
+- `main` has step 1, its three gaps, CI on Linux and macOS (`macos-26`, for Xcode 26), and `bin/sparkle` with `libponyc` linked in (`src/sparkle/ponyc/`). `spike/` is deleted; its findings are in [docs/spike-libponyc.md](docs/spike-libponyc.md).
+- Stage 4 of "One binary" (`DESIGN.md`) is four stacked PRs, each based on the one before. Merge them in order:
+  1. `step4-ast-default`, nogginly/sparkle#22: the AST path is the default, `sparkle translate` prints the lowered tree, and each example has `expected.ast`.
+  2. `step4-lower-every-rule`, nogginly/sparkle#23: the lowerer covers every construct the emitter's specs covered, chars included, and each spec checks both paths against the same Pony.
+  3. `step4-retire-emitter`, nogginly/sparkle#24: the emitter, source map, text path, `SPARKLE_TEXT` and `expected.pony` are gone. Shared rules live in `Sparkle::Rules`, and the rule specs are `spec/rules_spec.cr`.
+  4. `step4-docs`: `DESIGN.md`, `docs/step1-spec.md`, README, AGENTS and the spike doc describe a translator that builds ponyc's AST.
+- Still not lowered: a NUL escape in a string (ponyc's string nodes cannot hold the byte), and statements after a jump in the same block (unreachable, and rejected by ponyc either way).
 - Open question for the user, in `DESIGN.md`: what happens to Pony's standard library after step 6. Settle before step 3.
-- Delegation, four tasks so far: about 36k to 45k subagent tokens each. Review found one wrong brief, one simplification, a Linux-only path found later, and nothing on the fourth.
+- Delegation, seven tasks so far. The first four used about 36k to 45k subagent tokens each. Stage 4's took about 55k, 186k over two rounds (closing every lowering gap), and 87k. Review sent one back for two gaps: chars, and a negative literal as a receiver.
 
 ## What's next
 
-1. Enum predicates are implemented: `red?` on each member (`is_red`), and `when .red?` as the member's type pattern when exactly one enum in the package has it, on both the text and AST paths (`examples/traffic` uses both).
-2. Stage 3, parity, is done. Every example in `examples/` must lower (`spec/lowerer_spec.cr` lists them from the directory, so a new example cannot skip the AST path), and every fixture must give identical errors on both paths (`spec/e2e_spec.cr`). Escapes ponyc's strings cannot hold (NUL) still raise "does not lower … yet".
-3. Stage 4, in four PRs. PR 1, default (`step4-ast-default`): the AST path is the default, the text path stays behind `SPARKLE_TEXT=1`, `sparkle translate` prints the lowered tree, and each example has `expected.ast` beside `expected.pony`. PR 2, lower every rule (`step4-lower-every-rule`): the lowerer handles every construct the emitter's unit specs cover, and each of those specs pins both paths to the same Pony. PR 3, retire the emitter (`step4-retire-emitter`, this work): the emitter, the source map, the text path, `SPARKLE_TEXT`, `expected.pony` and the diagnostics' location mapping go, and the lowerer's shared rules move out of `Emitter`. PR 4, docs. Then the field-or-method loop rewriting nodes instead of re-lowering, and the `ponyc` fork for `yield` inlining.
+1. Roadmap step 2: the `ponyc` fork for `yield` inlining. Read the spike doc's "Not tested" first.
+2. Deferred unless it proves slow: the field-or-method loop rewriting settled nodes instead of lowering the package again (about 0.15 s a round).
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types.

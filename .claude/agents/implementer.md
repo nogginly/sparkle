@@ -21,7 +21,7 @@ You implement one task on Sparkle, a translator from `.spk` (Crystal syntax) to 
 - Comments: minimal. They document how to use an API or describe the outcome of a type or function; inside a function, only the steps where needed. No change history.
 - No lint suppressions and no excluded files.
 - Do not edit an example to dodge a type error, and do not touch `vendor/ponyc`.
-- Run `UPDATE_GOLDEN=1` only if the brief says so, and list every `expected.pony` that changed.
+- Run `UPDATE_GOLDEN=1` only if the brief says so, and list every `expected.ast` that changed.
 
 ## Checks
 
