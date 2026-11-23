@@ -43,6 +43,14 @@ module Sparkle::Ponyc
       n
     end
 
+    # A float literal with `value`.
+    def float(value : Float64, at : {Int32, Int32}? = nil) : Node
+      template = node(Tk::FLOAT, at)
+      n = LibPonyc.ast_from_float(template, value)
+      LibPonyc.ast_free(template)
+      n
+    end
+
     # A named type: `name`, its type arguments, and an optional capability and
     # ephemeral (`^`) or aliased (`!`) marker, given as token kinds.
     def nominal(name : String, at : {Int32, Int32}, args : Array(Node) = [] of Node, cap : Tk? = nil, eph : Tk? = nil) : Node
