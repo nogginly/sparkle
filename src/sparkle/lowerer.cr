@@ -203,18 +203,59 @@ module Sparkle
       ], scope: true)
     end
 
-    # A named type with its type arguments, capability and ephemeral marker,
-    # or a union of types.
+    # A type: named, with its type arguments, capability and ephemeral
+    # marker; a union, intersection or tuple; a viewpoint (`this->A`); a
+    # `Proc`; or a capability alone, which stands for `Any` with it.
     private def type(t : TypeNode) : Node
-      return t.types.map { |member| type(member) }.reduce { |left, right| @tree.node(Tk::UNIONTYPE, at(t), [left, right]) } if t.is_a?(UnionType)
-      unsupported(t, "this type") unless t.is_a?(NamedType)
+      case t
+      when NamedType then named_type(t)
+      when UnionType then pairs(t, t.types, Tk::UNIONTYPE)
+      when IsectType then pairs(t, t.types, Tk::ISECTTYPE)
+      when TupleType then @tree.node(Tk::TUPLETYPE, at(t), t.types.map { |member| type(member) })
+      when ArrowType then @tree.node(Tk::ARROW, at(t), [viewpoint(t.left), type(t.right)])
+      when ProcType  then proc_type(t)
+      when CapType   then @tree.nominal("Any", at(t), [] of Node, capability(t, t.cap))
+      else                unsupported(t, "this type")
+      end
+    end
+
+    private def named_type(t : NamedType) : Node
       cap = t.cap
-      cap_id = cap && capability(t, cap)
-      eph_id = case t.eph
-               when "^" then Tk::EPHEMERAL
-               when "!" then Tk::ALIASED
-               end
-      @tree.nominal(PonyType::TO_PONY[t.name]? || t.name, at(t), t.args.map { |arg| type(arg) }, cap_id, eph_id)
+      @tree.nominal(PonyType::TO_PONY[t.name]? || t.name, at(t), t.args.map { |arg| type(arg) }, cap && capability(t, cap), ephemeral(t.eph))
+    end
+
+    private def ephemeral(eph : String?) : Tk?
+      case eph
+      when "^" then Tk::EPHEMERAL
+      when "!" then Tk::ALIASED
+      end
+    end
+
+    # `A | B | C` nests as `(A | B) | C`, as ponyc's parser builds it.
+    private def pairs(t : TypeNode, types : Array(TypeNode), kind : Tk) : Node
+      types.map { |member| type(member) }.reduce { |left, right| @tree.node(kind, at(t), [left, right]) }
+    end
+
+    # The left of `->`: `this`, or a capability such as `box`.
+    private def viewpoint(left : TypeNode) : Node
+      return @tree.node(Tk::THISTYPE, at(left)) if left.is_a?(NamedType) && left.name == "this" && left.args.empty?
+      return @tree.node(capability(left, left.cap), at(left)) if left.is_a?(CapType)
+      type(left)
+    end
+
+    # `Proc(A, B)` is `{(A): B}`; a `Nil` return type is left out.
+    private def proc_type(t : ProcType) : Node
+      ret = t.ret
+      ret_node = ret.nil? || (ret.is_a?(NamedType) && ret.name == "Nil" && ret.args.empty?) ? none : type(ret)
+      params = t.params.empty? ? none : @tree.node(Tk::PARAMS, at(t), t.params.map { |param| type(param) })
+      cap = t.cap
+      eph = ephemeral(t.eph)
+      @tree.node(Tk::LAMBDATYPE, at(t), [
+        none, none, none, params, ret_node,
+        t.partial ? @tree.node(Tk::QUESTION, at(t)) : none,
+        cap ? @tree.node(capability(t, cap), at(t)) : none,
+        eph ? @tree.node(eph, at(t)) : none,
+      ])
     end
 
     private def nominal(name : String, at : {Int32, Int32}) : Node
@@ -704,7 +745,8 @@ module Sparkle
     end
 
     private def lambda_node(at : ::Sparkle::Node, params : Array(Node), body : Node) : Node
-      @tree.node(Tk::LAMBDA, at(at), [none, none, none, params.empty? ? none : @tree.node(Tk::PARAMS, at(at), params), none, none, none, body, none])
+      params_node = params.empty? ? none : @tree.node(Tk::PARAMS, at(at), params)
+      @tree.node(Tk::LAMBDA, at(at), [none, none, @tree.preserve(none), @tree.preserve(params_node), none, @tree.preserve(none), none, @tree.preserve(body), none])
     end
 
     # Parts joined with `+`; an interpolated expression has `string` called on it.

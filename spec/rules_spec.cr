@@ -1019,6 +1019,36 @@ describe "translation rules" do
         PONY
     end
 
+    it "maps tuples, intersections, viewpoints, Procs and capabilities alone" do
+      rule <<-SPK, <<-PONY
+        alias T1 = {UInt8, val String}
+        alias T2 = Stringable & Hashable
+        alias T3 = this->Array(UInt8)
+        alias T4 = box->UInt8
+        alias T5 = val Proc(UInt8, String, Bool)
+        alias T6 = Proc(UInt8, Nil)
+        class Box(A : send)
+          @a : {A, A}
+          def self.new(a : {A, A})
+            @a = a
+          end
+        end
+        SPK
+        type T1 is (U8, String val)
+        type T2 is (Stringable & Hashable)
+        type T3 is this->Array[U8]
+        type T4 is box->U8
+        type T5 is {(U8, String): Bool} val
+        type T6 is {(U8)}
+        class Box[A: Any #send]
+          var _a: (A, A)
+
+          new create(a: (A, A)) =>
+            _a = a
+
+        PONY
+    end
+
     it "joins several includes with &" do
       rule "class Foo\n  include A\n  include B\n  include C\nend\n", <<-PONY
         class Foo is (A & B & C)

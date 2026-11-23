@@ -1,0 +1,240 @@
+(module:scope
+  (file:scope
+    (interface:scope
+      (id Op)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id apply)
+          x
+          (params (param (id x) (nominal x (id U32) x x x) x))
+          (nominal x (id U32) x x x)
+          x
+          x
+          x
+          x
+        )
+      )
+      x
+      x
+    )
+    (interface:scope
+      (id Label)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id apply)
+          x
+          (params (param (id s) (nominal x (id String) x x x) x))
+          (nominal x (id USize) x x x)
+          x
+          x
+          x
+          x
+        )
+      )
+      x
+      x
+    )
+    (primitive:scope
+      (id Run)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id twice)
+          x
+          (params
+            (param (id x) (nominal x (id U32) x x x) x)
+            (param (id f) (nominal x (id Op) x val x) x)
+          )
+          (nominal x (id U32) x x x)
+          x
+          x
+          (seq
+            (call
+              (reference (id f))
+              (positionalargs
+                (seq
+                  (call
+                    (reference (id f))
+                    (positionalargs (seq (reference (id x))))
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id measure)
+          x
+          (params
+            (param (id s) (nominal x (id String) x x x) x)
+            (param (id f) (nominal x (id Label) x val x) x)
+          )
+          (nominal x (id USize) x x x)
+          x
+          x
+          (seq
+            (call
+              (reference (id f))
+              (positionalargs (seq (reference (id s))))
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id pair)
+          x
+          (params (param (id x) (nominal x (id U32) x x x) x))
+          (tupletype (nominal x (id U32) x x x) (nominal x (id String) x x x))
+          x
+          x
+          (seq
+            (tuple
+              (seq (reference (id x)))
+              (seq (call (. (reference (id x)) (id string)) x x x))
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (= (var (id five) (nominal x (id U32) x x x)) 5)
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (call
+                    (.
+                      (call
+                        (. (reference (id Run)) (id twice))
+                        (positionalargs
+                          (seq (reference (id five)))
+                          (seq
+                            (lambda
+                              x
+                              x
+                              x
+                              (params (param (id x) x x))
+                              x
+                              x
+                              x
+                              (seq (* (reference (id x)) 2 x))
+                              x
+                            )
+                          )
+                        )
+                        x
+                        x
+                      )
+                      (id string)
+                    )
+                    x
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (call
+                    (.
+                      (call
+                        (. (reference (id Run)) (id measure))
+                        (positionalargs
+                          (seq "sparkle")
+                          (seq
+                            (lambda
+                              x
+                              x
+                              x
+                              (params (param (id x) x x))
+                              x
+                              x
+                              x
+                              (seq
+                                (call (. (reference (id x)) (id size)) x x x)
+                              )
+                              x
+                            )
+                          )
+                        )
+                        x
+                        x
+                      )
+                      (id string)
+                    )
+                    x
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (=
+              (var (id pair) x)
+              (call
+                (. (reference (id Run)) (id pair))
+                (positionalargs (seq 7))
+                x
+                x
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs (seq (. (reference (id pair)) (id _2))))
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)
+preserved: 0.3.4.0.7.1.1.0.0.0.0.1.1.0.2 0.3.4.0.7.1.1.0.0.0.0.1.1.0.3 0.3.4.0.7.1.1.0.0.0.0.1.1.0.5 0.3.4.0.7.1.1.0.0.0.0.1.1.0.7 0.3.4.0.7.2.1.0.0.0.0.1.1.0.2 0.3.4.0.7.2.1.0.0.0.0.1.1.0.3 0.3.4.0.7.2.1.0.0.0.0.1.1.0.5 0.3.4.0.7.2.1.0.0.0.0.1.1.0.7

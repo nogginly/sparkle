@@ -1,0 +1,23 @@
+interface Op
+  abstract def apply(x : U32) : U32
+end
+
+interface Label
+  abstract def apply(s : String) : USize
+end
+
+primitive Run
+  def twice(x : U32, f : val Op) : U32 = f(f(x))
+  def measure(s : String, f : val Label) : USize = f(s)
+  def pair(x : U32) : {U32, String} = {x, x.string}
+end
+
+actor Main
+  def self.new(env : Env)
+    five : U32 = 5
+    env.out.print(Run.twice(five) { |x| x * 2 }.string)
+    env.out.print(Run.measure("sparkle", &.size).string)
+    pair = Run.pair(7)
+    env.out.print(pair._2)
+  end
+end
