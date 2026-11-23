@@ -97,7 +97,7 @@ Stage 4 answers the question this raised: a rule that needs types can be written
 | Stage | Now |
 |---|---|
 | 1, 2: link and compile in-process | `src/sparkle/ponyc/`, built by `make` and tested in CI on Linux and macOS |
-| 4: fields and methods by type-checking | `Ponyc.check` and the loop in `Driver.build` |
-| 3: build the AST by hand | Not in `src/` yet. [`stage3.cr`](https://github.com/nogginly/sparkle/blob/747866f47de5a62a87767e660f879d8285c4025d/spike/libponyc/stage3.cr) at commit `747866f` is the reference for building `ponyc`'s AST directly |
+| 4: fields and methods by type-checking | `Ponyc.check_tree` and the loop in `Driver.tree_calls` |
+| 3: build the AST by hand | `Ponyc::Tree` and `Lowerer`, the only path since stage 4 of [One binary](../DESIGN.md#one-binary) |
 
 `spike/` was then deleted, because nothing built it and a Pony upgrade could break it unnoticed. This document stays as the record of why step 2 is built this way.

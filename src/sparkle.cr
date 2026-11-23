@@ -5,7 +5,7 @@ module Sparkle
   USAGE = <<-TXT
     usage:
       sparkle translate PATH              print the lowered tree
-      sparkle build PATH [-o DIR]         translate and compile with ponyc
+      sparkle build PATH [-o DIR]         lower and compile with ponyc
       sparkle run PATH [-- args]          build, then run the binary
       sparkle caps PATH...                capability statistics
     TXT

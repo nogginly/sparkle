@@ -1,15 +1,13 @@
 # Step 1 specification: the Sparkle → Pony translator
 
-Step 1 is a source-to-source translator. It parses Sparkle (`.spk`), writes Pony, and runs an unmodified `ponyc` on the result. It has **no type information**: every rule below is decided from syntax alone. Where that forces a compromise, the rule is marked *(typeless)*.
+Step 1 is a front end for an unmodified `ponyc`. It parses Sparkle (`.spk`), lowers it to the AST `ponyc`'s parser would build from the equivalent Pony, and compiles that in-process. Each rule below is written as Sparkle beside that equivalent Pony; the rule specs (`spec/rules_spec.cr`) check that the lowered tree equals `ponyc`'s parse of it. The translator has **no type information**: every rule is decided from syntax alone, except whether a bare `x.name` is a field or a method, which the compiler settles. Where that forces a compromise, the rule is marked *(typeless)*.
 
 ```mermaid
 flowchart LR
-    A[".spk source"] --> B["Lexer"] --> C["Parser<br/>(AST with line + column)"] --> D["Emitter"]
-    D --> E[".pony source"]
-    D --> F["Source map"]
-    E --> G["ponyc (unmodified)"]
+    A[".spk source"] --> B["Lexer"] --> C["Parser<br/>(AST with line + column)"] --> D["Lowerer"]
+    D --> E["ponyc AST<br/>(nodes at .spk positions)"]
+    E --> G["libponyc (unmodified, linked in)"]
     G --> H["Diagnostics rewriter"]
-    F --> H
     H --> I["Errors in Sparkle terms"]
 ```
 
@@ -21,7 +19,7 @@ flowchart LR
 - Instance variables: `@name`.
 - Numbers: decimal, `0x`, `0b`, `_` separators, floats. A Crystal suffix (`1_u64`, `2.5_f32`, `7u8`) becomes a Pony conversion (`U64(1)`, `F32(2.5)`).
 - Strings: `"…"` with Pony-compatible escapes and `#{expr}` interpolation (nested braces and strings allowed inside). Chars: `'a'`.
-- Capability words (`iso trn ref val box tag`, and the generic capability sets `read send share alias any`) are **contextual**: keywords only in type position, right after `def`, right after a type-declaration keyword, and right after `recover`. Everywhere else they are ordinary identifiers. Pony still reserves them, so a variable named `val` is emitted as `val_`.
+- Capability words (`iso trn ref val box tag`, and the generic capability sets `read send share alias any`) are **contextual**: keywords only in type position, right after `def`, right after a type-declaration keyword, and right after `recover`. Everywhere else they are ordinary identifiers. Pony still reserves them, so a variable named `val` becomes `val_`.
 
 ## 2. Declarations
 
@@ -87,7 +85,7 @@ Operator method names: `+ add`, `- sub`, `* mul`, `/ div`, `% rem`, `== eq`, `!=
 
 A field needs a type (`@n = 0` alone is a parse error). `def []=`, `def <<` and `def name=` default to `fun ref` when no capability is written.
 
-Pony requires fields before methods, so the emitter writes all of a type's fields first, then methods in source order. An empty body emits `None`.
+Pony requires fields before methods, so a type's fields come first, then its methods in source order. An empty body is `None`.
 
 A `class` or `struct` with no `def self.new` and every field initialised gets an explicit `new create() => None`. Without it Pony infers an `iso` constructor, and `x = Foo.new` could not be passed as a `ref`.
 
@@ -118,11 +116,11 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 
 | Sparkle | Pony | Note |
 |---|---|---|
-| `x = 1` (first assignment in scope) | `var x = 1` | later assignments emit `x = 2` |
+| `x = 1` (first assignment in scope) | `var x = 1` | later assignments become `x = 2` |
 | `x : UInt8 = 1` | `var x: U8 = 1` | |
 | `x = (y = 5)`, `x = y = 5` | `var x = (var y: I32 = 5; y)` | an assignment used as a value gives the **new** value, as in Crystal; see below |
 | `x = 0` / `x = 1.5` (first assignment, bare literal) | `var x: I32 = 0` / `var x: F64 = 1.5` | Crystal's literal defaults; Pony cannot infer them |
-| a parameter or local named like a method of its type | emitted with a prime: `payload'` | Pony forbids the clash; Crystal's `def self.new(payload)` beside `def payload` is idiomatic |
+| a parameter or local named like a method of its type | given a prime: `payload'` | Pony forbids the clash; Crystal's `def self.new(payload)` beside `def payload` is idiomatic |
 | `@n` | `_n` | |
 | `self` | `this` | |
 | `Colour::Green` | `ColourGreen` | an enum member; not checked against the enum *(typeless)*, so `ponyc` reports an unknown one |
@@ -146,9 +144,9 @@ In Crystal `x.name` with no parentheses is a method call, but Pony types also ha
 
 ```mermaid
 flowchart TD
-    E["Emit every bare x.name<br/>as a field read"] --> C["Type-check only"]
+    E["Lower every bare x.name<br/>as a field read"] --> C["Type-check only"]
     C --> Q{{"New 'can't reference a method<br/>without calling it' at a bare x.name?"}}
-    Q -- yes --> M["Emit those as calls"]
+    Q -- yes --> M["Lower those as calls"]
     M --> C
     Q -- no --> B["Compile"]
 ```
@@ -163,11 +161,11 @@ flowchart TD
 - A position is reported against the Sparkle name after the dot, so one round settles every bare name whose receiver's type is known; a chain settles one link per round.
 - The default is a field because the reverse cannot work: calling a field means calling `apply()` on its value, which either fails with an unrelated error or compiles with a different meaning.
 - `x.@name` still reads a field and is never a call. `env.@out` keeps working; `env.out` is the ordinary spelling.
-- `sparkle translate` prints the lowered tree, after the type checker settled which bare `x.name`s are calls. The text path (`SPARKLE_TEXT=1`) writes the Pony it compiled to `.sparkle/<package>/`, and the examples' `expected.pony` files hold that Pony.
+- `sparkle translate` prints the lowered tree, after the type checker settled which bare `x.name`s are calls. The examples' `expected.ast` files hold that tree.
 
 ### Assignment as a value
 
-Pony's assignment evaluates to the old value; Sparkle's, like Crystal's, to the new one. An assignment is a **statement** when its value is discarded: a statement that is not the last of its block, the last of a block whose value is unused (a loop body, a block passed as a lambda, a `be`, a constructor, a method with no return type or `Nil`, an `if` used as a statement), or the body of a modifier `if`/`unless` used as a statement. A statement emits as before. Anywhere else the assignment is a **value**, and the target is read back:
+Pony's assignment evaluates to the old value; Sparkle's, like Crystal's, to the new one. An assignment is a **statement** when its value is discarded: a statement that is not the last of its block, the last of a block whose value is unused (a loop body, a block passed as a lambda, a `be`, a constructor, a method with no return type or `Nil`, an `if` used as a statement), or the body of a modifier `if`/`unless` used as a statement. A statement is lowered as written. Anywhere else the assignment is a **value**, and the target is read back:
 
 | Sparkle | Pony |
 |---|---|
@@ -180,7 +178,7 @@ Only a local or `@field` target can be used as a value. An index (`a[i] = v`), s
 
 ### Operators
 
-Pony has no operator precedence, so the emitter parenthesises every nested binary expression using Crystal's precedence.
+Pony has no operator precedence, so every nested binary expression is grouped, as if parenthesised, using Crystal's precedence.
 
 | Sparkle | Pony |
 |---|---|
@@ -236,8 +234,8 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 
 ## 5. Tooling
 
-1. **Source map.** The emitter records a mark `(pony line, pony column) → (sparkle line, sparkle column)` each time it starts writing a node. A `ponyc` location maps to the last mark at or before it on that line.
-2. **Diagnostics.** `ponyc` output is rewritten: file, line and column go through the source map, the quoted source excerpt is replaced by the Sparkle line with a caret, and Pony type expressions inside messages are re-printed in Sparkle syntax, including in notes that point into the Pony stdlib (`Array[String val] ref` → `ref Array(val String)`, `(String val | None val)` → `val String?`). An enum member's Pony name is printed as Sparkle's: `ColourRed` → `Colour::Red`.
+1. **Positions.** Every lowered node carries the `.spk` file, line and column it came from, so `ponyc` reports errors at the Sparkle line and quotes it.
+2. **Diagnostics.** Pony type expressions inside messages are re-printed in Sparkle syntax, including in notes that point into the Pony stdlib (`Array[String val] ref` → `ref Array(val String)`, `(String val | None val)` → `val String?`). A primed name loses its prime, and an enum member's Pony name is printed as Sparkle's: `ColourRed` → `Colour::Red`.
 3. **Capability statistics.** `sparkle caps` reports, per file, how many capability annotations were written, by position (type declaration, `def`, type, `recover`) and by capability.
 
 ## 6. CLI
@@ -249,7 +247,7 @@ sparkle run PATH [-- args]          # build, then run the binary
 sparkle caps PATH...                # capability statistics
 ```
 
-`build` writes generated Pony under `.sparkle/<package>/` and compiles it with the `libponyc` linked into `sparkle`, using the standard library of the Pony installation that holds the first `ponyc` found via `$SPARKLE_PONYC`, then `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
+`build` lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds the first `ponyc` found via `$SPARKLE_PONYC`, then `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
 
 ## 7. Not in step 1
 

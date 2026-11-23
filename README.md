@@ -50,7 +50,7 @@ flowchart LR
 
 ## Status
 
-Early, and it may not work out. Today Sparkle is a translator: it turns `.spk` source into Pony and compiles that with the unmodified Pony compiler, which is linked into the `sparkle` binary. There is no toolchain to install yet.
+Early, and it may not work out. Today Sparkle is a translator: it lowers `.spk` source to the unmodified Pony compiler's own syntax tree and compiles that in-process, with the compiler linked into the `sparkle` binary. There is no toolchain to install yet.
 
 | Document | Read it for |
 |---|---|
