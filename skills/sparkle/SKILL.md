@@ -27,6 +27,7 @@ Hello, world!
 | `sparkle check PATH` | Type-check a file or directory, without generating code |
 | `sparkle run PATH [-- args]` | Build a file or directory, then run it |
 | `sparkle build PATH [-o DIR]` | Build into `.sparkle/bin/` (or `DIR`) |
+| `--release` (with `build` or `run`) | Optimise the code; builds take about twice as long |
 | `sparkle translate PATH` | Print the Pony syntax tree it compiles, to see how code was read |
 
 Errors are reported at `.spk` lines with types in Sparkle syntax. Fix the first error first. `check` is the fast way to see them; `run` also generates code.

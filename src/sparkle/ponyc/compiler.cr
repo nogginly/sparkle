@@ -7,8 +7,8 @@ module Sparkle::Ponyc
   # binary `out_dir/bin_name`, using the standard library of the Pony
   # installation at `home`. Returns whether it succeeded and ponyc's error
   # text; errors are reported at the positions set on the nodes.
-  def self.compile_tree(out_dir : String, bin_name : String, home : String, & : Tree -> Nil) : {Bool, String}
-    with_options(out_dir, bin_name, home) do |opt|
+  def self.compile_tree(out_dir : String, bin_name : String, home : String, release : Bool = false, & : Tree -> Nil) : {Bool, String}
+    with_options(out_dir, bin_name, home, release) do |opt|
       program = load_tree(opt, bin_name) { |tree| yield tree }
       next false if program.null?
       # The remaining passes resume from the parse pass on the new nodes.
@@ -95,16 +95,19 @@ module Sparkle::Ponyc
   end
 
   # Compiler options that search the standard library and runtime of the
-  # Pony installation at `home`.
-  def self.options(out_dir : String, bin_name : String, home : String) : LibPonyc::PassOpt
+  # Pony installation at `home`. Code generation is unoptimised unless
+  # `release` is set.
+  def self.options(out_dir : String, bin_name : String, home : String, release : Bool = false) : LibPonyc::PassOpt
     search = {File.join(home, "packages"), File.join(home, "lib", LIB_ARCH)}.join(Process::PATH_DELIMITER)
-    LibPonyc.spk_opt_new(out_dir, bin_name, search)
+    opt = LibPonyc.spk_opt_new(out_dir, bin_name, search)
+    LibPonyc.spk_opt_set_release(opt, release)
+    opt
   end
 
   # Runs the block with initialised compiler options, then tears them down.
   # Returns the block's result (false when initialisation fails) and ponyc's error text.
-  private def self.with_options(out_dir : String, bin_name : String, home : String, & : LibPonyc::PassOpt -> Bool) : {Bool, String}
-    opt = options(out_dir, bin_name, home)
+  private def self.with_options(out_dir : String, bin_name : String, home : String, release : Bool = false, & : LibPonyc::PassOpt -> Bool) : {Bool, String}
+    opt = options(out_dir, bin_name, home, release)
     ok = LibPonyc.spk_ponyc_init(opt)
     begin
       ok = yield opt if ok

@@ -65,7 +65,7 @@ Command                          | Description
 `make distclean`                 | As `clean`, and remove all of `bin/` and `.tools/` too
 `bin/sparkle translate PATH`     | Print the lowered tree of a `.spk` file or directory, in ponyc's AST notation
 `bin/sparkle check PATH`         | Type-check a `.spk` file or directory without generating code
-`bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
+`bin/sparkle run PATH [-- args]` | Compile, unoptimised, and run a `.spk` file or directory; `--release` optimises, with `build` too
 `bin/sparkle caps PATH...`       | Count capability annotations per file
 
 ### Install

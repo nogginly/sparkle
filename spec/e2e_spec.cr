@@ -41,6 +41,15 @@ describe "end to end" do
       end
     end
 
+    it "builds an example with optimised code when asked" do
+      err = IO::Memory.new
+      code, binary = Dir.cd(ROOT) { Sparkle::Driver.build("examples/ring/main.spk", File.join(".sparkle", "release"), err, release: true) }
+      code.should eq(0), err.to_s
+      stdout = IO::Memory.new
+      Process.run(File.join(ROOT, binary || raise("no binary")), output: stdout).success?.should be_true
+      stdout.to_s.should eq File.read(File.join(ROOT, "examples", "ring", "expected.out"))
+    end
+
     it "checks an example without generating code" do
       Dir.cd(ROOT) { Sparkle::Driver.check("examples/ring/main.spk", IO::Memory.new) }.should eq 0
     end

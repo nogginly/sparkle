@@ -133,13 +133,13 @@ module Sparkle
       end
     end
 
-    private def self.build_tree(project : Project, out_dir : String?, err : IO) : {Int32, String?}
+    private def self.build_tree(project : Project, out_dir : String?, err : IO, release : Bool) : {Int32, String?}
       current = 0
       begin
         calls = tree_calls(project) { |i| current = i }
         out_dir ||= File.join(".sparkle", "bin")
         Dir.mkdir_p(out_dir)
-        ok, errors = Ponyc.compile_tree(out_dir, project.package, project.home) do |tree|
+        ok, errors = Ponyc.compile_tree(out_dir, project.package, project.home, release) do |tree|
           lower_project(tree, project, calls) { |i| current = i }
         end
         err.print Diagnostics.rewrite(errors, names: Rules.enum_names(project.programs))
@@ -195,11 +195,12 @@ module Sparkle
 
     # Compiles the `.spk` file or package at `path` with the linked-in Pony
     # compiler, against the standard library of the Pony installation found
-    # by `find_pony_home`. It lowers to ponyc's AST.
+    # by `find_pony_home`. It lowers to ponyc's AST. The code is unoptimised,
+    # as with `crystal build`, unless `release` is set.
     # Returns the exit code and the binary's path, which lands in `out_dir`.
-    def self.build(path : String, out_dir : String?, err : IO = STDERR) : {Int32, String?}
+    def self.build(path : String, out_dir : String?, err : IO = STDERR, release : Bool = false) : {Int32, String?}
       project = load_project(path, err) || return {1, nil}
-      build_tree(project, out_dir, err)
+      build_tree(project, out_dir, err, release)
     end
   end
 end

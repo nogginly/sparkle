@@ -18,7 +18,7 @@ pass_opt_t* spk_opt_new(const char* output, const char* bin_name,
 {
   pass_opt_t* opt = malloc(sizeof(pass_opt_t));
   pass_opt_init(opt);
-  opt->release = true;
+  opt->release = false;
   opt->verbosity = VERBOSITY_QUIET;
   opt->output = output;
   opt->bin_name = bin_name;
@@ -116,6 +116,12 @@ bool spk_program_passes(ast_t* program, pass_opt_t* opt)
   ast_clearflag(program, AST_FLAG_PASS_MASK);
   opt->program_pass = PASS_PARSE;
   return ast_passes_program(program, opt);
+}
+
+/* Optimised code generation, as `ponyc` without `--debug`; off by default. */
+void spk_opt_set_release(pass_opt_t* opt, bool release)
+{
+  opt->release = release;
 }
 
 strtable_t* spk_opt_strtab(pass_opt_t* opt)

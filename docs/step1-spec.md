@@ -258,12 +258,12 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 ```
 sparkle translate PATH              # print the lowered tree, in ponyc's AST notation
 sparkle check PATH                  # type-check only, no code generation
-sparkle build PATH [-o DIR]         # PATH is a .spk file or a directory (one Pony package)
-sparkle run PATH [-- args]          # build, then run the binary
+sparkle build PATH [-o DIR] [--release]  # PATH is a .spk file or a directory (one Pony package)
+sparkle run PATH [--release] [-- args]   # build, then run the binary
 sparkle caps PATH...                # capability statistics
 ```
 
-`build` lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds `$SPARKLE_PONYC`, else `lib/pony` beside an installed `bin/sparkle` (`make install`), else the one holding the first `ponyc` found via `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
+`build` generates unoptimised code, as `crystal build` does; `--release` optimises it, which takes about twice as long. It lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds `$SPARKLE_PONYC`, else `lib/pony` beside an installed `bin/sparkle` (`make install`), else the one holding the first `ponyc` found via `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
 
 ## 7. Not in step 1
 
