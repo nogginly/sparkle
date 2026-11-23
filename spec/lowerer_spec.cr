@@ -6,9 +6,9 @@ private HOME = Driver.find_ponyc(exe_path: File.join(ROOT, "bin", "sparkle"), cw
 
 describe Lowerer do
   if home = HOME
-    it "lowers a negative literal receiver as the parenthesised literal" do
+    it "lowers a negative literal receiver as an Int32 holding the negative literal" do
       source = "actor Main\n  def self.new(env : Env)\n    x = -1.abs()\n    y = -1[0]\n  end\nend\n"
-      pony = "actor Main\n  new create(env: Env) =>\n    var x = (-1).abs()\n    var y = (-1)(0)\n"
+      pony = "actor Main\n  new create(env: Env) =>\n    var x = I32(-1).abs()\n    var y = I32(-1)(0)\n"
       lowers_as(Parser.parse(source), source, pony)
     end
 

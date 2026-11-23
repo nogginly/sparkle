@@ -265,7 +265,7 @@ describe "translation rules" do
       rule in_main("a = [1]\na[0]\na[0]!\na[0] = 1\na[0]! = 1\na.first!\na.parse!(s)\na.empty?\na.nil?\na.as!(String)"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var a = [1]
+            var a: Array[I32] = [1]
             a(0)
             a(0)?
             a(0) = 1
@@ -398,7 +398,7 @@ describe "translation rules" do
       rule in_main("a = 1 + 2 * 3 - 4"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var a = (1 + (2 * 3)) - 4
+            var a: I32 = (1 + (2 * 3)) - 4
 
         PONY
       rule in_main("a = 1\nb = a > 1 && a < 5 || !(a == 3)"), <<-PONY
@@ -430,7 +430,7 @@ describe "translation rules" do
         actor Main
           new create(env: Env) =>
             var c = true
-            var x = if c then 1 else 2 end
+            var x: I32 = if c then 1 else 2 end
             var r = Range[USize].till(1, n())
 
         PONY
@@ -443,10 +443,35 @@ describe "translation rules" do
             var a = None
             var b = U64(1)
             var c = F32(2.5)
-            var d = (1, 2)
-            var e = [1; 2; 3]
+            var d: (I32, I32) = (1, 2)
+            var e: Array[I32] = [1; 2; 3]
             var f = [as U8: 1; 2]
             var g = Array[String].create()
+
+        PONY
+    end
+
+    it "gives literals Int32 or Float64 where nothing else types them" do
+      rule in_main(<<-'SPK'), <<-PONY
+        c = true
+        a = [1, 2]
+        f = [1, 2.5]
+        x = c ? 1 : -2
+        t = {1, "a", true}
+        s = "#{1 + 2} #{7.string()} #{[1, 2].size()}"
+        n : UInt8 = 1
+        m = n + 1
+        SPK
+        actor Main
+          new create(env: Env) =>
+            var c = true
+            var a: Array[I32] = [1; 2]
+            var f: Array[F64] = [1; 2.5]
+            var x: I32 = if c then 1 else -2 end
+            var t: (I32, String, Bool) = (1, "a", true)
+            var s = (I32(1) + I32(2)).string() + " " + I32(7).string().string() + " " + [as I32: 1; 2].size().string()
+            var n: U8 = 1
+            var m = n + 1
 
         PONY
     end
@@ -460,8 +485,8 @@ describe "translation rules" do
             var c = F32(1)
             var d: F64 = 1_000.5
             var e: F64 = 1e3
-            var f = 7 - -1
-            var g = (1)
+            var f: I32 = 7 - -1
+            var g: I32 = (1)
 
         PONY
     end
@@ -628,7 +653,7 @@ describe "translation rules" do
       rule in_main("xs = [1]\nxs.each do |x|\n  x\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var xs = [1]
+            var xs: Array[I32] = [1]
             for x in xs.values() do
               x
             end
@@ -637,7 +662,7 @@ describe "translation rules" do
       rule in_main("xs = [1]\nxs.each_with_index do |x, i|\n  x\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var xs = [1]
+            var xs: Array[I32] = [1]
             for (i, x) in xs.pairs() do
               x
             end
@@ -731,7 +756,7 @@ describe "translation rules" do
       rule in_main("xs = [1]\nxs.each do |x|\nend\nx = 1"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var xs = [1]
+            var xs: Array[I32] = [1]
             for x in xs.values() do
               None
             end
@@ -812,14 +837,14 @@ describe "translation rules" do
       rule in_main("a = [1]\nf(1) do |v|\n  a[0] = v\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var a = [1]
+            var a: Array[I32] = [1]
             f(1, {(v) => a(0) = v})
 
         PONY
       rule in_main("a = [1]\nf(1) { |v| a[0] = v }"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var a = [1]
+            var a: Array[I32] = [1]
             f(1, {(v) => a(0) = v})
 
         PONY
@@ -829,7 +854,7 @@ describe "translation rules" do
       rule in_main("a = [1]\na[0] += 1\nx.n += 1\no.@n = 2\no.@n += 2"), <<-PONY
         actor Main
           new create(env: Env) =>
-            var a = [1]
+            var a: Array[I32] = [1]
             a(0) = a(0) + 1
             x().set_n(x().n() + 1)
             o().n = 2

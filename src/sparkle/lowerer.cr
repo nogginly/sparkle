@@ -26,11 +26,14 @@ module Sparkle
 
     HEX_ESCAPES = {'x' => 2, 'u' => 4, 'U' => 6}
 
+    LITERAL_ARITHMETIC = %w[+ - * / %]
+
     CHAR_HEX_ESCAPES = {'x' => 2}
 
     GENERIC_CAP_TOKENS = {"read" => Tk::CAP_READ, "send" => Tk::CAP_SEND, "share" => Tk::CAP_SHARE, "alias" => Tk::CAP_ALIAS, "any" => Tk::CAP_ANY}
 
     @scope = Set(String).new
+    @literal_default : String? = nil
     @ivars = Set(String).new
     @method_names = Set(String).new
     @collections = false
@@ -317,7 +320,8 @@ module Sparkle
     end
 
     private def ternary(e : Ternary) : Node
-      @tree.node(Tk::IF, at(e), [single(e.cond), seq(e, [e.then_], true), seq(e, [e.else_], true)], scope: true)
+      cond = without_literal_default { single(e.cond) }
+      @tree.node(Tk::IF, at(e), [cond, seq(e, [e.then_], true), seq(e, [e.else_], true)], scope: true)
     end
 
     private def begin_(e : Begin, value : Bool) : Node
@@ -489,10 +493,15 @@ module Sparkle
                @scope << target.name
                default = e.value
                declared = e.type
+               literal = declared ? nil : literal_default(default)
                type = if declared
                         type(declared)
-                      elsif default.is_a?(IntLit | FloatLit) && default.suffix.nil?
-                        nominal(default.is_a?(IntLit) ? "I32" : "F64", at(target))
+                      elsif default.is_a?(TupleLit) && (tuple = tuple_default(default))
+                        tuple
+                      elsif literal && default.is_a?(ArrayLit)
+                        @tree.nominal("Array", at(target), [nominal(literal, at(target))])
+                      elsif literal
+                        nominal(literal, at(target))
                       else
                         none
                       end
@@ -560,7 +569,76 @@ module Sparkle
 
     # The receiver of a call, in parentheses unless it stands alone.
     private def receiver(e : Expr) : Node
-      negative_literal?(e) ? @tree.node(Tk::SEQ, at(e), [expr(e)]) : parenthesized(e)
+      if default = literal_default(e)
+        return typed_array(e, default) if e.is_a?(ArrayLit)
+        lowered = with_literal_default(default) { expr(e) }
+        return e.is_a?(IntLit | FloatLit) ? lowered : @tree.node(Tk::SEQ, at(e), [lowered])
+      end
+      parenthesized(e)
+    end
+
+    # The type a literal expression takes where nothing else gives it one:
+    # `F64` if it has a float literal, else `I32`; nil for any other
+    # expression. A literal expression is unsuffixed numbers combined by
+    # arithmetic, `-`, parentheses and `c ? a : b`, or an array literal of
+    # them without `of`.
+    private def literal_default(e : Expr) : String?
+      case literal_kind(e)
+      when :float then "F64"
+      when :int   then "I32"
+      end
+    end
+
+    private def literal_kind(e : Expr) : Symbol?
+      case e
+      when IntLit   then e.suffix ? nil : :int
+      when FloatLit then e.suffix ? nil : :float
+      when Paren    then literal_kind(e.expr)
+      when Unary    then e.op == "-" ? literal_kind(e.operand) : nil
+      when Binary   then LITERAL_ARITHMETIC.includes?(e.op) ? joined_kind(literal_kind(e.left), literal_kind(e.right)) : nil
+      when Ternary  then joined_kind(literal_kind(e.then_), literal_kind(e.else_))
+      when ArrayLit
+        return if e.of_type || e.elems.empty? || e.elems.any?(ArrayLit)
+        kind : Symbol? = :int
+        e.elems.each { |elem| kind = joined_kind(kind, literal_kind(elem)) }
+        kind
+      end
+    end
+
+    # `{1, "a"}` is `(I32, String)`: the type of a tuple literal whose items
+    # are literal expressions, strings or booleans; nil for any other.
+    private def tuple_default(e : TupleLit) : Node?
+      types = e.items.map do |item|
+        name = literal_default(item) || (item.is_a?(StrLit) ? "String" : nil) || (item.is_a?(BoolLit) ? "Bool" : nil)
+        return if name.nil? || item.is_a?(ArrayLit)
+        nominal(name, at(item))
+      end
+      types.size == 1 ? types[0] : @tree.node(Tk::TUPLETYPE, at(e), types)
+    end
+
+    private def joined_kind(left : Symbol?, right : Symbol?) : Symbol?
+      return unless left && right
+      left == :float || right == :float ? :float : :int
+    end
+
+    # `[as T: ...]`.
+    private def typed_array(e : ArrayLit, type_name : String) : Node
+      elems = e.elems.flat_map { |elem| [@tree.node(Tk::SEMI, at(elem)), expr(elem)] }.skip(1)
+      @tree.node(Tk::ARRAY, at(e), [nominal(type_name, at(e)), @tree.node(Tk::SEQ, at(e), elems)])
+    end
+
+    private def with_literal_default(type_name : String?, &)
+      saved = @literal_default
+      @literal_default = type_name
+      begin
+        yield
+      ensure
+        @literal_default = saved
+      end
+    end
+
+    private def without_literal_default(&)
+      with_literal_default(nil) { yield }
     end
 
     private def parenthesized(e : Expr) : Node
@@ -575,7 +653,7 @@ module Sparkle
       digits = (negative ? e.text[1..] : e.text).delete('_')
       literal = digits.starts_with?("0x") || digits.starts_with?("0b") || !digits.matches?(/[.eE]/) ? integer(e, digits) : float(e, digits)
       literal = @tree.node(Tk::UNARY_MINUS, at(e), [literal]) if negative
-      suffix = e.suffix
+      suffix = e.suffix || @literal_default
       return literal unless suffix
       @tree.node(Tk::CALL, at(e), [reference(suffix, at(e)), @tree.node(Tk::POSITIONALARGS, at(e), [@tree.node(Tk::SEQ, at(e), [literal])]), none, none])
     end
@@ -591,10 +669,6 @@ module Sparkle
 
     private def float(e : IntLit | FloatLit, digits : String) : Node
       @tree.float(digits.to_f64? || unsupported(e, "this float literal"), at(e))
-    end
-
-    private def negative_literal?(e : Expr) : Bool
-      e.is_a?(IntLit | FloatLit) && e.suffix.nil? && e.text.starts_with?('-')
     end
 
     private def expr(e : Expr) : Node

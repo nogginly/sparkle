@@ -91,6 +91,10 @@ The compiler is linked from `.tools/ponyc/lib/<arch>/libponyc-standalone.a`, wit
 
 ## Decisions
 
+### An operating system is assumed
+
+Sparkle targets systems with an operating system: servers, desktops and embedded Linux today, and possibly a real-time OS later. Bare metal, with no OS at all, is not a goal. Pony's runtime needs threads and memory mapping, and Sparkle keeps that.
+
 ### Build on Pony, not Crystal
 
 Pony already has reference capabilities, actors, local type inference and an LLVM back end. Starting from Crystal would mean tearing out its global type inference and its garbage collector, then adding everything Pony has.
@@ -119,9 +123,11 @@ Without types the translator cannot tell `x.size` the method from `x.size` the f
 
 | Sparkle | Pony's behaviour | Sparkle's rule |
 |---|---|---|
-| `x = 0` | Cannot infer a bare literal's type | `Int32`, or `Float64` for a float literal |
+| `x = 0`, `[1, 2]`, `7.string`, `"#{1 + 2}"` | Cannot infer a literal's type without context | `Int32`, or `Float64` with a float literal, wherever nothing else gives one |
 | A parameter named like a method | Forbidden | Given a prime (`payload'`) |
 | A class whose fields all have defaults | Infers an `iso` constructor | Gets an explicit constructor, giving `ref` |
+
+The integer default is `Int32`, matching Crystal and Rust. `Int64` was weighed and set aside for now: it costs almost nothing on 64-bit hardware and moves the overflow point from about 2.1 billion to out of reach, which matters because Pony's `+` wraps silently. The trade is compatibility over overflow headroom, and it may be revisited. Contracts (roadmap step 7) are the planned answer to overflow: prove a value stays in range rather than widen its type.
 
 ### An assignment's value is the new value
 
