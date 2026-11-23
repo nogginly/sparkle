@@ -2,21 +2,11 @@ require "./lib_ponyc"
 require "./tree"
 
 module Sparkle::Ponyc
-  # Compiles the Pony package in `dir` into the binary `out_dir/bin_name`,
-  # using the standard library of the Pony installation at `home`.
-  # Returns whether it succeeded and ponyc's error text.
-  def self.compile(dir : String, out_dir : String, bin_name : String, home : String) : {Bool, String}
-    with_options(out_dir, bin_name, home) do |opt|
-      program = LibPonyc.program_load(File.expand_path(dir), opt)
-      ok = !program.null? && LibPonyc.generate_passes(program, opt)
-      LibPonyc.ast_free(program) unless program.null?
-      ok
-    end
-  end
-
   # Compiles a program whose one package is built as an AST by the block,
-  # which appends type declarations to the `Tree` it is given. Returns as
-  # `compile` does; errors are reported at the positions set on the nodes.
+  # which appends type declarations to the `Tree` it is given, into the
+  # binary `out_dir/bin_name`, using the standard library of the Pony
+  # installation at `home`. Returns whether it succeeded and ponyc's error
+  # text; errors are reported at the positions set on the nodes.
   def self.compile_tree(out_dir : String, bin_name : String, home : String, & : Tree -> Nil) : {Bool, String}
     with_options(out_dir, bin_name, home) do |opt|
       program = load_tree(opt, bin_name) { |tree| yield tree }
@@ -29,20 +19,8 @@ module Sparkle::Ponyc
     end
   end
 
-  # Type-checks the package in `dir` without generating code; returns each error's file, line, column and message.
-  def self.check(dir : String, home : String) : Array({String, Int32, Int32, String})
-    found = [] of {String, Int32, Int32, String}
-    with_options("", "check", home) do |opt|
-      LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_expr)
-      program = LibPonyc.program_load(File.expand_path(dir), opt)
-      LibPonyc.ast_free(program) unless program.null?
-      found = errors(opt)
-      true
-    end
-    found
-  end
-
-  # As `check`, for a package built as an AST by the block.
+  # Type-checks the package built as an AST by the block, without generating
+  # code; returns each error's file, line, column and message.
   def self.check_tree(home : String, & : Tree -> Nil) : Array({String, Int32, Int32, String})
     found = [] of {String, Int32, Int32, String}
     with_options("", "check", home) do |opt|

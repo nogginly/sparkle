@@ -2,72 +2,42 @@ require "./spec_helper"
 
 include Sparkle
 
-SRC = "actor Main\n  def self.new(env : Env)\n    env.@out.print(\"hi\")\n    env.@out.print(missing)\n  end\nend\n"
-
-private def generated : {GeneratedFile, String}
-  t = Driver.translate(SRC)
-  {GeneratedFile.new("/work/.sparkle/app/main.pony", "app/main.spk", t.map, SRC, "/work"), t.pony}
-end
-
 describe Diagnostics do
-  it "maps a location, excerpt and caret to the Sparkle line" do
-    file, pony = generated
-    row = pony.lines.index!(&.includes?("missing")) + 1
-    col = pony.lines[row - 1].index!("missing") + 1
+  it "keeps a location and its excerpt, re-printing the message" do
     text = <<-TXT
       Error:
-      /work/.sparkle/app/main.pony:#{row}:#{col}: can't find declaration of 'missing'
-          #{pony.lines[row - 1].strip}
-          #{" " * (col - 1 - (pony.lines[row - 1].size - pony.lines[row - 1].lstrip.size))}^
+      main.spk:4:20: argument type is Array[String val] ref
+          env.@out.print(missing)
+                         ^
 
       TXT
-    got = Diagnostics.rewrite(text, [file], "/work")
-    got.should eq <<-TXT
-      Error:
-      app/main.spk:4:20: can't find declaration of 'missing'
-      #{SRC.lines[3].chomp}
-      #{" " * 19}^
-
-      TXT
-  end
-
-  it "accepts relative paths in the output" do
-    file, pony = generated
-    row = pony.lines.index!(&.includes?("missing")) + 1
-    text = ".sparkle/app/main.pony:#{row}:5: oops\n"
-    Diagnostics.rewrite(text, [file], "/work").should start_with "app/main.spk:4:"
+    Diagnostics.rewrite(text).should eq text.sub("Array[String val] ref", "ref Array(val String)")
   end
 
   it "rewrites Info frames and types in messages" do
-    file, pony = generated
-    row = pony.lines.index!(&.includes?("print(missing")) + 1
-    text = "Error:\n/work/.sparkle/app/main.pony:#{row}:5: bad Array[String val] ref\n    Info:\n    /work/.sparkle/app/main.pony:#{row}:5: note\n"
-    got = Diagnostics.rewrite(text, [file], "/work")
+    text = "Error:\nmain.spk:4:5: bad Array[String val] ref\n    Info:\n    main.spk:4:5: note\n"
+    got = Diagnostics.rewrite(text)
     got.should contain "bad ref Array(val String)"
-    got.should contain "    app/main.spk:4:"
+    got.should contain "    main.spk:4:5: note"
   end
 
   it "maps primed names in messages back" do
-    file, pony = generated
-    row = pony.lines.index!(&.includes?("missing")) + 1
-    text = "Error:\n/work/.sparkle/app/main.pony:#{row}:5: can't reuse name 'payload''\n"
-    Diagnostics.rewrite(text, [file], "/work").should contain "can't reuse name 'payload'\n"
+    text = "Error:\nmain.spk:4:5: can't reuse name 'payload''\n"
+    Diagnostics.rewrite(text).should contain "can't reuse name 'payload'\n"
   end
 
-  it "keeps other files' locations and excerpts, re-printing only the message" do
-    file, _ = generated
-    text = "Error:\n/usr/lib/pony/builtin/array.pony:12:3: can't use Array[String val] ref\n    fun foo()\n    ^\n"
-    Diagnostics.rewrite(text, [file], "/work").should eq text.sub("Array[String val] ref", "ref Array(val String)")
+  it "keeps excerpts that look like Pony types" do
+    text = "Error:\nmain.spk:2:3: can't use Array[String val] ref\n    x : Array[String val] ref\n    ^\n"
+    Diagnostics.rewrite(text).should eq text.sub("can't use Array[String val] ref", "can't use ref Array(val String)")
   end
 
   it "leaves output without locations unchanged" do
-    file, _ = generated
-    Diagnostics.rewrite("Building builtin -> /x\n", [file], "/work").should eq "Building builtin -> /x\n"
+    Diagnostics.rewrite("Building builtin -> /x\n").should eq "Building builtin -> /x\n"
   end
 
   it "names enum members in messages" do
     names = {"ColourRed" => "Colour::Red"}
-    Diagnostics.rewrite("main.pony:1:1: argument type is ColourRed val\n", [] of GeneratedFile, "/work", names).should contain "val Colour::Red"
-    Diagnostics.rewrite("main.pony:1:1: argument type is ColourRedder val\n", [] of GeneratedFile, "/work", names).should contain "ColourRedder"
+    Diagnostics.rewrite("main.spk:1:1: argument type is ColourRed val\n", names).should contain "val Colour::Red"
+    Diagnostics.rewrite("main.spk:1:1: argument type is ColourRedder val\n", names).should contain "ColourRedder"
   end
 end

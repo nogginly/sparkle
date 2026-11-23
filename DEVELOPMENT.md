@@ -53,7 +53,7 @@ Command                          | Description
 `make build`                     | Build the translator into `bin/sparkle`
 `make test`                      | Run all specs (`crystal spec`)
 `crystal spec --order random`    | Run the specs in random order
-`UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` | Rewrite every example's `expected.ast` (the lowered tree) and `expected.pony` (the Pony its text-path build compiled)
+`UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` | Rewrite every example's `expected.ast` (the lowered tree)
 `make lint`                      | Lint all source code (`bin/ameba src spec`)
 `make ameba`                     | Install shards and build `bin/ameba`, unless `shards check` passes and `bin/ameba` exists
 `crystal tool format`            | Format all source code
@@ -64,7 +64,6 @@ Command                          | Description
 `bin/sparkle translate PATH`     | Print the lowered tree of a `.spk` file or directory, in ponyc's AST notation
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
-`SPARKLE_TEXT=1 bin/sparkle run PATH` | Build through the text path (the emitter) instead of the AST path, until it is retired
 
 ## Where things are
 
@@ -73,12 +72,12 @@ Path             | Holds
 `src/sparkle/`   | The translator, one file per layer
 `spec/`          | Test specs, mirroring `src/sparkle/*`
 `spec/fixtures/` | Programs that must fail to compile, for the diagnostics specs
-`examples/`      | Runnable programs, each with its golden Pony and expected output
+`examples/`      | Runnable programs, each with its golden tree and expected output
 `docs/`          | The translation rules, and the `libponyc` spike's findings
 `vendor/ponyc/`  | Pony, as a git submodule pinned to a release tag
 `.tools/`        | The downloaded `ponyc` (not committed)
 `lib/`           | Installed shards, which is only `ameba` (not committed)
-`.sparkle/`      | Generated Pony and built binaries (not committed)
+`.sparkle/`      | Built binaries (not committed)
 
 ## Using `ops`
 
@@ -106,22 +105,22 @@ Command                | Description
 
 ```mermaid
 flowchart TD
-    U["Unit specs<br/>lexer, parser, emitter, pony_type,<br/>source_map, diagnostics, cap_stats, driver"] --> E["End-to-end specs<br/>build each example, run it,<br/>compare with expected.out,<br/>compare its tree with expected.ast,<br/>its text-path Pony with expected.pony"]
+    U["Unit specs<br/>lexer, parser, rules, lowerer, pony_type,<br/>diagnostics, cap_stats, driver"] --> E["End-to-end specs<br/>build each example, run it,<br/>compare with expected.out,<br/>compare its tree with expected.ast"]
     E --> F["Failing fixtures<br/>spec/fixtures/*: errors land on the right Sparkle line"]
 ```
 
 Tier       | File                   | Needs a Pony installation
 -----------|------------------------|--------------------------
-Unit       | `spec/<layer>_spec.cr` | No
+Unit       | `spec/<layer>_spec.cr` | Only `rules`, `lowerer` and `driver`
 End-to-end | `spec/e2e_spec.cr`     | Yes
 
-The unit tier proves the translator produces the Pony we expect. The end-to-end tier proves that it compiles and runs, and holds the goldens, so it needs the compiler too. Each example has two: `expected.ast`, the lowered tree that the default build compiles (what `sparkle translate` prints), and `expected.pony`, the Pony that a `SPARKLE_TEXT=1` build compiled. Both builds run the example and compare its output with `expected.out`; `spec/lowerer_spec.cr` also checks the tree against ponyc's parse of `expected.pony`.
+The unit tier proves the translator produces the Pony we expect. The `rules` and `lowerer` specs write the expected Pony by hand and compare the lowered tree with ponyc's parse of it, so they need the compiler. The end-to-end tier proves that the examples compile and run, and holds the goldens. Each example has `expected.ast`, the lowered tree that the build compiles (what `sparkle translate` prints), and `expected.out`, the output of its run.
 
 ### Things that will bite you
 
 - **Nothing builds before `make ponyc`.** `bin/sparkle` and the spec binary link the compiler from `.tools/ponyc`; without it the build stops and says so. End-to-end specs are still skipped, not failed, if no Pony installation is found at run time, and a run that reports pending specs has not checked that the generated Pony compiles.
 - **`bin/sparkle` is about 160 MB and takes about 10 seconds to link**, because it holds the Pony compiler with LLVM.
-- **`UPDATE_GOLDEN=1` accepts whatever the translator writes.** Read the diff of every `expected.ast` and `expected.pony` before committing it.
+- **`UPDATE_GOLDEN=1` accepts whatever the lowerer builds.** Read the diff of every `expected.ast` before committing it.
 - **`expected.out` is maintained by hand.** Nothing regenerates it.
 - **Actors run concurrently.** An example whose output order depends on message timing will fail now and then. Have one actor do all the printing, as `examples/ring` does.
 - **`make ponyc-source` downloads Google Benchmark and GoogleTest from `github.com`.** On a restricted network that step fails, and the build with it.
@@ -143,7 +142,7 @@ A change to the language usually touches the layers in order. Follow the same pa
 ```mermaid
 flowchart LR
     R["1. Add the rule to<br/>docs/step1-spec.md"] --> P["2. Lexer or parser<br/>+ unit spec"]
-    P --> E["3. Emitter<br/>+ unit spec"]
+    P --> E["3. Lowerer<br/>+ unit spec"]
     E --> X["4. Use it in an example"]
     X --> G["5. Regenerate goldens,<br/>read the diff"]
     G --> T["6. make test<br/>with ponyc installed"]
@@ -152,13 +151,13 @@ flowchart LR
 
 1. Write the rule in [docs/step1-spec.md](docs/step1-spec.md) first: Sparkle on the left, Pony on the right.
 2. Teach the lexer or parser the syntax, with a spec.
-3. Teach the emitter the translation, with a spec.
-4. Use the feature in an example under `examples/`, or add a new one with `main.spk`, `expected.ast`, `expected.pony` and `expected.out`.
+3. Teach the lowerer the translation, with a spec in `spec/rules_spec.cr`: the Sparkle, and the Pony it must lower to.
+4. Use the feature in an example under `examples/`, or add a new one with `main.spk`, `expected.ast` and `expected.out`.
 5. Run `UPDATE_GOLDEN=1 crystal spec spec/e2e_spec.cr` and read the golden diff.
 6. Run `make test` with `ponyc` installed, so the end-to-end tier runs.
 7. Run `make lint` and `crystal tool format`.
 
-To see what a snippet becomes, use `bin/sparkle translate PATH`, which prints the lowered tree that `build` compiles. For Pony text, a `SPARKLE_TEXT=1` build writes it under `.sparkle/<package>/`; read it when `ponyc` reports an error you do not understand.
+To see what a snippet becomes, use `bin/sparkle translate PATH`, which prints the lowered tree that `build` compiles. To read it as Pony, write the Pony you expect by hand and run `ponyc --pass=parse --astmodule` on it; the two trees should match. Do this when `ponyc` reports an error you do not understand.
 
 Keep `vendor/ponyc` unmodified during step 1. To move to a newer Pony, check out the new release tag in the submodule, then run `make ponyc` and `make test`.
 

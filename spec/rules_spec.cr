@@ -7,7 +7,7 @@ private def in_main(statements : String) : String
   "actor Main\n  def self.new(env : Env)\n" + statements.lines.map { |line| "    #{line}\n" }.join + "  end\nend\n"
 end
 
-describe Emitter do
+describe "translation rules" do
   describe "declarations" do
     it "maps class forms, includes and aliases" do
       rule "class val Point\nend\n", <<-PONY
@@ -129,7 +129,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits abstract methods without bodies and behaviours" do
+    it "maps abstract methods without bodies and behaviours" do
       rule "trait T\n  abstract def area : F64\nend\nactor A\n  be go(x : iso Array(String))\n  end\nend\n", <<-PONY
         trait T
           fun area(): F64
@@ -141,7 +141,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits None for empty bodies" do
+    it "maps None for empty bodies" do
       rule "class C\n  def f\n  end\nend\n", <<-PONY
         class C
           new create() =>
@@ -229,7 +229,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits typed locals, self, instance variables and field reads" do
+    it "maps typed locals, self, instance variables and field reads" do
       rule "class C\n  @n : U8 = 0\n  def f(o : C, env : Env)\n    x : UInt8 = 1\n    self\n    @n\n    o.@n\n    env.@out\n  end\nend\n", <<-PONY
         class C
           var _n: U8 = 0
@@ -247,7 +247,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits calls, constructors, named arguments and setters" do
+    it "maps calls, constructors, named arguments and setters" do
       rule in_main("x.size\nFoo.new(1)\nArray(String).new\nf(x: 1)\nf(1, y: 2)\nx.name = 3"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -261,7 +261,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits indexing, partial calls and predicates" do
+    it "maps indexing, partial calls and predicates" do
       rule in_main("a = [1]\na[0]\na[0]!\na[0] = 1\na[0]! = 1\na.first!\na.parse!(s)\na.empty?\na.nil?\na.as!(String)"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -325,7 +325,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits default parameter values and negative literals" do
+    it "maps default parameter values and negative literals" do
       rule "class C\n  def f(a : Int32 = 1 + 2, b : String = \"x\", c : Int8 = -1_i8) : Int32\n    a\n  end\nend\n", <<-PONY
         class C
           new create() =>
@@ -372,8 +372,24 @@ describe Emitter do
     it "matches methods across programs" do
       job_program = Parser.parse(job)
       main_program = Parser.parse(main)
-      table = Emitter.primed_params([job_program, main_program])
-      Emitter.emit(main_program, table)[0].should contain "where payload' = 1"
+      primed = Rules.primed_params([job_program, main_program])
+      lowers_as(job_program, job, <<-PONY, primed: primed)
+        class val Job
+          var _payload: U32
+
+          new create(payload': U32) =>
+            _payload = payload'
+
+          fun payload(): U32 =>
+            _payload
+
+        PONY
+      lowers_as(main_program, main, <<-PONY, primed: primed)
+        actor Main
+          new create(env: Env) =>
+            var j = Job.create(where payload' = 1)
+
+        PONY
     end
   end
 
@@ -407,7 +423,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits ternaries and ranges" do
+    it "maps ternaries and ranges" do
       rule in_main("c = true\nx = c ? 1 : 2\nr = 1...n"), <<-PONY
         use "collections"
 
@@ -420,7 +436,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits literals" do
+    it "maps literals" do
       rule in_main("a = nil\nb = 1_u64\nc = 2.5_f32\nd = {1, 2}\ne = [1, 2, 3]\nf = [1, 2] of UInt8\ng = [] of String"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -435,7 +451,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits numbers in every form" do
+    it "maps numbers in every form" do
       rule in_main("a = -2.5\nb = 0x1F\nc = 1_f32\nd = 1_000.5\ne = 1e3\nf = 7 - -1\ng = {1}"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -450,7 +466,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits chars" do
+    it "maps chars" do
       rule in_main(<<-'SPK'), <<-'PONY'
         a = 'a'
         b = '\n'
@@ -475,7 +491,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits string interpolation as concatenation" do
+    it "maps string interpolation as concatenation" do
       rule in_main(<<-'SPK'), <<-'PONY'
         n = 1
         s = "n = #{n}!"
@@ -496,7 +512,7 @@ describe Emitter do
   end
 
   describe "control flow" do
-    it "emits if, elsif, else and unless" do
+    it "maps if, elsif, else and unless" do
       rule in_main("if a\n  b\nelsif c\n  d\nelse\n  e\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -519,7 +535,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits postfix modifiers" do
+    it "maps postfix modifiers" do
       rule in_main("a if b\na unless b"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -529,7 +545,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits loops" do
+    it "maps loops" do
       rule in_main("while a\n  break\nend\nuntil a\n  next\nend\nloop do\n  return 1\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -546,7 +562,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits case as match" do
+    it "maps case as match" do
       rule in_main("case x\nwhen 1, 2\n  a\nwhen s : String\n  s\nwhen {p, _}\n  b\nelse\n  c\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -573,7 +589,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits begin as try" do
+    it "maps begin as try" do
       rule in_main("begin\n  a\nrescue\n  b\nensure\n  c\nend"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -594,7 +610,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits recover and consume" do
+    it "maps recover and consume" do
       rule in_main("x = recover iso do\n  Foo.new\nend\ny = consume x"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -823,12 +839,12 @@ describe Emitter do
     end
 
     it "rejects the value of an index assignment" do
-      expect_raises(ParseError) { translate("actor Main\n  def self.new(env : Env)\n    a = [1]\n    b = (a[0] = 2)\n  end\nend\n") }
+      expect_raises(ParseError) { lower("actor Main\n  def self.new(env : Env)\n    a = [1]\n    b = (a[0] = 2)\n  end\nend\n") }
     end
   end
 
   describe "enums" do
-    it "emits a primitive per member and a union type" do
+    it "maps a primitive per member and a union type" do
       rule "enum Colour\n  Red\n  Green = 5\n  Blue\nend\n", <<-PONY
         primitive ColourRed
           fun value(): I32 => 0
@@ -862,7 +878,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits member references and patterns" do
+    it "maps member references and patterns" do
       rule in_main("c = Colour::Green"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -881,7 +897,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits a predicate per member" do
+    it "maps a predicate per member" do
       rule "enum Colour\n  Red\n  DarkGreen\nend\n", <<-PONY
         primitive ColourRed
           fun value(): I32 => 0
@@ -902,10 +918,10 @@ describe Emitter do
         type Colour is (ColourRed | ColourDarkGreen)
 
         PONY
-      Emitter.predicate("DarkGreen").should eq "dark_green?"
+      Rules.predicate("DarkGreen").should eq "dark_green?"
     end
 
-    it "emits when .red? as the member's pattern" do
+    it "maps when .red? as the member's pattern" do
       src = "enum Light\n  Red\nend\nactor Main\n  def self.new(env : Env)\n    case Light::Red in\n    when .red? then 1\n    end\n  end\nend\n"
       rule src, <<-'PONY'
         primitive LightRed
@@ -930,9 +946,9 @@ describe Emitter do
     it "rejects a predicate pattern that is unknown, ambiguous or lacks ?" do
       enums = "enum Light\n  Red\nend\nenum Signal\n  Red\nend\n"
       main = ->(pattern : String) { "actor Main\n  def self.new(env : Env)\n    case 1\n    when #{pattern} then 1\n    end\n  end\nend\n" }
-      expect_raises(ParseError, "no enum member has the predicate `.blue?`") { translate("enum Light\n  Red\nend\n" + main.call(".blue?")) }
-      expect_raises(ParseError, "`.red?` names a member of several enums (Light::Red, Signal::Red); write the member instead") { translate(enums + main.call(".red?")) }
-      expect_raises(ParseError, "only enum predicates such as `.red?` can be patterns") { translate("enum Light\n  Red\nend\n" + main.call(".red")) }
+      expect_raises(ParseError, "no enum member has the predicate `.blue?`") { lower("enum Light\n  Red\nend\n" + main.call(".blue?")) }
+      expect_raises(ParseError, "`.red?` names a member of several enums (Light::Red, Signal::Red); write the member instead") { lower(enums + main.call(".red?")) }
+      expect_raises(ParseError, "only enum predicates such as `.red?` can be patterns") { lower("enum Light\n  Red\nend\n" + main.call(".red")) }
     end
 
     it "parenthesises a single member" do
@@ -950,13 +966,13 @@ describe Emitter do
     end
 
     it "maps Pony member names back" do
-      names = Emitter.enum_names([Parser.parse("enum Colour\n  Red\nend\n")])
+      names = Rules.enum_names([Parser.parse("enum Colour\n  Red\nend\n")])
       names.should eq({"ColourRed" => "Colour::Red"})
     end
   end
 
   describe "bare dot-names" do
-    it "emits a field read unless the position is a known call" do
+    it "maps a field read unless the position is a known call" do
       rule in_main("x.size"), <<-PONY
         actor Main
           new create(env: Env) =>
@@ -985,7 +1001,7 @@ describe Emitter do
         PONY
     end
 
-    it "emits an explicit field read" do
+    it "maps an explicit field read" do
       rule in_main("x.@out"), <<-PONY
         actor Main
           new create(env: Env) =>
