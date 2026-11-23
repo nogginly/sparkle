@@ -68,6 +68,7 @@
     $spk_tk_actor : LibC::Int
     $spk_tk_last : LibC::Int
     fun spk_opt_strtab(opt : PassOpt) : Strtab
+    fun spk_opt_set_release(opt : PassOpt, release : Bool)
     fun spk_errors_reset(opt : PassOpt)
     fun spk_program_passes(program : Ast, opt : PassOpt) : Bool
     fun spk_module_load_parsed(program : Ast, path : LibC::Char*, opt : PassOpt) : Ast

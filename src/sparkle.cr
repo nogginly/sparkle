@@ -4,11 +4,11 @@ require "./sparkle/cap_stats"
 module Sparkle
   USAGE = <<-TXT
     usage:
-      sparkle translate PATH              print the lowered tree
-      sparkle check PATH                  type-check without generating code
-      sparkle build PATH [-o DIR]         lower and compile with ponyc
-      sparkle run PATH [-- args]          build, then run the binary
-      sparkle caps PATH...                capability statistics
+      sparkle translate PATH                   print the lowered tree
+      sparkle check PATH                       type-check without generating code
+      sparkle build PATH [-o DIR] [--release]  compile; --release optimises the code
+      sparkle run PATH [--release] [-- args]   build, then run the binary
+      sparkle caps PATH...                     capability statistics
     TXT
 
   module CLI
@@ -38,24 +38,26 @@ module Sparkle
 
     private def self.build(args : Array(String)) : Int32
       out_dir = nil
+      release = false
       paths = [] of String
       while arg = args.shift?
-        if arg == "-o"
-          out_dir = args.shift? || return usage
-        else
-          paths << arg
+        case arg
+        when "-o"        then out_dir = args.shift? || return usage
+        when "--release" then release = true
+        else                  paths << arg
         end
       end
       return usage unless paths.size == 1
-      Driver.build(paths[0], out_dir)[0]
+      Driver.build(paths[0], out_dir, release: release)[0]
     end
 
     private def self.run_program(args : Array(String)) : Int32
       split = args.index("--")
       program_args = split ? args[(split + 1)..] : [] of String
       own = split ? args[0, split] : args
+      release = !own.delete("--release").nil?
       return usage unless own.size == 1
-      code, binary = Driver.build(own[0], nil)
+      code, binary = Driver.build(own[0], nil, release: release)
       return code unless code == 0 && binary
       Process.run(File.expand_path(binary), program_args, input: Process::Redirect::Inherit, output: Process::Redirect::Inherit, error: Process::Redirect::Inherit).exit_code
     end
