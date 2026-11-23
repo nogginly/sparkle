@@ -3,6 +3,7 @@ require "./rules"
 require "./lowerer"
 require "./diagnostics"
 require "./ponyc/compiler"
+require "./ponyc/session"
 
 module Sparkle
   module Driver
@@ -116,9 +117,10 @@ module Sparkle
     def self.check(path : String, err : IO = STDERR) : Int32
       project = load_project(path, err) || return 1
       current = 0
+      session = Ponyc::Session.new(project.home)
       begin
-        calls = tree_calls(project) { |i| current = i }
-        ok, errors = Ponyc.check_tree_text(project.home) do |tree|
+        calls = tree_calls(session, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| current = i }
+        ok, errors = session.verify do |tree|
           lower_project(tree, project, calls) { |i| current = i }
         end
         err.print Diagnostics.rewrite(errors, names: Rules.enum_names(project.programs))
@@ -126,6 +128,8 @@ module Sparkle
       rescue e : ParseError
         err.print format_error(project.files[current], project.sources[current], e)
         1
+      ensure
+        session.close
       end
     end
 
@@ -152,11 +156,21 @@ module Sparkle
 
     # The positions, per file, of the bare `x.name`s the type checker reports
     # as methods: lowers, type-checks and adds positions until none is new.
-    # Yields the index of each file before lowering it.
+    # One `Ponyc::Session` serves every round, so the standard library is
+    # loaded and checked once. Yields the index of each file before lowering it.
     def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)) = Rules.primed_params(programs), predicates : Rules::Predicates = Rules.enum_predicates(programs), & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
+      session = Ponyc::Session.new(home)
+      begin
+        tree_calls(session, files, sources, programs, primed, predicates) { |i| yield i }
+      ensure
+        session.close
+      end
+    end
+
+    private def self.tree_calls(session : Ponyc::Session, files : Array(String), sources : Array(String), programs : Array(Program), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
       calls = Hash(String, Set({Int32, Int32})).new
       MAX_ROUNDS.times do
-        found = Ponyc.check_tree(home) do |tree|
+        found = session.check do |tree|
           lower_files(tree, files, sources, programs, calls, primed, predicates) { |i| yield i }
         end
         grown = false

@@ -19,35 +19,6 @@ module Sparkle::Ponyc
     end
   end
 
-  # Type-checks the package built as an AST by the block, without generating
-  # code; returns each error's file, line, column and message.
-  def self.check_tree(home : String, & : Tree -> Nil) : Array({String, Int32, Int32, String})
-    found = [] of {String, Int32, Int32, String}
-    with_options("", "check", home) do |opt|
-      program = load_tree(opt, "check") { |tree| yield tree }
-      next false if program.null?
-      LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_expr)
-      LibPonyc.ast_passes_program(program, opt)
-      LibPonyc.ast_free(program)
-      found = errors(opt)
-      true
-    end
-    found
-  end
-
-  # Runs every pass on the package built as an AST by the block except code
-  # generation. Returns whether it passed and ponyc's error text.
-  def self.check_tree_text(home : String, & : Tree -> Nil) : {Bool, String}
-    with_options("", "check", home) do |opt|
-      program = load_tree(opt, "check") { |tree| yield tree }
-      next false if program.null?
-      LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_all)
-      ok = LibPonyc.ast_passes_program(program, opt)
-      LibPonyc.ast_free(program)
-      ok
-    end
-  end
-
   # The package built by the block, printed as `ponyc --astmodule` prints one.
   def self.tree_text(home : String, & : Tree -> Nil) : String
     text = ""
@@ -110,7 +81,8 @@ module Sparkle::Ponyc
     end
   end
 
-  private def self.errors(opt : LibPonyc::PassOpt) : Array({String, Int32, Int32, String})
+  # Each error ponyc has reported: its file, line, column and message.
+  def self.errors(opt : LibPonyc::PassOpt) : Array({String, Int32, Int32, String})
     found = [] of {String, Int32, Int32, String}
     error = LibPonyc.errors_get_first(LibPonyc.spk_opt_errors(opt))
     until error.null?
@@ -122,11 +94,17 @@ module Sparkle::Ponyc
     found
   end
 
+  # Compiler options that search the standard library and runtime of the
+  # Pony installation at `home`.
+  def self.options(out_dir : String, bin_name : String, home : String) : LibPonyc::PassOpt
+    search = {File.join(home, "packages"), File.join(home, "lib", LIB_ARCH)}.join(Process::PATH_DELIMITER)
+    LibPonyc.spk_opt_new(out_dir, bin_name, search)
+  end
+
   # Runs the block with initialised compiler options, then tears them down.
   # Returns the block's result (false when initialisation fails) and ponyc's error text.
   private def self.with_options(out_dir : String, bin_name : String, home : String, & : LibPonyc::PassOpt -> Bool) : {Bool, String}
-    search = {File.join(home, "packages"), File.join(home, "lib", LIB_ARCH)}.join(Process::PATH_DELIMITER)
-    opt = LibPonyc.spk_opt_new(out_dir, bin_name, search)
+    opt = options(out_dir, bin_name, home)
     ok = LibPonyc.spk_ponyc_init(opt)
     begin
       ok = yield opt if ok

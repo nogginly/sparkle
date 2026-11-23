@@ -33,7 +33,7 @@ Each layer is one file in `src/sparkle/`, or a directory for the compiler, and d
 | Rules | `rules.cr` | The naming and declaration rules: Pony names, primed parameters, enum predicates, implicit constructors |
 | Diagnostics | `diagnostics.cr` | `ponyc`'s messages are re-printed with Sparkle's types and names |
 | Statistics | `cap_stats.cr` | Capability annotations are counted per file |
-| Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | An AST built node by node is type-checked or compiled in-process by the linked-in `libponyc`, and its errors come back as data and as text |
+| Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/session.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | An AST built node by node is type-checked or compiled in-process by the linked-in `libponyc`, and its errors come back as data and as text |
 | Lowering | `lowerer.cr` | The AST becomes ponyc AST nodes with Sparkle positions |
 | Driver | `driver.cr`, `src/sparkle.cr` | A Pony installation is found, fields are told from methods, the package is compiled, and the CLI is exposed |
 
@@ -87,7 +87,7 @@ The rewriter is a pure function of `ponyc`'s output and the enum names, so it ca
 
 `sparkle build` treats a directory of `.spk` files as one Pony package. It lowers every file into one in-memory package, settles fields and methods by type-checking (see below), and compiles the result in-process. `sparkle translate` prints the same tree, as `ponyc --astmodule` would. The standard library comes from the Pony installation holding the first `ponyc` found in `$SPARKLE_PONYC`, then `.tools/ponyc`, then the vendored build, then `PATH`; it should be the release whose `libponyc` was linked in, which `make ponyc` installs.
 
-The compiler is linked from `.tools/ponyc/lib/<arch>/libponyc-standalone.a`, with LLVM, lld and clang inside, so `bin/sparkle` is about 160 MB. The archive's `libponyc` and runtime objects are LLVM bitcode, so on Linux it is linked with `lld`, and on macOS it needs an Xcode whose `libLTO` is at least as new as the clang that built the release. A C shim compiled from `vendor/ponyc`'s headers sets the options that live in `pass_opt_t` and collects the errors as text. Each compile or type check runs `ponyc_init` and `ponyc_shutdown` once: one initialisation cannot be shared between option sets, and repeating the pair in one process works. `ponyc_init` installs LLVM's crash handlers, which on Linux include `SIGXCPU`, one of the two signals Crystal's garbage collector uses to pause and resume threads; the shim saves the collector's two handlers before `ponyc_init` and restores them after, so LLVM never sees them.
+The compiler is linked from `.tools/ponyc/lib/<arch>/libponyc-standalone.a`, with LLVM, lld and clang inside, so `bin/sparkle` is about 160 MB. The archive's `libponyc` and runtime objects are LLVM bitcode, so on Linux it is linked with `lld`, and on macOS it needs an Xcode whose `libLTO` is at least as new as the clang that built the release. A C shim compiled from `vendor/ponyc`'s headers sets the options that live in `pass_opt_t` and collects the errors as text. Each compile, and each run of the field-or-method loop, runs `ponyc_init` and `ponyc_shutdown` once: one initialisation cannot be shared between option sets, and repeating the pair in one process works. `ponyc_init` installs LLVM's crash handlers, which on Linux include `SIGXCPU`, one of the two signals Crystal's garbage collector uses to pause and resume threads; the shim saves the collector's two handlers before `ponyc_init` and restores them after, so LLVM never sees them.
 
 ## Decisions
 
@@ -177,7 +177,19 @@ The Crystal front end links `libponyc` and builds its AST directly, rather than 
 | 3. Parity | Every example and fixture gives the same tree, output and errors on both paths | Done |
 | 4. Switch | The AST path is the only one. Every rule the emitter's specs covered lowers to the tree `ponyc` parses from the same Pony; the emitter, the source map and the location half of the diagnostics rewriter are gone | Done |
 
-Not done: making the field-or-method loop cheaper. Each round starts `ponyc` afresh and reloads every package the program uses: about 0.2 s for `builtin` alone, about 2.4 s once `collections` is used, so `examples/ring` spends 7 s in three rounds. Lowering is a small part of that, so rewriting settled nodes instead of lowering again would not help; keeping the packages loaded between rounds would.
+The field-or-method loop keeps one compiler for all its rounds (`Ponyc::Session`). Loading a package and taking it through the passes is the expensive part, about 2 s for `collections`, and ponyc records on each node the last pass it has been through. So the session loads `builtin` once, and each round lowers the program into a fresh package beside it, runs the passes, which skip every package already through them, and removes the package again. Only the first round pays for the standard library; later rounds take under 0.1 s, so `examples/ring` settles in 2.8 s instead of 7 s. `sparkle check` runs its final full check in the same session.
+
+```mermaid
+flowchart TD
+    S["Start ponyc once,<br/>load builtin"] --> R["Load a new package,<br/>lower the program into it"]
+    R --> P["Run the passes from the root:<br/>finished packages are skipped,<br/>new imports catch up"]
+    P --> Q{{"New 'can't reference a method<br/>without calling it'?"}}
+    Q -- yes --> X["Remove the package,<br/>add those calls"]
+    X --> R
+    Q -- no --> D["Remove the package;<br/>check or compile"]
+```
+
+Two details make it work. A package loaded late is brought straight up to the program's last pass, so the session loads it at the parse pass and adds the lowered nodes before any pass runs. And the program's root records its own last pass, so the session clears that record, and only that one, before each round. Compiling still starts a fresh `ponyc`, because the program it generates must have the user's package at its root.
 
 The AST's shape is internal to ponyc. `ponyc --pass=parse --astmodule` prints what the parser builds, and the lowering must match it, so it is re-checked on every Pony upgrade: the rule specs and each example's `expected.ast` catch a change.
 
