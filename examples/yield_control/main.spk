@@ -1,0 +1,73 @@
+class Bag
+  @items : Array(U32)
+
+  def self.new
+    @items = [1_u32, 2_u32, 3_u32, 0_u32, 5_u32]
+  end
+
+  def each_item
+    @items.each do |x|
+      yield x
+    end
+  end
+
+  def each_then_log(log : Array(String))
+    @items.each do |x|
+      yield x
+    end
+    log << "finished"
+  end
+
+  def each_until_zero
+    @items.each do |x|
+      return if x == 0
+      yield x
+    end
+  end
+
+  def sum_of : U32
+    total : U32 = 0
+    @items.each do |x|
+      total += yield x
+    end
+    total
+  end
+end
+
+primitive Find
+  def over(bag : Bag, limit : U32) : U32
+    bag.each_item do |x|
+      return x if x > limit
+    end
+    0
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    bag = Bag.new
+    doubled = bag.sum_of do |x|
+      x * 2
+    end
+    env.out.print("doubled #{doubled}")
+    skipped : U32 = 0
+    bag.each_item do |x|
+      next if x == 2
+      skipped += x
+    end
+    env.out.print("without 2 #{skipped}")
+    log = Array(String).new
+    upto : U32 = 0
+    bag.each_then_log(log) do |x|
+      break if x == 3
+      upto += x
+    end
+    env.out.print("before 3 #{upto}, log #{log.size}")
+    nonzero : U32 = 0
+    bag.each_until_zero do |x|
+      nonzero += x
+    end
+    env.out.print("until 0 #{nonzero}")
+    env.out.print("first over 2: #{Find.over(bag, 2)}")
+  end
+end

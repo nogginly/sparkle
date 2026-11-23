@@ -142,4 +142,6 @@ end
 - `yield a, b` passes two values; the block may name fewer.
 - A method that yields may call another with a block, and may not reach itself.
 - The method is picked by the receiver's type, so `each` on your type is yours, and `each` on an `Array` is a loop.
-- Not yet: `yield` as a value (`map`, `select`), and `next`, `break` or `return` in the block outside a loop of its own. Each is an error that says so.
+- `yield x` has a value, the block's last expression: `total += yield x`.
+- In the block, `next` ends this run, `break` leaves the whole call, and `return` returns from your method, as in Crystal. A bare `return` in the yielding method ends the call.
+- Not yet: `return` with a value in a yielding method, and `next` or `break` in a block whose call's value is used.

@@ -234,7 +234,7 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 
 ## Not built
 
-- `yield` as a value, and `next`, `break` or `return` across an inlined call
+- `return` with a value in a yielding method, and `next` or `break` in a block whose call's value is used
 - Methods inside an `enum`, flag enums, and enums with a base type
 - Macros: `getter`, `property`, `record`
 - Calls with arguments but no parentheses (`puts "x"`)

@@ -20,10 +20,15 @@ module Sparkle
     # Where a copied node came from, and the call it was copied into.
     record Origin, file : String, line : Int32, col : Int32, call_file : String, call_line : Int32, call_col : Int32
 
-    # A call with a block to a method named like a yielding method: `body[index]`
-    # in `file`, inside type `owner`. `chain` lists the yielding methods it was
-    # copied out of, to catch one that reaches itself.
-    record Site, file : String, call : Call, body : Array(Expr), index : Int32, owner : String, chain : Array(Method)
+    # A call with a block to a method named like a yielding method, inside
+    # type `owner` in `file`: the statement `body[index]`, or, when `setter`
+    # is given, an expression that `setter` replaces. `chain` lists the
+    # yielding methods it was copied out of, to catch one that reaches itself.
+    record Site, file : String, call : Call, body : Array(Expr)?, index : Int32, owner : String, chain : Array(Method), setter : Proc(Expr, Nil)? = nil do
+      def value? : Bool
+        !setter.nil?
+      end
+    end
 
     getter origins = {} of {String, Int32, Int32} => Origin
 
@@ -90,7 +95,13 @@ module Sparkle
       if site.chain.includes?(m)
         raise ParseError.new("`#{call.name}` reaches itself through a block; a yielding method cannot", call.name_line, call.name_col)
       end
-      site.body[site.index, 1] = Copier.new(self, site, m, file, next_tag).statements
+      copier = Copier.new(self, site, m, file, next_tag)
+      if setter = site.setter
+        setter.call(copier.value)
+      else
+        body = site.body || raise "a statement site has a body"
+        body[site.index, 1] = copier.statements
+      end
     end
 
     # Drops the yielding methods, once no call to one is left to decide.
@@ -133,22 +144,94 @@ module Sparkle
 
     private def collect(body : Array(Expr), names : Set(String), file : String, owner : String, found : Array(Site)) : Nil
       body.each_with_index do |e, i|
-        if e.is_a?(Call) && e.block && names.includes?(e.name) && !@plain.includes?({file, e.name_line, e.name_col})
-          found << Site.new(file, e, body, i, owner, @chains[e]? || [] of Method)
+        if site?(e, names, file)
+          found << Site.new(file, e.as(Call), body, i, owner, @chains[e]? || [] of Method)
+        end
+        slots(e) do |child, setter|
+          if site?(child, names, file)
+            found << Site.new(file, child.as(Call), nil, 0, owner, @chains[child]? || [] of Method, setter)
+          end
+          value_sites(child, names, file, owner, found)
         end
         each_body(e) { |inner| collect(inner, names, file, owner, found) }
       end
     end
 
+    private def value_sites(e : Expr, names : Set(String), file : String, owner : String, found : Array(Site)) : Nil
+      slots(e) do |child, setter|
+        if site?(child, names, file)
+          found << Site.new(file, child.as(Call), nil, 0, owner, @chains[child]? || [] of Method, setter)
+        end
+        value_sites(child, names, file, owner, found)
+      end
+    end
+
+    private def site?(e : Expr, names : Set(String), file : String) : Bool
+      e.is_a?(Call) && !e.block.nil? && names.includes?(e.name) && !@plain.includes?({file, e.name_line, e.name_col})
+    end
+
+    # Each expression `e` holds in a value position, with a setter that
+    # replaces it there. Statement lists are left to `each_body`.
+    private def slots(e : Expr, & : Expr, Proc(Expr, Nil) -> Nil) : Nil
+      if one = single_slot(e)
+        yield one[0], one[1]
+        return
+      end
+      case e
+      when Call
+        e.recv.try { |recv| yield recv, ->(x : Expr) { e.recv = x } }
+        e.args.each_index { |i| yield e.args[i], ->(x : Expr) { e.args[i] = x } }
+        e.named.each { |arg| yield arg.value, ->(x : Expr) { arg.value = x } }
+      when Index
+        yield e.recv, ->(x : Expr) { e.recv = x }
+        e.args.each_index { |i| yield e.args[i], ->(x : Expr) { e.args[i] = x } }
+      when Binary
+        yield e.left, ->(x : Expr) { e.left = x }
+        yield e.right, ->(x : Expr) { e.right = x }
+      when Ternary
+        yield e.cond, ->(x : Expr) { e.cond = x }
+        yield e.then_, ->(x : Expr) { e.then_ = x }
+        yield e.else_, ->(x : Expr) { e.else_ = x }
+      when RangeLit
+        yield e.from, ->(x : Expr) { e.from = x }
+        yield e.to, ->(x : Expr) { e.to = x }
+      when ArrayLit then e.elems.each_index { |i| yield e.elems[i], ->(x : Expr) { e.elems[i] = x } }
+      when TupleLit then e.items.each_index { |i| yield e.items[i], ->(x : Expr) { e.items[i] = x } }
+      when StrLit
+        e.parts.each_index do |i|
+          part = e.parts[i]
+          yield part, ->(x : Expr) { e.parts[i] = x } if part.is_a?(Expr)
+        end
+      end
+    end
+
+    # The one value slot of a node that has one, with its setter.
+    private def single_slot(e : Expr) : {Expr, Proc(Expr, Nil)}?
+      case e
+      when Paren     then {e.expr, ->(x : Expr) { e.expr = x }}
+      when FieldRead then {e.recv, ->(x : Expr) { e.recv = x }}
+      when Assign    then {e.value, ->(x : Expr) { e.value = x }}
+      when OpAssign  then {e.value, ->(x : Expr) { e.value = x }}
+      when Unary     then {e.operand, ->(x : Expr) { e.operand = x }}
+      when If        then {e.cond, ->(x : Expr) { e.cond = x }}
+      when While     then {e.cond, ->(x : Expr) { e.cond = x }}
+      when Case      then {e.subject, ->(x : Expr) { e.subject = x }}
+      when Consume   then {e.expr, ->(x : Expr) { e.expr = x }}
+      when AsCast    then {e.expr, ->(x : Expr) { e.expr = x }}
+      when Return    then e.value.try { |value| {value, ->(x : Expr) { e.value = x }} }
+      end
+    end
+
     private def each_body(e : Expr, & : Array(Expr) -> Nil) : Nil
       case e
-      when If      then yield e.then_; e.else_.try { |blk| yield blk }
-      when While   then yield e.body
-      when Case    then e.whens.each { |branch| yield branch.body }; e.else_.try { |blk| yield blk }
-      when Begin   then yield e.body; e.rescue_body.try { |blk| yield blk }; e.ensure_body.try { |blk| yield blk }
-      when Recover then yield e.body
-      when Call    then e.block.try { |blk| yield blk.body }
-      when Lambda  then yield e.body
+      when If                then yield e.then_; e.else_.try { |blk| yield blk }
+      when While             then yield e.body
+      when Case              then e.whens.each { |branch| yield branch.body }; e.else_.try { |blk| yield blk }
+      when Begin             then yield e.body; e.rescue_body.try { |blk| yield blk }; e.ensure_body.try { |blk| yield blk }
+      when Recover           then yield e.body
+      when Call              then e.block.try { |blk| yield blk.body }
+      when Lambda            then yield e.body
+      when Sequence, RunOnce then yield e.body
       end
     end
 
@@ -159,6 +242,7 @@ module Sparkle
     private def yields?(e : Expr) : Bool
       return true if e.is_a?(Yield)
       found = false
+      slots(e) { |child, _| found ||= yields?(child) }
       each_body(e) { |inner| found ||= yields?(inner) }
       found
     end
@@ -168,6 +252,11 @@ module Sparkle
       @locals : Set(String)
       @receiver : String
       @loops = 0
+      # A local set when the block `break`s or the method `return`s, so the
+      # rest of the copy is skipped; nil when neither happens.
+      @flag : String? = nil
+      @next = false
+      @break = false
 
       def initialize(@inliner : Inliner, @site : Site, @method : Method, @file : String, @tag : String)
         @receiver = "#{@tag}self"
@@ -175,12 +264,26 @@ module Sparkle
         @method.body.try { |body| declared(body) }
       end
 
+      # The copy, for a call whose value is used: a `Sequence` whose last
+      # statement gives the method's value.
+      def value : Expr
+        call = @site.call
+        Sequence.new(call.line, call.col, statements)
+      end
+
       # The receiver and arguments bound to fresh locals, then the copied body.
       def statements : Array(Expr)
         call = @site.call
         block = call.block || raise "a site has a block"
         check_block(block)
+        returns = returns?(@method.body || [] of Expr)
+        if @site.value? && (@break || returns)
+          what = @break ? "`break` in its block" : "`return` in the method"
+          raise ParseError.new("a call whose value is used, with #{what}, is not supported yet", call.name_line, call.name_col)
+        end
         at = {call.line, call.col}
+        flag = (@break || returns) ? "#{@tag}done" : nil
+        @flag = flag
         recv = call.recv || SelfRef.new(*at)
         out = [Assign.new(*at, Ident.new(*at, @receiver), recv, nil)] of Expr
         @method.params.each_with_index do |param, i|
@@ -190,24 +293,61 @@ module Sparkle
         if call.args.size > @method.params.size
           raise ParseError.new("`#{call.name}` takes #{@method.params.size} arguments, not #{call.args.size}", call.name_line, call.name_col)
         end
+        out << Assign.new(*at, Ident.new(*at, flag), BoolLit.new(*at, false), nil) if flag
         out.concat(stmts(@method.body || [] of Expr))
       end
 
+      # Notes whether the block has `next` or `break` outside a loop of its
+      # own. `return` in the block needs nothing: the block runs in the caller.
       private def check_block(block : Lambda) : Nil
         loose_jump(block.body, 0)
+        if @site.value? && @next
+          raise ParseError.new("`next` in a block whose call's value is used is not supported yet", block.line, block.col)
+        end
       end
 
-      # `next`, `break` and `return` in the block, outside a loop of its own.
       private def loose_jump(body : Array(Expr), loops : Int32) : Nil
         body.each do |e|
           case e
-          when Next, Break, Return
-            raise ParseError.new("`#{e.class.name.split("::").last.downcase}` in a block passed to a yielding method is not supported yet", e.line, e.col) if loops == 0 || e.is_a?(Return)
+          when Next  then @next = true if loops == 0
+          when Break then @break = true if loops == 0
           when While then loose_jump(e.body, loops + 1)
           when Call
             e.block.try { |blk| loose_jump(blk.body, Rules::LOOP_METHODS.includes?(e.name) ? loops + 1 : loops) }
           when If then loose_jump(e.then_, loops); e.else_.try { |blk| loose_jump(blk, loops) }
           end
+        end
+      end
+
+      # Whether `body` has `return`, outside a lambda.
+      private def returns?(body : Array(Expr)) : Bool
+        body.any? do |e|
+          case e
+          when Return then true
+          when While  then returns?(e.body)
+          when If     then returns?(e.then_) || (e.else_.try { |blk| returns?(blk) } || false)
+          when Case   then e.whens.any? { |branch| returns?(branch.body) } || (e.else_.try { |blk| returns?(blk) } || false)
+          when Call   then Rules::LOOP_METHODS.includes?(e.name) && (e.block.try { |blk| returns?(blk.body) } || false)
+          else             false
+          end
+        end
+      end
+
+      # Whether `e` can end the copy early: it yields to a block that
+      # `break`s, or it is or holds a `return`.
+      private def ends_early?(e : Expr) : Bool
+        return false unless @flag
+        e.is_a?(Return) || returns?([e]) || (@break && holds_yield?(e))
+      end
+
+      private def holds_yield?(e : Expr) : Bool
+        return true if e.is_a?(Yield)
+        case e
+        when While then e.body.any? { |x| holds_yield?(x) }
+        when If    then e.then_.any? { |x| holds_yield?(x) } || (e.else_.try { |blk| blk.any? { |x| holds_yield?(x) } } || false)
+        when Case  then e.whens.any? { |branch| branch.body.any? { |x| holds_yield?(x) } } || (e.else_.try { |blk| blk.any? { |x| holds_yield?(x) } } || false)
+        when Call  then e.block.try { |blk| blk.body.any? { |x| holds_yield?(x) } } || false
+        else            false
         end
       end
 
@@ -243,10 +383,34 @@ module Sparkle
         @inliner.position(@file, e.line, e.col, @site)
       end
 
+      # Copies a statement list. After a statement that can end the copy
+      # early, the rest is skipped once the flag is set: by `break` inside a
+      # loop of the copy, or by wrapping the rest in `unless` outside one.
       private def stmts(body : Array(Expr)) : Array(Expr)
-        body.flat_map do |e|
-          e.is_a?(Yield) ? yield_block(e) : [copy(e)]
+        out = [] of Expr
+        body.each_with_index do |e, i|
+          out.concat(e.is_a?(Yield) ? yield_block(e) : (e.is_a?(Return) ? method_return(e) : [copy(e)]))
+          flag = @flag
+          next unless flag && ends_early?(e)
+          at = {@site.call.line, @site.call.col}
+          if @loops > 0
+            out << If.new(*at, Ident.new(*at, flag), [Break.new(*at)] of Expr, nil)
+          else
+            rest = stmts(body[(i + 1)..])
+            out << If.new(*at, Ident.new(*at, flag), rest, nil, negate: true) unless rest.empty?
+            break
+          end
         end
+        out
+      end
+
+      # `return` in the method ends the copy: the flag is set, and `stmts`
+      # skips the rest.
+      private def method_return(e : Return) : Array(Expr)
+        raise ParseError.new("`return` with a value in a yielding method is not supported yet", e.line, e.col) if e.value
+        flag = @flag || raise "a returning method has a flag"
+        at = {@site.call.line, @site.call.col}
+        [Assign.new(*at, Ident.new(*at, flag), BoolLit.new(*at, true), nil)] of Expr
       end
 
       # `yield a, b`: the block's parameters bound to `a` and `b`, then a
@@ -264,7 +428,43 @@ module Sparkle
         end
         body = block.body.clone
         body.each { |stmt| @inliner.chain_calls(stmt, @site.chain) }
-        bind + body
+        return bind + body unless @next || @break
+        # `next` ends this run of the block and `break` the whole call, so the
+        # run is a `RunOnce`, whose `continue` leaves it.
+        bind + [RunOnce.new(call.line, call.col, loose_breaks(body, 0)).as(Expr)]
+      end
+
+      # `break` outside the block's own loops sets the flag and ends the run.
+      private def loose_breaks(body : Array(Expr), loops : Int32) : Array(Expr)
+        flag = @flag
+        body.flat_map do |e|
+          case e
+          when Break
+            next [e.as(Expr)] if loops > 0 || flag.nil?
+            [Assign.new(e.line, e.col, Ident.new(e.line, e.col, flag), BoolLit.new(e.line, e.col, true), nil), Next.new(e.line, e.col)] of Expr
+          when While
+            e.body = loose_breaks(e.body, loops + 1)
+            [e.as(Expr)]
+          when If
+            e.then_ = loose_breaks(e.then_, loops)
+            e.else_ = e.else_.try { |blk| loose_breaks(blk, loops) }
+            [e.as(Expr)]
+          when Call
+            e.block.try { |blk| blk.body = loose_breaks(blk.body, Rules::LOOP_METHODS.includes?(e.name) ? loops + 1 : loops) }
+            [e.as(Expr)]
+          else
+            [e]
+          end
+        end
+      end
+
+      # `yield a` used as a value: the block's last statement gives it.
+      private def yield_value(e : Yield) : Expr
+        if @next || @break
+          raise ParseError.new("`next` or `break` in a block whose `yield` value is used is not supported yet", e.line, e.col)
+        end
+        call = @site.call
+        Sequence.new(call.line, call.col, yield_block(e))
       end
 
       private def copy_all(es : Array(Expr)) : Array(Expr)
@@ -317,8 +517,10 @@ module Sparkle
         in Case             then Case.new(*at(e), copy(e.subject), e.whens.map { |branch| When.new(*at(branch), copy_all(branch.patterns), stmts(branch.body)) }, e.else_.try { |blk| stmts(blk) }, e.exhaustive)
         in Begin            then Begin.new(*at(e), stmts(e.body), e.rescue_body.try { |blk| stmts(blk) }, e.ensure_body.try { |blk| stmts(blk) })
         in Raise            then Raise.new(*at(e))
-        in Yield            then raise ParseError.new("`yield` used as a value is not supported yet", e.line, e.col)
-        in Return           then raise ParseError.new("`return` in a yielding method is not supported yet", e.line, e.col)
+        in Yield            then yield_value(e)
+        in Return           then raise ParseError.new("`return` inside an expression in a yielding method is not supported yet", e.line, e.col)
+        in Sequence         then Sequence.new(*at(e), stmts(e.body))
+        in RunOnce          then RunOnce.new(*at(e), stmts(e.body))
         in Break, Next
           raise ParseError.new("`#{e.class.name.split("::").last.downcase}` outside a loop in a yielding method is not supported yet", e.line, e.col) if @loops == 0
           e.is_a?(Break) ? Break.new(*at(e)) : Next.new(*at(e))
