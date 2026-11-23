@@ -6,7 +6,7 @@ What Sparkle does not do, and what to write instead.
 
 | Not supported | Instead |
 |---|---|
-| `yield` | A loop (`each`, `each_with_index`, `times`), or a lambda; see [blocks](blocks.md) |
+| `yield` used as a value (`map`, `select`), and `next`, `break` or `return` in a block passed to a method that yields | Assign inside the block instead; see [blocks](blocks.md) |
 | Macros: `getter`, `property`, `record` | Write the methods |
 | Hash and symbol literals | `Map` and `Set` from `use "collections"` |
 | `puts "x"`: a call with arguments and no parentheses | `env.out.print("x")` |

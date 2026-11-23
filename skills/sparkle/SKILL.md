@@ -40,9 +40,9 @@ Errors are reported at `.spk` lines with types in Sparkle syntax. Fix the first 
 4. **`x.name`** is a field read or a method call, whichever `x`'s type has. `x.@name` always reads a field.
 5. **`!` and `?`.** `def first!` can fail and must be called as `first!`. `def empty?` is a predicate.
 6. **Numbers.** `x = 0` is an `Int32` and `x = 1.5` a `Float64`. Types never mix silently: convert with `n.usize`, or declare `i : USize = 0`.
-7. **Blocks.** No `yield`. `each`, `each_with_index` and `times` are loops; any other block is a lambda. See [blocks](reference/blocks.md).
+7. **Blocks.** A method of yours that `yield`s is inlined at each call, as in Crystal. On Pony's types, `each`, `each_with_index` and `times` are loops, and any other block is a lambda. See [blocks](reference/blocks.md).
 8. **Actors.** `be` methods run asynchronously and return nothing. Output order between actors is not fixed. See [actors](reference/actors.md).
-9. **Not supported:** `yield`, macros (`getter`, `property`, `record`), hashes, symbols, calls without parentheses that take arguments (`puts x`). See [limits](reference/limits.md).
+9. **Not supported:** `yield` as a value, macros (`getter`, `property`, `record`), hashes, symbols, calls without parentheses that take arguments (`puts x`). See [limits](reference/limits.md).
 
 ## Reference
 

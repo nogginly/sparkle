@@ -124,6 +124,13 @@ void spk_opt_set_release(pass_opt_t* opt, bool release)
   opt->release = release;
 }
 
+/* The name of the source file `ast` was positioned in, or NULL. */
+const char* spk_ast_file(ast_t* ast)
+{
+  source_t* source = ast_source(ast);
+  return source == NULL ? NULL : source->file;
+}
+
 strtable_t* spk_opt_strtab(pass_opt_t* opt)
 {
   return opt->strtab;

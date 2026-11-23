@@ -9,7 +9,7 @@ module Sparkle
       "end", "if", "elsif", "else", "unless", "while", "until", "do", "case",
       "when", "in", "then", "begin", "rescue", "ensure", "raise", "return",
       "break", "next", "self", "nil", "true", "false", "consume", "recover",
-      "use", "alias", "include", "abstract", "is", "isnt", "of", "enum",
+      "use", "alias", "include", "abstract", "is", "isnt", "of", "enum", "yield",
     }
 
     OPERATORS = [

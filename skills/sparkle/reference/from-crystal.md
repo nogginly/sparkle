@@ -8,7 +8,7 @@ Sparkle reads like Crystal, but it has no type inference across methods and no m
 | `def foo(x)` infers its types | Every parameter has a type: `def foo(x : String)` |
 | `def initialize(x)` and `Foo.new(x)` | `def self.new(x : T)` and `Foo.new(x)` |
 | `getter name`, `property name`, `record` | Write the method: `def name : String = @name` |
-| `yield` and `&block` | No `yield`. `each`, `each_with_index` and `times` are loops; any other block is a lambda the method takes as its last argument |
+| `yield` and `&block` | `yield` works in your own methods, which are inlined at each call; `&block` does not exist. On Pony's types, `each`, `each_with_index` and `times` are loops, and other blocks are lambdas |
 | `puts x`, `foo 1, 2` | Parentheses are required when there are arguments. Print with `env.out.print(s)` |
 | `{"a" => 1}`, `:sym` | Not supported: no hashes, no symbols. `Map` and `Set` come from `use "collections"` |
 | Reopening a class | Not supported |
@@ -93,7 +93,7 @@ A method changes its object only if it is `def ref`. Passing data to another act
 
 ## Blocks
 
-Crystal's `yield` is not available. `each`, `each_with_index` and `times` are real loops, and `break` and `next` work in them:
+`yield` works in your own methods; see [blocks](blocks.md). On Pony's types, `each`, `each_with_index` and `times` are real loops, and `break` and `next` work in them:
 
 ```crystal
 3.times do |i|

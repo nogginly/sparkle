@@ -3,6 +3,16 @@ require "./spec_helper"
 include Sparkle
 
 describe Diagnostics do
+  it "moves a location in inlined code to the yielding method's line" do
+    origins = {
+      {"main.spk", 9, 100004} => Inliner::Origin.new("main.spk", 3, 5, "main.spk", 9, 11),
+    }
+    sources = {"main.spk" => "class Bag\n  def each_item\n    @items.each do |x|\n"}
+    text = "main.spk:9:100004: can't find declaration of 'y3_x'\n    bag.each_item do |v|\n    " + " " * 100_000 + "^\n"
+    out = Diagnostics.rewrite(text, origins: origins, sources: sources)
+    out.should eq "main.spk:3:5: can't find declaration of 'x'\n    @items.each do |x|\n    ^\n    in the copy inlined at main.spk:9:11\n"
+  end
+
   it "keeps a location and its excerpt, re-printing the message" do
     text = <<-TXT
       Error:

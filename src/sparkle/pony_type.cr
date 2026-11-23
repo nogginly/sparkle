@@ -285,6 +285,8 @@ module Sparkle
       def initialize(line, col, @inner, @cap, @eph)
         super(line, col)
       end
+
+      def_clone
     end
 
     def self.parse(text : String) : TypeNode?

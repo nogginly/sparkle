@@ -105,4 +105,41 @@ end
 - `&.name` is short for `{ |x| x.name }`: `Run.measure("text", &.size)`.
 - A lambda can read the locals and parameters of the method around it: `{ |x| x + step }`.
 
-There is no `yield`, so a method that would yield in Crystal takes a lambda this way.
+## `yield`
+
+A method of yours whose body has `yield` takes a block, as in Crystal. Each call is replaced by a copy of the method's body, so the block runs in the caller and can change its locals:
+
+```crystal
+class Bag
+  @items : Array(UInt32)
+
+  def self.new
+    @items = [1_u32, 2_u32, 3_u32]
+  end
+
+  def each_item
+    @items.each do |x|
+      yield x
+    end
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    total : UInt32 = 0
+    Bag.new.each_item do |v|
+      total += v
+    end
+    env.out.print("#{total}")
+  end
+end
+```
+
+```text
+6
+```
+
+- `yield a, b` passes two values; the block may name fewer.
+- A method that yields may call another with a block, and may not reach itself.
+- The method is picked by the receiver's type, so `each` on your type is yours, and `each` on an `Array` is a loop.
+- Not yet: `yield` as a value (`map`, `select`), and `next`, `break` or `return` in the block outside a loop of its own. Each is an error that says so.

@@ -24,8 +24,16 @@ module Sparkle::Ponyc
     # Type-checks the package built by the block, up to the expression pass;
     # returns each error's file, line, column and message.
     def check(& : Tree -> Nil) : Array({String, Int32, Int32, String})
-      round(LibPonyc.spk_pass_expr) { |tree| yield tree }
-      Ponyc.errors(@opt)
+      check(Set({String, Int32, Int32}).new) { |tree| yield tree }[0]
+    end
+
+    # As `check`, and also the printed type of the receiver of each call
+    # whose method name is at one of `receivers` (file, line, column), such
+    # as `Bag ref` or `Box[String val] ref`.
+    def check(receivers : Set({String, Int32, Int32}), & : Tree -> Nil) : {Array({String, Int32, Int32, String}), Hash({String, Int32, Int32}, String)}
+      types = {} of {String, Int32, Int32} => String
+      round(LibPonyc.spk_pass_expr, receivers.empty? ? nil : ->(package : LibPonyc::Ast) { receiver_types(package, receivers, types) }) { |tree| yield tree }
+      {Ponyc.errors(@opt), types}
     end
 
     # Runs every pass but code generation on the package built by the block;
@@ -41,7 +49,26 @@ module Sparkle::Ponyc
 
     # Loads a new package, lets the block build it, runs the passes up to
     # `limit` over the program, and removes the package again.
-    private def round(limit : LibC::Int, & : Tree -> Nil) : Bool
+    # After the expression pass a call is `(call (funref receiver name) ...)`.
+    private def receiver_types(ast : LibPonyc::Ast, receivers : Set({String, Int32, Int32}), types : Hash({String, Int32, Int32}, String)) : Nil
+      child = LibPonyc.ast_child(ast)
+      until child.null?
+        if LibPonyc.ast_id(child) == Tk::CALL.value
+          file = LibPonyc.spk_ast_file(child)
+          at = {file.null? ? "" : String.new(file), LibPonyc.ast_line(child).to_i32, LibPonyc.ast_pos(child).to_i32}
+          if receivers.includes?(at) && !types.has_key?(at)
+            callee = LibPonyc.ast_child(child)
+            receiver = callee.null? ? callee : LibPonyc.ast_child(callee)
+            type = receiver.null? ? receiver : LibPonyc.ast_type(receiver)
+            types[at] = String.new(LibPonyc.ast_print_type(type, LibPonyc.spk_opt_strtab(@opt))) unless type.null?
+          end
+        end
+        receiver_types(child, receivers, types)
+        child = LibPonyc.ast_sibling(child)
+      end
+    end
+
+    private def round(limit : LibC::Int, inspect : (LibPonyc::Ast -> Nil)? = nil, & : Tree -> Nil) : Bool
       @round += 1
       path = LibPonyc.stringtab(LibPonyc.spk_opt_strtab(@opt), "spk_round_#{@round}")
       LibPonyc.module_add_magic_src(path, "", @opt)
@@ -51,7 +78,9 @@ module Sparkle::Ponyc
       begin
         yield Tree.new(@opt, LibPonyc.ast_child(package))
         LibPonyc.spk_opt_set_limit(@opt, limit)
-        LibPonyc.spk_program_passes(@program, @opt)
+        passed = LibPonyc.spk_program_passes(@program, @opt)
+        inspect.try &.call(package)
+        passed
       ensure
         LibPonyc.ast_remove(package)
       end

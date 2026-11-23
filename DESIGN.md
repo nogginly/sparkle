@@ -34,6 +34,7 @@ Each layer is one file in `src/sparkle/`, or a directory for the compiler, and d
 | Diagnostics | `diagnostics.cr` | `ponyc`'s messages are re-printed with Sparkle's types and names |
 | Statistics | `cap_stats.cr` | Capability annotations are counted per file |
 | Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/session.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | An AST built node by node is type-checked or compiled in-process by the linked-in `libponyc`, and its errors come back as data and as text |
+| Inlining | `inliner.cr` | Each call with a block to a yielding method is replaced by a copy of its body |
 | Lowering | `lowerer.cr` | The AST becomes ponyc AST nodes with Sparkle positions |
 | Driver | `driver.cr`, `src/sparkle.cr` | A Pony installation is found, fields are told from methods, the package is compiled, and the CLI is exposed |
 
@@ -133,9 +134,9 @@ The integer default is `Int32`, matching Crystal and Rust. `Int64` was weighed a
 
 Crystal's rule, not Pony's. Where the value is used, `y = 5` becomes `(y = 5; y)`; as a statement it is left alone. The cost is Pony's swap idiom, `a = b = a`, which relies on assignment returning the old value. Index, setter and field assignments are not read back, because re-reading `a(i)` is a partial call and `x.name` would evaluate `x` twice, so using their value is an error.
 
-### Blocks without `yield`
+### Blocks and `yield`
 
-Step 1 has no `yield`. `each`, `each_with_index` and `times` with a block become real Pony `for` loops, chosen by method name, so `break` and `next` work. Any other block becomes a lambda passed as the last argument.
+A call with a block to a Sparkle method that `yield`s is inlined: the block runs in the caller, with no closure, so it can assign the caller's locals. The method is found by the receiver's type, read from a type-checking round, and the copy is made in Sparkle's AST before lowering, so no ponyc fork is needed ([docs/spike-yield.md](docs/spike-yield.md)). Otherwise `each`, `each_with_index` and `times` with a block become real Pony `for` loops, chosen by method name, so `break` and `next` work. Any other block becomes a lambda passed as the last argument.
 
 ### An enum is a set of primitives
 
@@ -233,7 +234,7 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 
 ## Not built
 
-- `yield`
+- `yield` as a value, and `next`, `break` or `return` across an inlined call
 - Methods inside an `enum`, flag enums, and enums with a base type
 - Macros: `getter`, `property`, `record`
 - Calls with arguments but no parentheses (`puts "x"`)

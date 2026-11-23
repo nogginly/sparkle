@@ -24,6 +24,8 @@ module Sparkle
       def initialize(line : Int32, col : Int32{% for f in fields %}, @{{ f.var }} : {{ f.type }}{% if !f.value.is_a?(Nop) %} = {{ f.value }}{% end %}{% end %})
         super(line, col)
       end
+
+      def_clone
     end
   end
 
@@ -76,6 +78,8 @@ module Sparkle
   node Case, Expr, subject : Expr, whens : Array(When), else_ : Array(Expr)?, exhaustive : Bool = false
   node Begin, Expr, body : Array(Expr), rescue_body : Array(Expr)?, ensure_body : Array(Expr)?
   node Raise, Expr
+  # `yield a, b` in a yielding method; see `Inliner`.
+  node Yield, Expr, args : Array(Expr)
   node Return, Expr, value : Expr?
   node Break, Expr
   node Next, Expr

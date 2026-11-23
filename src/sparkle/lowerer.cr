@@ -44,10 +44,24 @@ module Sparkle
     def initialize(@tree : Ponyc::Tree, @calls : Set({Int32, Int32}) = Set({Int32, Int32}).new, @primed : Hash(String, Set(String)) = Hash(String, Set(String)).new, @predicates : Rules::Predicates = Rules::Predicates.new)
     end
 
+    @file = ""
+    @stub_names = Set(String).new
+    @plain = Set({String, Int32, Int32}).new
+
+    # Lowers a program whose yielding methods are not inlined yet, for a
+    # type-checking round: `yield a` is `a`, and a call to a method named
+    # in `names` drops its block, unless its name position is in `plain`.
+    def stub(names : Set(String), plain : Set({String, Int32, Int32})) : self
+      @stub_names = names
+      @plain = plain
+      self
+    end
+
     # Appends the type declarations of `program`, read from `source` and
     # named `file` in error messages, to the tree.
     def lower(program : Program, file : String, source : String) : Nil
       @tree.open(file, source)
+      @file = file
       @collections = false
       program.items.each do |item|
         case item
@@ -704,6 +718,7 @@ module Sparkle
       when AsCast           then @tree.node(Tk::SEQ, at(e), [@tree.node(Tk::AS, at(e), [receiver(e.expr), type(e.type)])])
       when Lambda           then lambda(e)
       when AmpMethod        then amp_method(e)
+      when Yield            then stub_yield(e)
       else                       unsupported(e, "this expression")
       end
     end
@@ -722,6 +737,12 @@ module Sparkle
       when Return  then ret(e)
       else              unsupported(e, "this expression")
       end
+    end
+
+    private def stub_yield(e : Yield) : Node
+      unsupported(e, "`yield` outside a yielding method") if @stub_names.empty?
+      first = e.args.first?
+      first ? expr(first) : reference("None", at(e))
     end
 
     private def ret(e : Return) : Node
@@ -763,6 +784,9 @@ module Sparkle
     end
 
     private def call(c : Call) : Node
+      if c.block && @stub_names.includes?(c.name) && !@plain.includes?({@file, c.name_line, c.name_col})
+        c = Call.new(c.line, c.col, c.recv, c.name, c.args, c.named, nil, true, c.name_line, c.name_col)
+      end
       recv = c.recv
       block = c.block
       if block && (looped = loop_sugar(c, recv, block))
