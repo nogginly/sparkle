@@ -149,7 +149,7 @@ Range types (`Int(1..10)`). An exhaustive `case … in` over an enum covers the 
 
 ```mermaid
 flowchart TD
-    S1["1. Parser and simple sugar<br/>(lowers to ponyc's AST)"] --> S2["2. Inlined yield blocks<br/>(needs a ponyc fork)"]
+    S1["1. Parser and simple sugar<br/>(lowers to ponyc's AST)"] --> S2["2. Inlined yield blocks<br/>(in Sparkle, by type-check rounds)"]
     S2 --> S3["3. Enumerable and Array<br/>rewritten on yield"]
     S3 --> S4["4. Capability defaults<br/>tuned on real code"]
     S4 --> S5["5. Rest of the collections<br/>and String"]
@@ -163,7 +163,7 @@ Step 1 is built. Where `ponyc` comes from changes as the steps advance:
 | Phase | Source of `ponyc` |
 |---|---|
 | Step 1 | Submodule pinned to an upstream release tag, unmodified |
-| Steps 2–5 | Submodule pointing at a fork: a small set of named patches, rebased onto each release |
+| Steps 2–5 | The same release, while every type-dependent rule can be done in Sparkle by type-check rounds, as `yield` inlining can ([docs/spike-yield.md](docs/spike-yield.md)). A fork, a small set of named patches rebased onto each release, only if a rule must change the type checker mid-pass |
 | Step 6 onward | The runtime diverges; stop tracking upstream or switch to `git subtree` |
 
 ### One binary
@@ -204,7 +204,7 @@ flowchart LR
     Now --> Later
 ```
 
-Syntax stays in Crystal. A rule that needs types is written in Crystal first, by type-checking, reading the result and lowering again, as field-versus-call resolution is. Only what must change the type checker mid-pass moves into the fork as C patches: `yield` inlining, and perhaps capability defaults.
+Syntax stays in Crystal. A rule that needs types is written in Crystal first, by type-checking, reading the result and lowering again, as field-versus-call resolution is. Only what must change the type checker mid-pass would move into a fork as C patches; a spike showed `yield` inlining is not such a rule ([docs/spike-yield.md](docs/spike-yield.md)), and none is known yet.
 
 A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal links `libponyc-standalone.a`, builds an AST, compiles it to a running binary, and gets errors reported at `.spk` lines from positions set on the nodes. A small C shim sets compiler options and exports enum values. A second stage told fields from methods by type-checking, reading `ponyc`'s errors and rebuilding, with no fork. See [docs/spike-libponyc.md](docs/spike-libponyc.md) for the details, costs and what is still untested.
 

@@ -1,0 +1,49 @@
+class Box(A : val)
+  @items : Array(A)
+
+  def self.new
+    @items = Array(A).new
+  end
+
+  def ref add(x : A)
+    @items << x
+  end
+
+  def each_item
+    @items.each do |x|
+      yield(x)
+    end
+  end
+
+  def each_twice
+    each_item do |x|
+      yield(x)
+      yield(x)
+    end
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    words = Box(String).new
+    words.add("a")
+    words.add("b")
+    words.add("c")
+    joined = ""
+    words.each_item do |w|
+      joined = joined + w
+    end
+    env.out.print("joined #{joined}")
+    seen = ""
+    words.each_item do |w|
+      break if w == "c"
+      seen = seen + w
+    end
+    env.out.print("until c #{seen}")
+    twice = ""
+    words.each_twice do |w|
+      twice = twice + w
+    end
+    env.out.print("twice #{twice}")
+  end
+end

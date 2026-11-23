@@ -1,0 +1,31 @@
+class Bag
+  @items : Array(U32)
+
+  def self.new
+    @items = [] of UInt32
+  end
+
+  def ref add(x : U32)
+    @items << x
+  end
+
+  def each_item
+    @items.each do |x|
+      yield(x)
+    end
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    bag = Bag.new
+    bag.add(1)
+    bag.add(2)
+    bag.add(3)
+    total : U32 = 0
+    bag.each_item do |v|
+      total += v
+    end
+    env.out.print("total #{total}")
+  end
+end

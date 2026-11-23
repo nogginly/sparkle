@@ -88,7 +88,7 @@ Starting a second process costs almost nothing; LLVM's code generation dominates
 The plan holds, and two parts of it look lighter than DESIGN.md assumed:
 
 1. Errors against `.spk` files need no fork, only positions on the nodes.
-2. Building the AST needs no fork either. A fork is needed only for behaviour `ponyc` lacks, such as `yield` inlining.
+2. Building the AST needs no fork either. A fork is needed only for behaviour `ponyc` lacks. `yield` inlining was thought to be one; [a later spike](spike-yield.md) showed it is not.
 
 Stage 4 answers the question this raised: a rule that needs types can be written in Crystal, by type-checking, reading the result and rebuilding, before any C patches. Field-versus-call resolution works that way, which would retire `env.@out`. A fork is still the route for rules that must change what the type checker does mid-pass, such as `yield` inlining.
 
