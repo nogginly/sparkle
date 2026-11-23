@@ -119,7 +119,7 @@ Without types the translator cannot tell `x.size` the method from `x.size` the f
 
 | Sparkle | Pony's behaviour | Sparkle's rule |
 |---|---|---|
-| `x = 0` | Cannot infer a bare literal's type | `Int32`, or `Float64` for a float literal |
+| `x = 0`, `[1, 2]`, `7.string`, `"#{1 + 2}"` | Cannot infer a literal's type without context | `Int32`, or `Float64` with a float literal, wherever nothing else gives one |
 | A parameter named like a method | Forbidden | Given a prime (`payload'`) |
 | A class whose fields all have defaults | Infers an `iso` constructor | Gets an explicit constructor, giving `ref` |
 

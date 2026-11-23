@@ -24,9 +24,7 @@ Sparkle translates before it knows types. These follow, each with its way out.
 | Gap | Instead |
 |---|---|
 | `x = 0` is an `Int32`, so it will not compare with a `USize` | `x : USize = 0` |
-| `[1, 2, 3]` has no element type | `[1, 2, 3] of UInt32` |
 | `'a'` has no type of its own | `c : UInt8 = 'a'` |
-| A literal as a receiver or inside `"#{…}"`: `7.string`, `"#{1 + 2}"` fail with `Cannot look up member string on a literal` | Assign it to a variable first |
 | `a << b` is always `a.push(b)` | For integer shifts use `a.shl(b)` |
 | Ranges and `times` count in `USize` | Convert: `i.u32` |
 | `x.name` is a field read unless the type has a method `name`; a chain `a.b.c` costs one type-check round per bare link | Parentheses force a call: `x.name()` |

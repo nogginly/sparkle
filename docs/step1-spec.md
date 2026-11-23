@@ -119,7 +119,7 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | `x = 1` (first assignment in scope) | `var x = 1` | later assignments become `x = 2` |
 | `x : UInt8 = 1` | `var x: U8 = 1` | |
 | `x = (y = 5)`, `x = y = 5` | `var x = (var y: I32 = 5; y)` | an assignment used as a value gives the **new** value, as in Crystal; see below |
-| `x = 0` / `x = 1.5` (first assignment, bare literal) | `var x: I32 = 0` / `var x: F64 = 1.5` | Crystal's literal defaults; Pony cannot infer them |
+| `x = 0` / `x = 1.5` (first assignment, bare literal) | `var x: I32 = 0` / `var x: F64 = 1.5` | Crystal's literal defaults; Pony cannot infer them. See *Literal defaults* below |
 | a parameter or local named like a method of its type | given a prime: `payload'` | Pony forbids the clash; Crystal's `def self.new(payload)` beside `def payload` is idiomatic |
 | `@n` | `_n` | |
 | `self` | `this` | |
@@ -197,6 +197,21 @@ Pony has no operator precedence, so every nested binary expression is grouped, a
 | `"n = #{n}!"` / `"#{n}"` | `"n = " + n.string() + "!"` / `"" + n.string()` |
 | `[1, 2, 3]` / `[1, 2] of UInt8` / `[] of String` | `[1; 2; 3]` / `[as U8: 1; 2]` / `Array[String].create()` |
 | `{a, b}` in expression position | `(a, b)` |
+
+#### Literal defaults
+
+Pony gives a numeric literal its type from where it is used, and fails with "could not infer literal type" where nothing does. Sparkle gives it Crystal's type there instead: `Float64` if it has a float literal, `Int32` otherwise. *(typeless: decided by position, not by types)*
+
+A **literal expression** is an unsuffixed number, or one built from such numbers with `+ - * / %`, unary `-`, parentheses and `c ? a : b`, or an array literal of them without `of` (not of arrays).
+
+| Position | Sparkle | Pony |
+|---|---|---|
+| first untyped assignment | `x = c ? 1 : -2` / `a = [1, 2]` / `f = [1, 2.5]` | `var x: I32 = if c then 1 else -2 end` / `var a: Array[I32] = [1; 2]` / `var f: Array[F64] = [1; 2.5]` |
+| first untyped assignment of a tuple of literal expressions, strings and booleans | `t = {1, "a", true}` | `var t: (I32, String, Bool) = (1, "a", true)` |
+| receiver of a call, field read or index | `7.string` / `-1.abs` / `[1, 2].size` | `I32(7).string()` / `I32(-1).abs()` / `[as I32: 1; 2].size()` |
+| interpolated | `"#{1 + 2}"` | `(I32(1) + I32(2)).string()` |
+
+Everywhere else (arguments, typed assignments, return values, operands) Pony infers the type from context, so `f(1)` passes a `UInt8` to `f(x : UInt8)`, and `n + 1` has `n`'s type. A ternary's condition keeps its own types. A char literal (`'a'`) gets no default: write `c : UInt8 = 'a'`.
 
 ### Control flow
 

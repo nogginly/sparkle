@@ -157,15 +157,16 @@ boxed
 
 ## Type inference
 
-Locals take the type of their first value, with two literal defaults: `Int32` and `Float64`. A method's parameters and return type are written out; a return type may be left off when the method returns nothing.
+Locals take the type of their first value. A number with nothing else to give it a type is an `Int32`, or a `Float64` if it has a point, as in Crystal: `n = 5`, `[1, 2]`, `7.string`, `"#{1 + 2}"`. Where the context has a type, the number takes it: `small : UInt8 = 1`, `f(1)`. A method's parameters and return type are written out; a return type may be left off when the method returns nothing.
 
 ```crystal
 n = 5
 half = n / 2
 ratio = 2.5
-env.out.print("#{half} #{ratio}")
+evens = [2, 4, 6]
+env.out.print("#{half} #{ratio} #{evens.size} #{1 + 2}")
 ```
 
 ```text
-2 2.5
+2 2.5 3 3
 ```

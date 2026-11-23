@@ -13,7 +13,7 @@ Sparkle reads like Crystal, but it has no type inference across methods and no m
 | `{"a" => 1}`, `:sym` | Not supported: no hashes, no symbols. `Map` and `Set` come from `use "collections"` |
 | Reopening a class | Not supported |
 | `Foo(T)` generic methods | Only types are generic, not methods |
-| `Array(Int32)` | `Array(Int32)`, but `[1, 2]` needs `[1, 2] of Int32` |
+| `[1, 2]` is `Array(Int32)` | The same, unless the context asks for another type: `xs : Array(UInt8) = [1, 2]` |
 | `raise "message"` | `raise` takes no value |
 | `begin … rescue ex : Foo` | `begin … rescue … end`; no exception types or values |
 | `case … when Foo` | Also `when n : Foo` to bind the value |
