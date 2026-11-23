@@ -43,6 +43,34 @@ describe Driver do
     end
   end
 
+  describe ".find_pony_home" do
+    it "uses lib/pony beside an installed sparkle" do
+      dir = File.tempname("install")
+      begin
+        Dir.mkdir_p(File.join(dir, "lib/pony/packages/builtin"))
+        Driver.find_pony_home(nil, File.join(dir, "bin/sparkle"), "/").should eq File.join(dir, "lib/pony")
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "prefers the environment variable to an installed copy" do
+      dir = File.tempname("install")
+      begin
+        Dir.mkdir_p(File.join(dir, "lib/pony/packages/builtin"))
+        Driver.find_pony_home("/opt/pony/bin/ponyc", File.join(dir, "bin/sparkle"), "/").should eq "/opt/pony"
+      ensure
+        FileUtils.rm_rf(dir)
+      end
+    end
+
+    it "falls back to the installation holding ponyc" do
+      with_ponyc(".tools/ponyc/bin") do |dir, _|
+        Driver.find_pony_home(nil, File.join(dir, "bin/sparkle"), "/").should eq File.join(dir, ".tools/ponyc")
+      end
+    end
+  end
+
   describe ".find_ponyc" do
     it "prefers the environment variable" do
       Driver.find_ponyc("/opt/ponyc", nil, "/nonexistent").should eq "/opt/ponyc"

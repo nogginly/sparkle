@@ -59,11 +59,26 @@ Command                          | Description
 `crystal tool format`            | Format all source code
 `make ponyc`                     | Install the prebuilt `ponyc` into `.tools/`
 `make ponyc-source`              | Build `ponyc` from the submodule (about an hour)
+`make install [PREFIX=DIR]`      | Install `sparkle` with the Pony library it builds against into one directory, `~/.local/sparkle` by default; see below
+`make uninstall [PREFIX=DIR]`    | Remove that directory
 `make clean`                     | Remove `bin/sparkle` and `.sparkle/`; keeps `bin/ameba`
 `make distclean`                 | As `clean`, and remove all of `bin/` and `.tools/` too
 `bin/sparkle translate PATH`     | Print the lowered tree of a `.spk` file or directory, in ponyc's AST notation
 `bin/sparkle run PATH [-- args]` | Translate, compile and run a `.spk` file or directory
 `bin/sparkle caps PATH...`       | Count capability annotations per file
+
+### Install
+
+`make install` builds `bin/sparkle` and puts everything it needs in one directory, so it runs without this checkout:
+
+```
+~/.local/sparkle/
+├── bin/sparkle           the compiler
+├── lib/pony/             Pony's packages/ and lib/<arch>/ (runtime), from .tools/ponyc
+└── .sparkle-install      marker, with the Sparkle and Pony versions
+```
+
+Add `~/.local/sparkle/bin` to `PATH`. `make install` again replaces the directory whole, and `make uninstall` deletes it; both pass `PREFIX=DIR` for another location. `script/install.sh` does the work: it builds the new copy beside the old one and swaps it in, and it refuses a `PREFIX` that exists without the marker, so it never deletes a directory it did not make. An installed `sparkle` uses its own `lib/pony` unless `SPARKLE_PONYC` names another Pony.
 
 ## Where things are
 
@@ -77,6 +92,7 @@ Path             | Holds
 `vendor/ponyc/`  | Pony, as a git submodule pinned to a release tag
 `.tools/`        | The downloaded `ponyc` (not committed)
 `lib/`           | Installed shards, which is only `ameba` (not committed)
+`script/`        | `install.sh`, behind `make install` and `make uninstall`
 `.sparkle/`      | Built binaries (not committed)
 
 ## Using `ops`

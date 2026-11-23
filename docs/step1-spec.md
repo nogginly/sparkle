@@ -247,7 +247,7 @@ sparkle run PATH [-- args]          # build, then run the binary
 sparkle caps PATH...                # capability statistics
 ```
 
-`build` lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds the first `ponyc` found via `$SPARKLE_PONYC`, then `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
+`build` lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds `$SPARKLE_PONYC`, else `lib/pony` beside an installed `bin/sparkle` (`make install`), else the one holding the first `ponyc` found via `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
 
 ## 7. Not in step 1
 
