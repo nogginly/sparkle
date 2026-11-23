@@ -1,0 +1,174 @@
+(module:scope
+  (file:scope
+    (use x "collections" x)
+    (primitive:scope
+      (id FizzBuzz)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id label)
+          x
+          (params (param (id i) (nominal x (id USize) x x x) x))
+          (nominal x (id String) x x x)
+          x
+          x
+          (seq
+            (match:scope
+              (seq
+                (tuple
+                  (seq (% (reference (id i)) 3 x))
+                  (seq (% (reference (id i)) 5 x))
+                )
+              )
+              (cases:scope
+                (case:scope (tuple (seq 0) (seq 0)) x (seq "FizzBuzz"))
+                (case:scope
+                  (tuple (seq 0) (seq (reference (id _))))
+                  x
+                  (seq "Fizz")
+                )
+                (case:scope
+                  (tuple (seq (reference (id _))) (seq 0))
+                  x
+                  (seq "Buzz")
+                )
+              )
+              (seq:scope
+                (+ "" (call (. (reference (id i)) (id string)) x x x) x)
+              )
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (for
+              (let (id i) x)
+              (seq
+                (call
+                  (.
+                    (qualify
+                      (reference (id Range))
+                      (typeargs (nominal x (id USize) x x x))
+                    )
+                    (id through)
+                  )
+                  (positionalargs (seq 1) (seq 15))
+                  x
+                  x
+                )
+              )
+              (seq
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (call
+                        (. (reference (id FizzBuzz)) (id label))
+                        (positionalargs (seq (reference (id i))))
+                        x
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (= (var (id ticks) (nominal x (id I32) x x x)) 0)
+            (while:scope
+              (seq (< (reference (id ticks)) 5 x))
+              (seq:scope
+                (= (reference (id ticks)) (+ (reference (id ticks)) 1 x))
+                (if:scope
+                  (seq (== (reference (id ticks)) 2 x))
+                  (seq:scope (continue x))
+                  x
+                )
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "tick "
+                        (call (. (reference (id ticks)) (id string)) x x x)
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+                (if:scope
+                  (seq (>= (reference (id ticks)) 4 x))
+                  (seq:scope (break x))
+                  x
+                )
+              )
+              x
+            )
+            (for
+              (let (id n) x)
+              (seq
+                (call
+                  (.
+                    (qualify
+                      (reference (id Range))
+                      (typeargs (nominal x (id USize) x x x))
+                    )
+                    (id till)
+                  )
+                  (positionalargs (seq 0) (seq 3))
+                  x
+                  x
+                )
+              )
+              (seq
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "n = "
+                        (call (. (reference (id n)) (id string)) x x x)
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

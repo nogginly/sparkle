@@ -1,0 +1,397 @@
+(module:scope
+  (file:scope
+    (primitive:scope
+      (id LightRed)
+      x
+      x
+      x
+      (members
+        (fun:scope x (id value) x x (nominal x (id I32) x x x) x x (seq 0) x)
+        (fun:scope
+          x
+          (id string)
+          x
+          x
+          (nominal x (id String) x iso ^)
+          x
+          x
+          (seq (call (. "Red" (id clone)) x x x))
+          x
+        )
+        (fun:scope
+          x
+          (id eq)
+          x
+          (params (param (id that) (nominal x (id Light) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (is (reference (id that)) this))
+          x
+        )
+        (fun:scope
+          x
+          (id ne)
+          x
+          (params (param (id that) (nominal x (id Light) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (not (seq (is (reference (id that)) this))))
+          x
+        )
+        (fun:scope
+          x
+          (id is_red)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq true)
+          x
+        )
+        (fun:scope
+          x
+          (id is_amber)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+        (fun:scope
+          x
+          (id is_green)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+      )
+      x
+      x
+    )
+    (primitive:scope
+      (id LightAmber)
+      x
+      x
+      x
+      (members
+        (fun:scope x (id value) x x (nominal x (id I32) x x x) x x (seq 5) x)
+        (fun:scope
+          x
+          (id string)
+          x
+          x
+          (nominal x (id String) x iso ^)
+          x
+          x
+          (seq (call (. "Amber" (id clone)) x x x))
+          x
+        )
+        (fun:scope
+          x
+          (id eq)
+          x
+          (params (param (id that) (nominal x (id Light) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (is (reference (id that)) this))
+          x
+        )
+        (fun:scope
+          x
+          (id ne)
+          x
+          (params (param (id that) (nominal x (id Light) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (not (seq (is (reference (id that)) this))))
+          x
+        )
+        (fun:scope
+          x
+          (id is_red)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+        (fun:scope
+          x
+          (id is_amber)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq true)
+          x
+        )
+        (fun:scope
+          x
+          (id is_green)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+      )
+      x
+      x
+    )
+    (primitive:scope
+      (id LightGreen)
+      x
+      x
+      x
+      (members
+        (fun:scope x (id value) x x (nominal x (id I32) x x x) x x (seq 6) x)
+        (fun:scope
+          x
+          (id string)
+          x
+          x
+          (nominal x (id String) x iso ^)
+          x
+          x
+          (seq (call (. "Green" (id clone)) x x x))
+          x
+        )
+        (fun:scope
+          x
+          (id eq)
+          x
+          (params (param (id that) (nominal x (id Light) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (is (reference (id that)) this))
+          x
+        )
+        (fun:scope
+          x
+          (id ne)
+          x
+          (params (param (id that) (nominal x (id Light) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (not (seq (is (reference (id that)) this))))
+          x
+        )
+        (fun:scope
+          x
+          (id is_red)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+        (fun:scope
+          x
+          (id is_amber)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+        (fun:scope
+          x
+          (id is_green)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq true)
+          x
+        )
+      )
+      x
+      x
+    )
+    (type:scope
+      (id Light)
+      x
+      x
+      (provides
+        (uniontype
+          (uniontype
+            (nominal x (id LightRed) x x x)
+            (nominal x (id LightAmber) x x x)
+          )
+          (nominal x (id LightGreen) x x x)
+        )
+      )
+      members
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id lights) x)
+              (array
+                (nominal x (id Light) x x x)
+                (seq
+                  (reference (id LightRed))
+                  ;
+                  (reference (id LightAmber))
+                  ;
+                  (reference (id LightGreen))
+                )
+              )
+            )
+            (for
+              (let (id light) x)
+              (seq (call (. (reference (id lights)) (id values)) x x x))
+              (seq
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        (+
+                          (+
+                            (+
+                              (call
+                                (. (reference (id light)) (id string))
+                                x
+                                x
+                                x
+                              )
+                              " = "
+                              x
+                            )
+                            (call
+                              (.
+                                (call
+                                  (. (reference (id light)) (id value))
+                                  x
+                                  x
+                                  x
+                                )
+                                (id string)
+                              )
+                              x
+                              x
+                              x
+                            )
+                            x
+                          )
+                          ", next "
+                          x
+                        )
+                        (call
+                          (.
+                            (call
+                              (reference (id after))
+                              (positionalargs (seq (reference (id light))))
+                              x
+                              x
+                            )
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+                (if:scope
+                  (seq (call (. (reference (id light)) (id is_green)) x x x))
+                  (seq:scope
+                    (call
+                      (. (. (reference (id env)) (id out)) (id print))
+                      (positionalargs (seq "go"))
+                      x
+                      x
+                    )
+                  )
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id after)
+          x
+          (params (param (id l) (nominal x (id Light) x x x) x))
+          (nominal x (id Light) x x x)
+          x
+          x
+          (seq
+            (match:scope
+              \annotation ((id exhaustive) x)\
+              (seq (reference (id l)))
+              (cases:scope
+                (case:scope
+                  (let (id _) (nominal x (id LightRed) x x x))
+                  x
+                  (seq (reference (id LightGreen)))
+                )
+                (case:scope
+                  (let (id _) (nominal x (id LightAmber) x x x))
+                  x
+                  (seq (reference (id LightRed)))
+                )
+                (case:scope
+                  (let (id _) (nominal x (id LightGreen) x x x))
+                  x
+                  (seq (reference (id LightAmber)))
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

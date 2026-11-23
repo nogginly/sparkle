@@ -1,0 +1,179 @@
+(module:scope
+  (file:scope
+    (actor:scope
+      (id Worker)
+      x
+      x
+      x
+      (members
+        (fvar (id _stream) (nominal x (id OutStream) x x x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq (= (reference (id _stream)) (. (reference (id env)) (id out))))
+          x
+        )
+        (be:scope
+          x
+          (id process)
+          x
+          (params
+            (param
+              (id names)
+              (nominal
+                x
+                (id Array)
+                (typeargs (nominal x (id String) x x x))
+                iso
+                x
+              )
+              x
+            )
+          )
+          x
+          x
+          x
+          (seq
+            (=
+              (var
+                (id sealed)
+                (nominal
+                  x
+                  (id Array)
+                  (typeargs (nominal x (id String) x x x))
+                  val
+                  x
+                )
+              )
+              (consume x (reference (id names)))
+            )
+            (call
+              (. (reference (id _stream)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      "worker got "
+                      (call
+                        (.
+                          (call (. (reference (id sealed)) (id size)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                    " names"
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (for
+              (let (id name) x)
+              (seq (call (. (reference (id sealed)) (id values)) x x x))
+              (seq
+                (call
+                  (. (reference (id _stream)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "hello, "
+                        (call (. (reference (id name)) (id string)) x x x)
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id worker) x)
+              (call
+                (. (reference (id Worker)) (id create))
+                (positionalargs (seq (reference (id env))))
+                x
+                x
+              )
+            )
+            (=
+              (var (id names) x)
+              (recover
+                iso
+                (seq:scope
+                  (call
+                    (.
+                      (qualify
+                        (reference (id Array))
+                        (typeargs (nominal x (id String) x x x))
+                      )
+                      (id create)
+                    )
+                    x
+                    x
+                    x
+                  )
+                )
+              )
+            )
+            (call
+              (. (reference (id names)) (id push))
+              (positionalargs (seq "ada"))
+              x
+              x
+            )
+            (call
+              (. (reference (id names)) (id push))
+              (positionalargs (seq "grace"))
+              x
+              x
+            )
+            (call
+              (. (reference (id worker)) (id process))
+              (positionalargs (seq (consume x (reference (id names)))))
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

@@ -1,0 +1,479 @@
+(module:scope
+  (file:scope
+    (primitive:scope
+      (id TempCold)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id value)
+          x
+          x
+          (nominal x (id I32) x x x)
+          x
+          x
+          (seq (- 5))
+          x
+        )
+        (fun:scope
+          x
+          (id string)
+          x
+          x
+          (nominal x (id String) x iso ^)
+          x
+          x
+          (seq (call (. "Cold" (id clone)) x x x))
+          x
+        )
+        (fun:scope
+          x
+          (id eq)
+          x
+          (params (param (id that) (nominal x (id Temp) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (is (reference (id that)) this))
+          x
+        )
+        (fun:scope
+          x
+          (id ne)
+          x
+          (params (param (id that) (nominal x (id Temp) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (not (seq (is (reference (id that)) this))))
+          x
+        )
+        (fun:scope
+          x
+          (id is_cold)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq true)
+          x
+        )
+        (fun:scope
+          x
+          (id is_mild)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+      )
+      x
+      x
+    )
+    (primitive:scope
+      (id TempMild)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id value)
+          x
+          x
+          (nominal x (id I32) x x x)
+          x
+          x
+          (seq (- 4))
+          x
+        )
+        (fun:scope
+          x
+          (id string)
+          x
+          x
+          (nominal x (id String) x iso ^)
+          x
+          x
+          (seq (call (. "Mild" (id clone)) x x x))
+          x
+        )
+        (fun:scope
+          x
+          (id eq)
+          x
+          (params (param (id that) (nominal x (id Temp) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (is (reference (id that)) this))
+          x
+        )
+        (fun:scope
+          x
+          (id ne)
+          x
+          (params (param (id that) (nominal x (id Temp) x x x) x))
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq (not (seq (is (reference (id that)) this))))
+          x
+        )
+        (fun:scope
+          x
+          (id is_cold)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq false)
+          x
+        )
+        (fun:scope
+          x
+          (id is_mild)
+          x
+          x
+          (nominal x (id Bool) x x x)
+          x
+          x
+          (seq true)
+          x
+        )
+      )
+      x
+      x
+    )
+    (type:scope
+      (id Temp)
+      x
+      x
+      (provides
+        (uniontype
+          (nominal x (id TempCold) x x x)
+          (nominal x (id TempMild) x x x)
+        )
+      )
+      members
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs (seq "tab	here \"quoted\" back\\slash"))
+              x
+              x
+            )
+            (= (var (id n) (nominal x (id I32) x x x)) 7)
+            (if:scope
+              (seq (< (reference (id n)) 5 x))
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "small"))
+                  x
+                  x
+                )
+              )
+              (if:scope
+                (seq (< (reference (id n)) 10 x))
+                (seq:scope
+                  (call
+                    (. (. (reference (id env)) (id out)) (id print))
+                    (positionalargs (seq "medium"))
+                    x
+                    x
+                  )
+                )
+                (seq:scope
+                  (call
+                    (. (. (reference (id env)) (id out)) (id print))
+                    (positionalargs (seq "large"))
+                    x
+                    x
+                  )
+                )
+              )
+            )
+            (=
+              (var (id size) x)
+              (if:scope
+                (seq (< (reference (id n)) 5 x))
+                (seq:scope "small")
+                (if:scope
+                  (seq (< (reference (id n)) 10 x))
+                  (seq:scope "medium")
+                  (seq:scope "large")
+                )
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    "size is "
+                    (call (. (reference (id size)) (id string)) x x x)
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (if:scope
+              (seq (not (seq (> (reference (id n)) 8 x))))
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "not above 8"))
+                  x
+                  x
+                )
+              )
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "above 8"))
+                  x
+                  x
+                )
+              )
+            )
+            (= (var (id a) x) true)
+            (= (var (id b) x) false)
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        "and "
+                        (call
+                          (.
+                            (seq (and (reference (id a)) (reference (id b)) x))
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                      ", or "
+                      x
+                    )
+                    (call
+                      (.
+                        (seq (or (reference (id a)) (reference (id b)) x))
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        "nested "
+                        (call
+                          (.
+                            (seq
+                              (and
+                                (reference (id a))
+                                (seq
+                                  (or (reference (id b)) (reference (id a)) x)
+                                )
+                                x
+                              )
+                            )
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                      ", "
+                      x
+                    )
+                    (call
+                      (.
+                        (seq
+                          (or
+                            (reference (id a))
+                            (seq (and (reference (id b)) (reference (id a)) x))
+                            x
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (= (var (id xs) x) (array (nominal x (id I32) x x x) (seq 1 ; 2)))
+            (try
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "body"))
+                  x
+                  x
+                )
+                (call (reference (id xs)) (positionalargs (seq 5)) x ?)
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "not reached"))
+                  x
+                  x
+                )
+              )
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "rescued"))
+                  x
+                  x
+                )
+              )
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "ensured"))
+                  x
+                  x
+                )
+              )
+            )
+            (try
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "plain body"))
+                  x
+                  x
+                )
+              )
+              x
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "plain ensure"))
+                  x
+                  x
+                )
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        (+
+                          (+
+                            (+
+                              (call
+                                (. (reference (id TempCold)) (id string))
+                                x
+                                x
+                                x
+                              )
+                              " = "
+                              x
+                            )
+                            (call
+                              (.
+                                (call
+                                  (. (reference (id TempCold)) (id value))
+                                  x
+                                  x
+                                  x
+                                )
+                                (id string)
+                              )
+                              x
+                              x
+                              x
+                            )
+                            x
+                          )
+                          ", "
+                          x
+                        )
+                        (call (. (reference (id TempMild)) (id string)) x x x)
+                        x
+                      )
+                      " = "
+                      x
+                    )
+                    (call
+                      (.
+                        (call (. (reference (id TempMild)) (id value)) x x x)
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

@@ -4,7 +4,7 @@ require "./sparkle/cap_stats"
 module Sparkle
   USAGE = <<-TXT
     usage:
-      sparkle translate FILE.spk          print the generated Pony
+      sparkle translate PATH              print the lowered tree
       sparkle build PATH [-o DIR]         translate and compile with ponyc
       sparkle run PATH [-- args]          build, then run the binary
       sparkle caps PATH...                capability statistics
@@ -26,14 +26,9 @@ module Sparkle
 
     private def self.translate(args : Array(String)) : Int32
       return usage if args.size != 1
-      source = File.read(args[0])
-      begin
-        print Driver.translate(source).pony
-        0
-      rescue e : ParseError
-        STDERR.print Driver.format_error(args[0], source, e)
-        1
-      end
+      code, text = Driver.tree_text(args[0], STDERR)
+      print text if text
+      code
     rescue e : File::Error
       STDERR.puts "sparkle: #{e.message}"
       1

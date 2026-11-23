@@ -22,21 +22,6 @@ describe Lowerer do
         lowered = Ponyc.tree_text(home) { |tree| Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates).lower(program, file, source) }
         lowered.should eq Ponyc.parse_text(dir, home)
       end
-
-      it "builds and runs examples/#{name} through the AST path" do
-        err = IO::Memory.new
-        previous = ENV["SPARKLE_AST"]?
-        begin
-          ENV["SPARKLE_AST"] = "1"
-          code, binary = Dir.cd(ROOT) { Driver.build(file, File.join(".sparkle", "bin"), err) }
-          code.should eq(0), err.to_s
-          output = IO::Memory.new
-          Process.run(File.join(ROOT, binary || raise "no binary"), output: output).success?.should be_true
-          output.to_s.should eq File.read(File.join(dir, "expected.out"))
-        ensure
-          ENV["SPARKLE_AST"] = previous
-        end
-      end
     end
 
     it "reports a construct it cannot lower yet at its Sparkle position" do

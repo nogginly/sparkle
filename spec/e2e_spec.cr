@@ -13,6 +13,21 @@ private def build_and_run(path : String) : {Int32, String, String}
   end
 end
 
+private def with_text_path(&)
+  previous = ENV["SPARKLE_TEXT"]?
+  begin
+    ENV["SPARKLE_TEXT"] = "1"
+    yield
+  ensure
+    ENV["SPARKLE_TEXT"] = previous
+  end
+end
+
+private def golden(path : String, actual : String) : Nil
+  File.write(path, actual) if ENV["UPDATE_GOLDEN"]? == "1"
+  actual.should eq File.read(path)
+end
+
 describe "end to end" do
   examples = Dir.glob(File.join(ROOT, "examples", "*", "main.spk")).sort
   if PONYC.nil?
@@ -24,13 +39,20 @@ describe "end to end" do
     examples.each do |spk|
       dir = File.dirname(spk)
       it "runs examples/#{File.basename(dir)}" do
-        code, stdout, err = build_and_run(File.join("examples", File.basename(dir), "main.spk"))
+        relative = File.join("examples", File.basename(dir), "main.spk")
+        code, stdout, err = build_and_run(relative)
         code.should eq(0), err
         stdout.should eq File.read(File.join(dir, "expected.out"))
-        generated = File.read(File.join(ROOT, ".sparkle", File.basename(dir), "main.pony"))
-        expected_path = File.join(dir, "expected.pony")
-        File.write(expected_path, generated) if ENV["UPDATE_GOLDEN"]? == "1"
-        generated.should eq File.read(expected_path)
+
+        tree_err = IO::Memory.new
+        tree_code, tree = Dir.cd(ROOT) { Sparkle::Driver.tree_text(relative, tree_err) }
+        tree_code.should eq(0), tree_err.to_s
+        golden(File.join(dir, "expected.ast"), tree || "")
+
+        code, stdout, err = with_text_path { build_and_run(relative) }
+        code.should eq(0), err
+        stdout.should eq File.read(File.join(dir, "expected.out"))
+        golden(File.join(dir, "expected.pony"), File.read(File.join(ROOT, ".sparkle", File.basename(dir), "main.pony")))
       end
     end
 
@@ -57,17 +79,11 @@ describe "end to end" do
     Dir.glob(File.join(ROOT, "spec", "fixtures", "*", "main.spk")).sort.each do |spk|
       fixture = File.join("spec", "fixtures", File.basename(File.dirname(spk)), "main.spk")
 
-      it "reports the same errors for #{fixture} through the AST path" do
+      it "reports the same errors for #{fixture} between the AST and text paths" do
         text = IO::Memory.new
         tree = IO::Memory.new
-        text_code = Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), text)[0] }
-        previous = ENV["SPARKLE_AST"]?
-        begin
-          ENV["SPARKLE_AST"] = "1"
-          tree_code = Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), tree)[0] }
-        ensure
-          ENV["SPARKLE_AST"] = previous
-        end
+        tree_code = Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), tree)[0] }
+        text_code = with_text_path { Dir.cd(ROOT) { Sparkle::Driver.build(fixture, File.join(".sparkle", "bin"), text)[0] } }
         text_code.should_not eq 0
         tree_code.should eq text_code
         tree.to_s.should eq text.to_s

@@ -1,0 +1,91 @@
+(module:scope
+  (file:scope
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (call
+                    (.
+                      (call
+                        (. (. (reference (id env)) (id args)) (id size))
+                        x
+                        x
+                        x
+                      )
+                      (id string)
+                    )
+                    x
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (= (var (id names) x) (array x (seq "ada" ; "grace")))
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    (+
+                      (+
+                        (call
+                          (.
+                            (call (. (reference (id names)) (id size)) x x x)
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        " names, "
+                        x
+                      )
+                      (call
+                        (. (call (. "hello" (id size)) x x x) (id string))
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                    " letters"
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs (seq "explicit field read"))
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)
