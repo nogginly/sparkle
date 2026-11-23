@@ -60,6 +60,7 @@
 
     $spk_pass_parse : LibC::Int
     $spk_pass_all : LibC::Int
+    $spk_pass_finaliser : LibC::Int
     $spk_flag_preserve : LibC::UInt
     fun ast_setflag(ast : Ast, flag : UInt32)
     fun ast_checkflag(ast : Ast, flag : UInt32) : LibC::Int
@@ -67,6 +68,10 @@
     $spk_tk_actor : LibC::Int
     $spk_tk_last : LibC::Int
     fun spk_opt_strtab(opt : PassOpt) : Strtab
+    fun spk_errors_reset(opt : PassOpt)
+    fun spk_program_passes(program : Ast, opt : PassOpt) : Bool
+    fun spk_module_load_parsed(program : Ast, path : LibC::Char*, opt : PassOpt) : Ast
+    fun ast_remove(ast : Ast)
     fun spk_ast_text(ast : Ast) : LibC::Char*
     fun spk_source_new(opt : PassOpt, file : LibC::Char*, text : LibC::Char*) : Source
     fun stringtab(strtab : Strtab, string : LibC::Char*) : LibC::Char*

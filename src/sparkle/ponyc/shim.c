@@ -83,9 +83,40 @@ char* spk_errors_text(pass_opt_t* opt)
 
 const int spk_pass_parse = PASS_PARSE;
 const int spk_pass_all = PASS_ALL;
+const int spk_pass_finaliser = PASS_FINALISER;
 const unsigned int spk_flag_preserve = AST_FLAG_PRESERVE;
 const int spk_tk_actor = TK_ACTOR;
 const int spk_tk_last = TK_TEST_EXTRA;
+
+/* Drops the errors reported so far, so the next pass reports only its own. */
+void spk_errors_reset(pass_opt_t* opt)
+{
+  errors_free(opt->check.errors);
+  opt->check.errors = errors_alloc();
+}
+
+/* Loads the package at `path` into `program` parsed only, so that nodes can
+ * be added to it before the passes run. module_load would otherwise bring a
+ * late package straight up to the program's pass, while it is still empty. */
+ast_t* spk_module_load_parsed(ast_t* program, const char* path, pass_opt_t* opt)
+{
+  pass_id caught_up = opt->program_pass;
+  opt->program_pass = PASS_PARSE;
+  ast_t* module = module_load(program, path, opt);
+  opt->program_pass = caught_up;
+  return module;
+}
+
+/* Runs the passes up to the options' limit over `program` again, as a build
+ * does. Only the root's record of its last pass is cleared: packages that
+ * have been through the passes keep theirs and are skipped, and a package
+ * imported on the way catches up pass by pass, as in a build. */
+bool spk_program_passes(ast_t* program, pass_opt_t* opt)
+{
+  ast_clearflag(program, AST_FLAG_PASS_MASK);
+  opt->program_pass = PASS_PARSE;
+  return ast_passes_program(program, opt);
+}
 
 strtable_t* spk_opt_strtab(pass_opt_t* opt)
 {

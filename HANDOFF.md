@@ -12,15 +12,15 @@ Where the work stands, for the next session. Rewritten, not appended, at the end
 ## Where things stand
 
 - `main` has the step 1 translator, lowering straight to ponyc's AST with no text path (stage 4 done), `make install`, `sparkle check`, and the language skill in `skills/sparkle/`, every example of which `spec/docs_spec.cr` compiles.
-- `literal-defaults`: literals with nothing to type them get Crystal's `Int32` or `Float64` (spec, *Literal defaults*): `[1, 2]`, `c ? 1 : 2`, `{1, "a"}`, `7.string`, `"#{1 + 2}"`. Chars get none. Also links `.claude/skills/sparkle` to the skill, so this repository's own agents load it.
+- `main` also has Crystal's `Int32`/`Float64` defaults for literals nothing else types (spec, *Literal defaults*; chars get none), and `.claude/skills/sparkle` links the skill for this repository's agents. DESIGN.md records two decisions: `Int32` stays the default, and an OS is assumed.
+- `faster-field-loop`: `Ponyc::Session` keeps one compiler across the field-or-method loop's rounds, so the standard library is loaded once. `examples/ring` settles in 2.8 s instead of 7 s; `sparkle check` on it takes 2.9 s instead of 10 s, `sparkle run` 8.8 s instead of 13 s, and `make test` 4:35 instead of 5:42.
 - Still not lowered: a NUL escape in a string, and statements after a jump in the same block.
 - Open question for the user, in `DESIGN.md`: what happens to Pony's standard library after step 6. Settle before step 3.
 - Delegation, eight tasks so far. Stage 4's used about 55k, 186k (two rounds) and 87k subagent tokens; the reference pages 132k. Reviews sent one back for two gaps, and the docs task found two translator bugs that the tree comparisons had missed.
 
 ## What's next
 
-1. The field-or-method loop is slow with `use "collections"`: each round reloads every package, about 2.4 s, so `examples/ring` spends 7 s in three rounds (about 0.2 s a round with `builtin` alone). Keeping packages loaded between rounds might fix it; rewriting nodes in place would not. Measure before changing.
-2. `spec/docs_spec.cr` takes about 3.5 minutes, because most examples are built and run. Fewer output blocks, or a faster loop (item 1), would cut it.
-3. Roadmap step 2: the `ponyc` fork for `yield` inlining. Read the spike doc's "Not tested" first.
+1. `spec/docs_spec.cr` takes about 3 minutes, because most examples are built and run, and each build still starts a fresh `ponyc` to generate code (about 2 s with `collections`). Fewer output blocks, or compiling in the loop's session, would cut it.
+2. Roadmap step 2: the `ponyc` fork for `yield` inlining. Read the spike doc's "Not tested" first.
 
 Dropped for now, maybe for good: calls without parentheses. Deferred: methods inside an `enum`, flag enums, enum base types, destructuring assignment, a default type for chars.
