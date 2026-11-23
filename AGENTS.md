@@ -25,7 +25,7 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 - **A language change starts in the spec.** Add the rule to `docs/step1-spec.md` first, then follow the workflow in `DEVELOPMENT.md`, which ends with the user reference in `skills/sparkle/`.
 - **Do not work around the type system by editing an example.** If reasonable Sparkle fails to compile, fix the translator. Change the example only when Pony genuinely forbids the program, and say so.
-- **`vendor/ponyc` stays unmodified** until step 2's fork; Sparkle builds ponyc's AST but patches nothing. It is pinned to a release tag.
+- **`vendor/ponyc` stays unmodified**, pinned to a release tag. Sparkle builds ponyc's AST and patches nothing; a rule that needs types is done by type-check rounds, as `yield` inlining can be (docs/spike-yield.md).
 - **No lint suppressions.** No inline `ameba:disable`, no excluded files. Fix the code, or raise a threshold in `.ameba.yml` with a reason.
 - **Keep the documents current** in the same change. `DEVELOPMENT.md` lists which document owns what.
 - **Report results as they are.** If a spec is pending, a step was skipped, or something is untested, say so.
