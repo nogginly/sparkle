@@ -49,7 +49,7 @@ round 3 (0.14s): 0 errors; methods at none
 - **Errors are read as data.** `errors_get_first` gives each error's file, line, column and message, so the loop matches positions, not text it has to parse out of the terminal.
 - **The default has to be "field".** Calling a field is not an error Pony can report clearly: `env.out()` means `env.out.apply()`, so it fails with "couldn't find 'apply'", or compiles silently if the field's type has an `apply()`. A method referenced without a call, by contrast, always gives the one error above.
 - **Types can be read back.** `ast_type` and `ast_print_type` give each expression's type after `PASS_EXPR`. The type is also an AST, so a printer in Sparkle's syntax can walk it instead of rewriting text.
-- **A round costs about 0.15 s**, because each one reloads `builtin`. Code generation, which runs once, is still the 2 seconds that matter.
+- **A round costs about 0.15 s**, because each one reloads `builtin`. Code generation, which runs once, is still the 2 seconds that matter. Later measured: a program that uses `collections` costs about 2.4 s a round, since every round reloads every package.
 
 
 ## What it takes

@@ -5,6 +5,7 @@ module Sparkle
   USAGE = <<-TXT
     usage:
       sparkle translate PATH              print the lowered tree
+      sparkle check PATH                  type-check without generating code
       sparkle build PATH [-o DIR]         lower and compile with ponyc
       sparkle run PATH [-- args]          build, then run the binary
       sparkle caps PATH...                capability statistics
@@ -15,6 +16,7 @@ module Sparkle
       cmd = args.shift?
       case cmd
       when "translate" then exit translate(args)
+      when "check"     then exit args.size == 1 ? Driver.check(args[0]) : usage
       when "build"     then exit build(args)
       when "run"       then exit run_program(args)
       when "caps"      then exit caps(args)

@@ -171,7 +171,7 @@ The Crystal front end links `libponyc` and builds its AST directly, rather than 
 | 3. Parity | Every example and fixture gives the same tree, output and errors on both paths | Done |
 | 4. Switch | The AST path is the only one. Every rule the emitter's specs covered lowers to the tree `ponyc` parses from the same Pony; the emitter, the source map and the location half of the diagnostics rewriter are gone | Done |
 
-Not done, and not needed yet: the field-or-method loop lowers the whole package again each round instead of rewriting the nodes it settled. A round costs about 0.15 s, against about 2 s of code generation.
+Not done: making the field-or-method loop cheaper. Each round starts `ponyc` afresh and reloads every package the program uses: about 0.2 s for `builtin` alone, about 2.4 s once `collections` is used, so `examples/ring` spends 7 s in three rounds. Lowering is a small part of that, so rewriting settled nodes instead of lowering again would not help; keeping the packages loaded between rounds would.
 
 The AST's shape is internal to ponyc. `ponyc --pass=parse --astmodule` prints what the parser builds, and the lowering must match it, so it is re-checked on every Pony upgrade: the rule specs and each example's `expected.ast` catch a change.
 

@@ -111,6 +111,24 @@ module Sparkle
       end
     end
 
+    # Type-checks the `.spk` file or package at `path` without generating
+    # code, reporting errors as `build` does. Returns the exit code.
+    def self.check(path : String, err : IO = STDERR) : Int32
+      project = load_project(path, err) || return 1
+      current = 0
+      begin
+        calls = tree_calls(project) { |i| current = i }
+        ok, errors = Ponyc.check_tree_text(project.home) do |tree|
+          lower_project(tree, project, calls) { |i| current = i }
+        end
+        err.print Diagnostics.rewrite(errors, names: Rules.enum_names(project.programs))
+        ok ? 0 : 1
+      rescue e : ParseError
+        err.print format_error(project.files[current], project.sources[current], e)
+        1
+      end
+    end
+
     private def self.build_tree(project : Project, out_dir : String?, err : IO) : {Int32, String?}
       current = 0
       begin
