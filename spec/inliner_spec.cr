@@ -119,18 +119,32 @@ describe Inliner do
       out.should contain "`walk` reaches itself"
     end
 
-    it "says next in a block passed to a yielding method is not supported yet" do
-      code, out = inlined(BAG + <<-SPK)
+    it "says a used value with break in its block is not supported yet" do
+      code, out = inlined(BAG.sub("  def each_item", "  def total : UInt32\n    n : UInt32 = 0\n    @items.each do |x|\n      yield x\n    end\n    n\n  end\n\n  def each_item") + <<-SPK)
         actor Main
           def self.new(env : Env)
-            Bag.new.each_item do |v|
-              next
+            t = Bag.new.total do |v|
+              break
             end
           end
         end
         SPK
       code.should eq 1
-      out.should contain "`next` in a block passed to a yielding method is not supported yet"
+      out.should contain "a call whose value is used, with `break` in its block, is not supported yet"
+    end
+
+    it "says return with a value in a yielding method is not supported yet" do
+      code, out = inlined(BAG.sub("yield x", "return 1 if x > 1\n      yield x") + <<-SPK)
+        actor Main
+          def self.new(env : Env)
+            Bag.new.each_item do |v|
+              v
+            end
+          end
+        end
+        SPK
+      code.should eq 1
+      out.should contain "`return` with a value in a yielding method is not supported yet"
     end
 
     it "refuses a block with more parameters than yield passes" do

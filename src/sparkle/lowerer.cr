@@ -719,6 +719,8 @@ module Sparkle
       when Lambda           then lambda(e)
       when AmpMethod        then amp_method(e)
       when Yield            then stub_yield(e)
+      when Sequence         then seq(e, e.body, true)
+      when RunOnce          then @tree.node(Tk::REPEAT, at(e), [seq(e, e.body, false), @tree.node(Tk::SEQ, at(e), [@tree.node(Tk::TRUE, at(e))], scope: true), none], scope: true)
       else                       unsupported(e, "this expression")
       end
     end

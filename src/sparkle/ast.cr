@@ -80,6 +80,10 @@ module Sparkle
   node Raise, Expr
   # `yield a, b` in a yielding method; see `Inliner`.
   node Yield, Expr, args : Array(Expr)
+  # Made by the `Inliner`, never parsed: statements whose last is the value,
+  # and statements run once, in which `next` ends the run.
+  node Sequence, Expr, body : Array(Expr)
+  node RunOnce, Expr, body : Array(Expr)
   node Return, Expr, value : Expr?
   node Break, Expr
   node Next, Expr

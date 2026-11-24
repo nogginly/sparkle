@@ -284,7 +284,14 @@ end
 - **Errors** inside the copy are reported at the yielding method's line, with a note giving the call.
 - **Nesting.** A yielding method may call another with a block. Each level is one more type-checking round. A yielding method that reaches itself is an error.
 - **Arguments.** `yield` takes values as a call does, with or without parentheses. A block may name fewer parameters than `yield` passes; the rest are ignored. Naming more is an error.
-- **Not yet:** a call to a yielding method used as a value, `yield` used as a value (`map`, `select`), and `next`, `break` or `return` in a block passed to a yielding method (outside a loop of its own), or `return` in a yielding method. Each is an error that says so.
+- **Values.** `yield a` used as a value is the block's last statement, so `total += yield x` sums what the block gives. A call whose value is used becomes a sequence expression whose last statement is the method's.
+- **Jumps.** In the block, outside a loop of its own:
+  - `next` ends this run of the block; each run is a `repeat … until true`, whose `continue` leaves it.
+  - `break` leaves the whole call, skipping the rest of the method, as in Crystal: a flag local is set, the run ends, and each loop of the copy that holds the `yield` breaks when it is set, while the statements after it are skipped.
+  - `return` returns from the method around the call, since the block runs there.
+  
+  In the yielding method, a bare `return` leaves the call, by the same flag.
+- **Not yet**, each an error that says so: `return` with a value in a yielding method; `next` or `break` in a block whose call's value is used, or whose `yield` value is used; and `return` in a yielding method whose call's value is used.
 
 ## 5. Tooling
 
