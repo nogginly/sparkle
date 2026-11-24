@@ -96,6 +96,14 @@ The compiler is linked from `.tools/ponyc/lib/<arch>/libponyc-standalone.a`, wit
 
 Sparkle targets systems with an operating system: servers, desktops and embedded Linux today, and possibly a real-time OS later. Bare metal, with no OS at all, is not a goal. Pony's runtime needs threads and memory mapping, and Sparkle keeps that.
 
+### Crystal's idiom, unless it breaks capabilities or contracts
+
+Sparkle reads like Crystal or Ruby wherever it can. Where Crystal's idiom would weaken reference capabilities, or make contracts unsound or unprovable, Sparkle designs a form of its own rather than copy Crystal. I/O is the expected case: Crystal reaches files through ambient authority (`File.read("x")`), and Pony requires an authority token from `env.root`.
+
+### Wrap Pony's standard library
+
+Sparkle keeps Pony's standard library and puts Crystal-style layers over it, rather than keeping Pony's style or rewriting it. A method that `yield`s is never compiled, only copied into its callers, so Enumerable can be a set of inline-only methods on Pony's own collections, and other wrappers thin Sparkle types over Pony's packages. Keeping Pony's garbage collector removes the risk this carried: the library runs on the runtime it was written for.
+
 ### Build on Pony, not Crystal
 
 Pony already has reference capabilities, actors, local type inference and an LLVM back end. Starting from Crystal would mean tearing out its global type inference and its garbage collector, then adding everything Pony has.
@@ -151,21 +159,17 @@ Range types (`Int(1..10)`). An exhaustive `case … in` over an enum covers the 
 ```mermaid
 flowchart TD
     S1["1. Parser and simple sugar<br/>(lowers to ponyc's AST)"] --> S2["2. Inlined yield blocks<br/>(in Sparkle, by type-check rounds)"]
-    S2 --> S3["3. Enumerable and Array<br/>rewritten on yield"]
-    S3 --> S4["4. Capability defaults<br/>tuned on real code"]
-    S4 --> S5["5. Rest of the collections<br/>and String"]
-    S5 --> S6["6. Memory model: arenas,<br/>replace Pony's GC"]
-    S6 --> S7["7. Contracts: runtime first,<br/>then proofs with an SMT solver"]
+    S2 --> S3["3. Runtime contracts:<br/>requires, ensures, invariant"]
+    S3 --> S4["4. Enumerable and Array,<br/>inline-only over Pony's types"]
+    S4 --> S5["5. Capability defaults<br/>tuned on real code"]
+    S5 --> S6["6. Rest of the collections,<br/>String, Crystal-style wrappers"]
+    S6 --> S7["7. Contracts proved<br/>with an SMT solver"]
+    S7 -.-> S8["Deferred: arenas<br/>replacing Pony's GC"]
     style S1 stroke:#2e7d32,stroke-width:3px
+    style S2 stroke:#2e7d32,stroke-width:3px
 ```
 
-Step 1 is built. Where `ponyc` comes from changes as the steps advance:
-
-| Phase | Source of `ponyc` |
-|---|---|
-| Step 1 | Submodule pinned to an upstream release tag, unmodified |
-| Steps 2–5 | The same release, while every type-dependent rule can be done in Sparkle by type-check rounds, as `yield` inlining can ([docs/spike-yield.md](docs/spike-yield.md)). A fork, a small set of named patches rebased onto each release, only if a rule must change the type checker mid-pass |
-| Step 6 onward | The runtime diverges; stop tracking upstream or switch to `git subtree` |
+Steps 1 and 2 are built; step 2 lacks `return` with a value in a yielding method, and `next` or `break` where the call's value is used. Contracts come before the library because the user wants them sooner, and because how a contract fails and what it may call shape the rest ([docs/contracts-design.md](docs/contracts-design.md)). Arenas are deferred, perhaps for good: Pony's garbage collector stays, and with it the unmodified upstream `ponyc`. A fork, a small set of named patches rebased onto each release, is needed only if a rule must change the type checker mid-pass; type-check rounds have covered every rule so far ([docs/spike-yield.md](docs/spike-yield.md)).
 
 ### One binary
 
@@ -221,17 +225,7 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 
 - **Reopening types.** Allow adding methods to an existing type elsewhere, or not? Forbidding it keeps a type's methods in one place, which makes contracts easier to prove.
 - **Macros.** Now, later or never? A few built-in declarations (`getter`, `property`, `record`) might cover most uses.
-- **Is Pony's garbage collector actually a problem?** It collects per actor, between behaviours, with no stop-the-world pause. The real reason to remove it may be runtime size, not latency.
-- **What happens to Pony's standard library?** Today Sparkle uses all of it. Steps 3 and 5 rewrite `Enumerable`, the collections and `String` in Sparkle's style; nothing says what happens to the rest (files, networking, time, processes) once step 6 forks the runtime. Three end states:
-
-  | Option | Gain | Cost |
-  |---|---|---|
-  | Sparkle's own core, Pony's library for the rest, for good | Cheapest; inherits a large, tested library written to the same capability rules | The language reads two ways: Crystal style for collections, Pony style for I/O. After the fork, every kept package is code Sparkle maintains alone |
-  | Rewrite everything in Sparkle, in time | One consistent library | The most work, and none of Pony's maturity |
-  | Wrap rather than rewrite: thin Sparkle-style layers over Pony's packages, such as a Crystal-like `File` over `files` | Consistent on the surface, cheap underneath | Depends on Pony's library surviving step 6's arenas, for example objects that outlive the behaviour that made them |
-
-  Two questions decide it: how far a Sparkle program should read like Crystal rather than Pony with Crystal's syntax, and whether Sparkle keeps pulling from upstream Pony after step 6. It should be settled before step 3 commits to a direction.
-
+- **Is Pony's garbage collector actually a problem?** It collects per actor, between behaviours, with no stop-the-world pause. The real reason to remove it may be runtime size, not latency. Arenas are deferred until this is answered.
 ## Not built
 
 - `return` with a value in a yielding method, and `next` or `break` in a block whose call's value is used
@@ -244,4 +238,4 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 - Generic method calls
 - Reopening types
 - Ranges and `times` over anything but `USize`
-- Contracts, arenas, futures: everything from step 2 onward
+- Contracts, Sparkle packages beyond one, and everything from step 3 onward
