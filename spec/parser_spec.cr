@@ -20,6 +20,12 @@ describe Parser do
     d.methods[0].body.try(&.size).should eq 1
   end
 
+  it "parses yield with and without parentheses" do
+    expr("yield").as(Yield).args.should be_empty
+    expr("yield x, 2").as(Yield).args.size.should eq 2
+    expr("yield(x)").as(Yield).args[0].as(Ident).name.should eq "x"
+  end
+
   it "attaches line and column to nodes" do
     e = expr("foo(1)")
     {e.line, e.col}.should eq({3, 5})

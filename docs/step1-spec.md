@@ -247,6 +247,45 @@ Step 1 has no `yield`. A block is either loop sugar or a lambda.
 
 `break` and `next` work inside loop sugar because it is a real Pony loop.
 
+### `yield` (step 2)
+
+A method whose body contains `yield` is a **yielding method**. It is not compiled by itself. Each call to it with a block is replaced by a copy of its body, in which `yield a, b` runs the block with its parameters bound to `a` and `b`. The block runs in the caller, so it can assign the caller's locals, which a lambda cannot.
+
+```crystal
+class Bag
+  @items : Array(UInt32)
+
+  def each_item
+    @items.each do |x|
+      yield x
+    end
+  end
+end
+
+total : UInt32 = 0
+bag.each_item do |v|
+  total += v
+end
+```
+
+becomes, in place of the call:
+
+```pony
+var y1_self = bag
+for y1_x in y1_self._yf_items().values() do
+  var v = y1_x
+  total = total + v
+end
+```
+
+- **Which method.** The receiver's type decides, read from a type-checking round as for fields and methods (see *Fields and methods*). A call with no receiver inside a type is that type's. A call whose receiver's type has no yielding method of that name is lowered as before, as loop sugar or a lambda, so `xs.each do … end` on an `Array` is still a `for` loop.
+- **Names.** The copy's receiver, parameters and locals get a fresh prefix (`y1_`), so they cannot clash with the caller's. Error messages print them without it.
+- **Fields.** Pony fields are private to their type, so the copy reads `@items` through a generated method `_yf_items`, private to the package, with the yielding method's capability and the return type `this->` the field's type.
+- **Errors** inside the copy are reported at the yielding method's line, with a note giving the call.
+- **Nesting.** A yielding method may call another with a block. Each level is one more type-checking round. A yielding method that reaches itself is an error.
+- **Arguments.** `yield` takes values as a call does, with or without parentheses. A block may name fewer parameters than `yield` passes; the rest are ignored. Naming more is an error.
+- **Not yet:** a call to a yielding method used as a value, `yield` used as a value (`map`, `select`), and `next`, `break` or `return` in a block passed to a yielding method (outside a loop of its own), or `return` in a yielding method. Each is an error that says so.
+
 ## 5. Tooling
 
 1. **Positions.** Every lowered node carries the `.spk` file, line and column it came from, so `ponyc` reports errors at the Sparkle line and quotes it.
@@ -267,7 +306,7 @@ sparkle caps PATH...                # capability statistics
 
 ## 7. Not in step 1
 
-`yield`, macros (`getter`, `property`, `record`), methods inside an `enum`, calls with arguments but no parentheses (`puts "x"`), hash and symbol literals, FFI, `let`/`embed` fields, generic method calls, reopening types.
+Macros (`getter`, `property`, `record`), methods inside an `enum`, calls with arguments but no parentheses (`puts "x"`), hash and symbol literals, FFI, `let`/`embed` fields, generic method calls, reopening types.
 
 ## 8. Known semantic gaps
 

@@ -850,6 +850,9 @@ module Sparkle
       when "next"
         advance
         Next.new(t.line, t.col)
+      when "yield"
+        advance
+        Yield.new(t.line, t.col, parse_yield_args)
       when "recover"
         parse_recover
       else
@@ -869,6 +872,25 @@ module Sparkle
       body = parse_stmts
       expect_kw("end")
       Recover.new(t.line, t.col, cap, body)
+    end
+
+    # `yield(a, b)`, `yield a, b` or a bare `yield`.
+    private def parse_yield_args : Array(Expr)
+      args = [] of Expr
+      if tok.op?("(") && !tok.space_before?
+        advance
+        skip_nl
+        named = [] of NamedArg
+        parse_call_args(args, named)
+        expect_op(")")
+        error("`yield` takes no named arguments", tok) unless named.empty?
+      elsif value_follows?
+        args << parse_expr
+        while accept_op(",")
+          args << parse_expr
+        end
+      end
+      args
     end
 
     private def value_follows? : Bool
