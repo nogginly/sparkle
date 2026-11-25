@@ -1,24 +1,28 @@
 # Contracts: a design proposal
 
-How contracts look in Sparkle, what they mean, and how they lower to Pony. It is a proposal: the choices marked **Decision** are open. Roadmap step 3 builds runtime checks; step 7 proves them. Two facts were checked against Pony 0.78.2 first: a lowered check can report a failure and exit through FFI that Sparkle emits itself, without offering FFI to users; and a contract evaluated through a `box` view of `self` cannot call a `ref` method, so ponyc itself keeps contracts free of state changes.
+How contracts look in Sparkle, what they mean, and how they lower to Pony. The syntax is settled; the choices still marked **Decision** are open. Roadmap step 3 builds runtime checks; step 7 proves them. Two facts were checked against Pony 0.78.2 first: a lowered check can report a failure and exit through FFI that Sparkle emits itself, without offering FFI to users; and a contract evaluated through a `box` view of `self` cannot call a `ref` method, so ponyc itself keeps contracts free of state changes.
 
 ## What they look like
 
+**A clause follows the declaration it constrains, before that declaration's body.** A method's clauses sit with its parameters and return type, as in Dafny; a type's invariants sit at the top of the type.
+
 ```crystal
 class Account
-  @balance : Int64 = 0
-
   invariant @balance >= 0
 
-  requires amount > 0
-  ensures @balance == old(@balance) + amount
+  @balance : Int64 = 0
+
   def ref deposit(amount : Int64)
+    expects amount > 0
+    guarantees @balance == old(@balance) + amount
+
     @balance += amount
   end
 
-  requires amount > 0, amount <= @balance
-  ensures result == amount
   def ref withdraw(amount : Int64) : Int64
+    expects amount > 0, amount <= @balance
+    guarantees result == amount
+
     @balance -= amount
     amount
   end
@@ -29,15 +33,19 @@ end
 
 | Clause | Where | Checked | A failure means |
 |---|---|---|---|
-| `requires cond, …` | before a `def` or `be` | on entry, after the arguments are bound | the caller broke the contract |
-| `ensures cond, …` | before a `def` | on every normal return | the method broke its promise |
-| `invariant cond` | in a type's body | after each constructor, and around each `ref` method and behaviour | the type broke its own rule |
+| `expects cond, …` | first lines of a `def` or `be` | on entry, after the arguments are bound | the caller broke the contract |
+| `guarantees cond, …` | first lines of a `def`, after any `expects` | on every normal return | the method broke its promise |
+| `invariant cond` | first lines of a `class` or `actor`, before any field or method | after each constructor, and around each `ref` method and behaviour | the type broke its own rule |
 
-- `result` in `ensures` is the method's return value.
+- The body starts at the first line that is not a clause. No separator is needed, because a clause keyword cannot start a statement.
+- A clause anywhere else is an error, so an invariant cannot drift into the middle of a type.
+- A method with clauses uses the long form, `def … end`; `def x : T = expr` takes none.
+- `result` in `guarantees` is the method's return value.
 - `old(expr)` is `expr` evaluated on entry, before the body runs.
+- `result` and `old` are keywords only inside `guarantees`, so a local named `result` elsewhere is unaffected.
 - Several conditions in one clause are joined by `and`; each is reported on its own.
 
-Prior art: Eiffel's `require`, `ensure`, `invariant` and `old`; Ada and SPARK's `Pre`, `Post` and `'Old`; D's `in` and `out`; Dafny's `requires` and `ensures`. Crystal has none, so there is no idiom to copy; clauses written before the `def`, like annotations, keep the body as Crystal would have it.
+The words are `expects` and `guarantees`, not Dafny's `requires` and `ensures`: `ensures` is one letter from `ensure`, which already runs cleanup code in `begin … rescue … ensure`. Prior art: Eiffel's `require`, `ensure`, `invariant` and `old`; Ada and SPARK's `Pre`, `Post` and `'Old`; D's `in` and `out`; Dafny's `requires`, `ensures` and `invariant`, whose placement Sparkle follows.
 
 ## How they lower
 
@@ -45,11 +53,11 @@ A contracted method becomes two: the body, renamed, and a wrapper with the origi
 
 ```mermaid
 flowchart TD
-    C["Caller calls deposit(amount)"] --> R{{"requires holds?"}}
+    C["Caller calls deposit(amount)"] --> R{{"expects holds?"}}
     R -- no --> F["Report the clause and its .spk line,<br/>exit with status 1"]
     R -- yes --> O["Evaluate old(...) values"]
     O --> B["Run the body:<br/>_spk_deposit(amount)"]
-    B --> E{{"ensures and invariant hold?"}}
+    B --> E{{"guarantees and invariant hold?"}}
     E -- no --> F
     E -- yes --> Ret["Return the result"]
 ```
@@ -57,11 +65,11 @@ flowchart TD
 ```pony
 fun ref deposit(amount: I64) =>
   let view: Account box = this
-  if not (amount > 0) then _SpkContract.fail("main.spk:7: requires amount > 0") end
+  if not (amount > 0) then _SpkContract.fail("main.spk:8: expects amount > 0") end
   let old_balance = view._balance
   _spk_deposit(amount)
-  if not (view._balance == (old_balance + amount)) then _SpkContract.fail("main.spk:8: ensures ...") end
-  if not (view._balance >= 0) then _SpkContract.fail("main.spk:4: invariant @balance >= 0") end
+  if not (view._balance == (old_balance + amount)) then _SpkContract.fail("main.spk:9: guarantees ...") end
+  if not (view._balance >= 0) then _SpkContract.fail("main.spk:2: invariant @balance >= 0") end
 ```
 
 - **Read-only by construction.** Every condition is evaluated through `view`, a `box` alias of `self`, and arguments are seen as `box` too. Calling a `ref` method from a contract is then a type error from ponyc, not a convention. One hole remains: a `box` method may still send a message to an actor. Rejecting behaviour calls in contracts closes it.
@@ -74,10 +82,10 @@ fun ref deposit(amount: I64) =>
 |---|---|
 | `box` method | Cannot change `self`, so its invariant is not rechecked |
 | `ref` method | Invariant checked after it returns; before it as well, which catches a broken object early but costs twice |
-| Constructor | `requires` on entry; invariant on exit; `ensures` may name the new object's fields |
-| Behaviour (`be`) | `requires` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `ensures` is not allowed, because no caller sees the end. The invariant is checked after each behaviour |
-| Partial method (`!`) | `ensures` holds only on normal return; when it fails, no promise is made |
-| Yielding method | Clauses are copied with the body into each call; `ensures` cannot see a block's effects, so only `requires` is allowed for now |
+| Constructor | `expects` on entry; invariant on exit; `guarantees` may name the new object's fields |
+| Behaviour (`be`) | `expects` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `guarantees` is not allowed, because no caller sees the end. The invariant is checked after each behaviour |
+| Partial method (`!`) | `guarantees` holds only on normal return; when it fails, no promise is made |
+| Yielding method | Clauses are copied with the body into each call; `guarantees` cannot see a block's effects, so only `expects` is allowed for now |
 
 Actors suit invariants well. An actor's state changes only inside its behaviours, one message at a time, so an invariant checked after each behaviour holds whenever any other actor could observe it.
 
@@ -88,10 +96,10 @@ Actors suit invariants well. An actor's state changes only inside its behaviours
 | Option | Trade-off |
 |---|---|
 | All checks, always | Safest; costs time on every call, about two branches per clause |
-| `requires` only | Callers stay protected; the type's own promises are trusted once tested. Eiffel's common choice |
+| `expects` only | Callers stay protected; the type's own promises are trusted once tested. Eiffel's common choice |
 | None | Fastest; a bug is then silent in production |
 
-Recommendation: `requires` only, with a flag such as `--contracts=all` to keep everything.
+Recommendation: `expects` only, with a flag such as `--contracts=all` to keep everything.
 
 ## What proving needs (step 7)
 
@@ -101,16 +109,28 @@ Contracts written now should be provable later, which constrains the language of
 - Quantifiers will be Enumerable blocks: `(0...n).all? { |i| @items[i]! >= 0 }`. With `yield` inlined, an SMT encoding can read the block as the formula.
 - Pony's capabilities help: an `iso` or `val` cannot be aliased and changed behind a proof's back, which is the hard part of proving imperative code.
 
-## Decisions for the user
+## Parked
 
-1. **Syntax**: clauses before the `def` (shown above), or inside it, after the signature, as Eiffel does. Before the `def` keeps a Crystal body unchanged and reads like an annotation.
-2. **Release builds**: see above; recommended: `requires` only.
-3. **Invariants around `ref` methods**: after only (cheaper), or before and after (catches more).
-4. **Failure**: exit with a message, as proposed, or raise a Pony `error`, which a caller could recover from but which makes every contracted method partial.
+- **Invariants on a field** (`@balance : Int64 = 0` with a clause under it). A rule over two fields belongs to neither, so the type-level invariant comes first; the field form would be sugar for it.
+- **Constrained types**, Dafny's subset types: `alias Balance = Int64 where self >= 0`. The rule travels with the value and replaces many `expects` clauses (`def withdraw(amount : Positive)`), but Pony has no such types, so a runtime check would run at every assignment and call. Revisit with step 7.
+
+## Decisions
+
+Settled:
+
+1. **Syntax**: clauses are the first lines of the declaration they constrain, with no separator before the body.
+2. **Words**: `expects`, `guarantees`, `invariant`; they may change once used in practice.
+3. **Invariants**: on a type only, for now.
+
+Open:
+
+4. **Release builds**: see above; recommended: `expects` only.
+5. **Invariants around `ref` methods**: after only (cheaper), or before and after (catches more).
+6. **Failure**: exit with a message, as proposed, or raise a Pony `error`, which a caller could recover from but which makes every contracted method partial.
 
 ## Building it
 
-1. Parse `requires`, `ensures`, `invariant`, `old` and `result`; a spec section first.
+1. Parse `expects`, `guarantees`, `invariant`, `old` and `result`; a spec section first.
 2. Lower contracted methods to a wrapper and a body, with the `box` view, the FFI failure and `old` values. Errors in clauses are reported at their `.spk` lines.
 3. Invariants, constructors and behaviours.
 4. `--release` handling, and the skill's reference page.
