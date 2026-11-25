@@ -57,4 +57,4 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 ## What comes next
 
-Step 2 of the roadmap in `DESIGN.md`. The `libponyc` spike is done and the plan holds; read [docs/spike-libponyc.md](docs/spike-libponyc.md) before starting, including what it left untested.
+Step 3 of the roadmap in `DESIGN.md`: runtime contracts. Read the proposal, [docs/contracts-design.md](docs/contracts-design.md), and the user's answers to its decisions before starting.
