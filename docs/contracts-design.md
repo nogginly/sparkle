@@ -1,6 +1,6 @@
 # Contracts: a design proposal
 
-How contracts look in Sparkle, what they mean, and how they lower to Pony. The syntax is settled; the choices still marked **Decision** are open. Roadmap step 3 builds runtime checks; step 7 proves them. Two facts were checked against Pony 0.78.2 first: a lowered check can report a failure and exit through FFI that Sparkle emits itself, without offering FFI to users; and a contract evaluated through a `box` view of `self` cannot call a `ref` method, so ponyc itself keeps contracts free of state changes.
+How contracts look in Sparkle, what they mean, and how they lower to Pony. The decisions are settled; they are listed at the end. Roadmap step 3 builds runtime checks; step 7 proves them. Two facts were checked against Pony 0.78.2 first: a lowered check can report a failure and exit through FFI that Sparkle emits itself, without offering FFI to users; and a contract evaluated through a `box` view of `self` cannot call a `ref` method, so ponyc itself keeps contracts free of state changes.
 
 ## What they look like
 
@@ -81,7 +81,7 @@ fun ref deposit(amount: I64) =>
 | Case | Rule |
 |---|---|
 | `box` method | Cannot change `self`, so its invariant is not rechecked |
-| `ref` method | Invariant checked after it returns; before it as well, which catches a broken object early but costs twice |
+| `ref` method | Invariant checked after it returns. Not before: every way in is already checked on its way out |
 | Constructor | `expects` on entry; invariant on exit; `guarantees` may name the new object's fields |
 | Behaviour (`be`) | `expects` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `guarantees` is not allowed, because no caller sees the end. The invariant is checked after each behaviour |
 | Partial method (`!`) | `guarantees` holds only on normal return; when it fails, no promise is made |
@@ -91,15 +91,13 @@ Actors suit invariants well. An actor's state changes only inside its behaviours
 
 ## Release builds
 
-**Decision:** what `--release` keeps.
+A debug build checks every clause. `--release` keeps only `expects`: callers stay protected, and the type's own promises are trusted once tested, which is Eiffel's common choice. `--contracts=all` keeps everything in a release build.
 
-| Option | Trade-off |
-|---|---|
-| All checks, always | Safest; costs time on every call, about two branches per clause |
-| `expects` only | Callers stay protected; the type's own promises are trusted once tested. Eiffel's common choice |
-| None | Fastest; a bug is then silent in production |
-
-Recommendation: `expects` only, with a flag such as `--contracts=all` to keep everything.
+| Build | `expects` | `guarantees` | `maintains` |
+|---|---|---|---|
+| debug (default) | checked | checked | checked |
+| `--release` | checked | — | — |
+| `--release --contracts=all` | checked | checked | checked |
 
 ## What proving needs (step 7)
 
@@ -117,17 +115,12 @@ Contracts written now should be provable later, which constrains the language of
 
 ## Decisions
 
-Settled:
-
 1. **Syntax**: clauses are the first lines of the declaration they constrain, with no separator before the body.
 2. **Words**: `expects`, `guarantees`, `maintains`; they may change once used in practice.
 3. **Invariants**: on a type only, for now.
-
-Open:
-
-4. **Release builds**: see above; recommended: `expects` only.
-5. **Invariants around `ref` methods**: after only (cheaper), or before and after (catches more).
-6. **Failure**: exit with a message, as proposed, or raise a Pony `error`, which a caller could recover from but which makes every contracted method partial.
+4. **Release builds**: `expects` only; `--contracts=all` keeps everything.
+5. **Invariants around `ref` methods**: checked after only. Revisit if a case turns up where one method's exit is not the next one's entry.
+6. **Failure**: print the clause and its `.spk` location, exit with status 1. Never a Pony `error`.
 
 ## Building it
 
