@@ -8,7 +8,7 @@ How contracts look in Sparkle, what they mean, and how they lower to Pony. The s
 
 ```crystal
 class Account
-  invariant @balance >= 0
+  maintains @balance >= 0
 
   @balance : Int64 = 0
 
@@ -35,7 +35,7 @@ end
 |---|---|---|---|
 | `expects cond, …` | first lines of a `def` or `be` | on entry, after the arguments are bound | the caller broke the contract |
 | `guarantees cond, …` | first lines of a `def`, after any `expects` | on every normal return | the method broke its promise |
-| `invariant cond` | first lines of a `class` or `actor`, before any field or method | after each constructor, and around each `ref` method and behaviour | the type broke its own rule |
+| `maintains cond` | first lines of a `class` or `actor`, before any field or method | after each constructor, and around each `ref` method and behaviour | the type broke its own rule |
 
 - The body starts at the first line that is not a clause. No separator is needed, because a clause keyword cannot start a statement.
 - A clause anywhere else is an error, so an invariant cannot drift into the middle of a type.
@@ -45,7 +45,7 @@ end
 - `result` and `old` are keywords only inside `guarantees`, so a local named `result` elsewhere is unaffected.
 - Several conditions in one clause are joined by `and`; each is reported on its own.
 
-The words are `expects` and `guarantees`, not Dafny's `requires` and `ensures`: `ensures` is one letter from `ensure`, which already runs cleanup code in `begin … rescue … ensure`. Prior art: Eiffel's `require`, `ensure`, `invariant` and `old`; Ada and SPARK's `Pre`, `Post` and `'Old`; D's `in` and `out`; Dafny's `requires`, `ensures` and `invariant`, whose placement Sparkle follows.
+The words are verbs whose subject is the method or the type: `withdraw` expects and guarantees; `Account` maintains. They are not Dafny's `requires` and `ensures`, because `ensures` is one letter from `ensure`, which already runs cleanup code in `begin … rescue … ensure`. `maintains` covers both halves of an invariant: a constructor makes it true, and each method keeps it true. The rule it states is still called an invariant. Prior art: Eiffel's `require`, `ensure`, `invariant` and `old`; Ada and SPARK's `Pre`, `Post` and `'Old`; D's `in` and `out`; Dafny's `requires`, `ensures` and `invariant`, whose placement Sparkle follows.
 
 ## How they lower
 
@@ -69,7 +69,7 @@ fun ref deposit(amount: I64) =>
   let old_balance = view._balance
   _spk_deposit(amount)
   if not (view._balance == (old_balance + amount)) then _SpkContract.fail("main.spk:9: guarantees ...") end
-  if not (view._balance >= 0) then _SpkContract.fail("main.spk:2: invariant @balance >= 0") end
+  if not (view._balance >= 0) then _SpkContract.fail("main.spk:2: maintains @balance >= 0") end
 ```
 
 - **Read-only by construction.** Every condition is evaluated through `view`, a `box` alias of `self`, and arguments are seen as `box` too. Calling a `ref` method from a contract is then a type error from ponyc, not a convention. One hole remains: a `box` method may still send a message to an actor. Rejecting behaviour calls in contracts closes it.
@@ -107,6 +107,7 @@ Contracts written now should be provable later, which constrains the language of
 
 - Conditions should call only methods that are themselves free of effects. `box` gives that for `self`; a proof also needs it for every call, so step 7 may add a `pure` marker, or infer it.
 - Quantifiers will be Enumerable blocks: `(0...n).all? { |i| @items[i]! >= 0 }`. With `yield` inlined, an SMT encoding can read the block as the formula.
+- Loop invariants will use the same word, as the first lines of a loop: `while i < n` then `maintains 0 <= i, i <= n`.
 - Pony's capabilities help: an `iso` or `val` cannot be aliased and changed behind a proof's back, which is the hard part of proving imperative code.
 
 ## Parked
@@ -119,7 +120,7 @@ Contracts written now should be provable later, which constrains the language of
 Settled:
 
 1. **Syntax**: clauses are the first lines of the declaration they constrain, with no separator before the body.
-2. **Words**: `expects`, `guarantees`, `invariant`; they may change once used in practice.
+2. **Words**: `expects`, `guarantees`, `maintains`; they may change once used in practice.
 3. **Invariants**: on a type only, for now.
 
 Open:
@@ -130,7 +131,7 @@ Open:
 
 ## Building it
 
-1. Parse `expects`, `guarantees`, `invariant`, `old` and `result`; a spec section first.
+1. Parse `expects`, `guarantees`, `maintains`, `old` and `result`; a spec section first.
 2. Lower contracted methods to a wrapper and a body, with the `box` view, the FFI failure and `old` values. Errors in clauses are reported at their `.spk` lines.
 3. Invariants, constructors and behaviours.
 4. `--release` handling, and the skill's reference page.

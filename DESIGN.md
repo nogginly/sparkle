@@ -159,7 +159,7 @@ Range types (`Int(1..10)`). An exhaustive `case … in` over an enum covers the 
 ```mermaid
 flowchart TD
     S1["1. Parser and simple sugar<br/>(lowers to ponyc's AST)"] --> S2["2. Inlined yield blocks<br/>(in Sparkle, by type-check rounds)"]
-    S2 --> S3["3. Runtime contracts:<br/>expects, guarantees, invariant"]
+    S2 --> S3["3. Runtime contracts:<br/>expects, guarantees, maintains"]
     S3 --> S4["4. Enumerable and Array,<br/>inline-only over Pony's types"]
     S4 --> S5["5. Capability defaults<br/>tuned on real code"]
     S5 --> S6["6. Rest of the collections,<br/>String, Crystal-style wrappers"]
