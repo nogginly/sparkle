@@ -87,6 +87,11 @@ module Sparkle::Ponyc
       LibPonyc.ast_add(@file, node(Tk::USE, nil, [none, named(Tk::STRING, path), none]))
     end
 
+    # Puts `use @decl` before everything else in the package.
+    def use_ffi(decl : Node) : Nil
+      LibPonyc.ast_add(@file, node(Tk::USE, nil, [none, decl, none]))
+    end
+
     # Appends a type declaration to the package.
     def add(entity : Node) : Nil
       LibPonyc.ast_append(@file, entity)

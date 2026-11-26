@@ -94,23 +94,34 @@ module Sparkle
   node RangeLit, Expr, from : Expr, to : Expr, exclusive : Bool
   node AsCast, Expr, expr : Expr, type : TypeNode
   node EnumRef, Expr, enum_name : String, member : String
+  # `old(expr)` and `result`, only inside a `guarantees` clause.
+  node Old, Expr, expr : Expr
+  node ResultRef, Expr
 
   # Where a capability was written, for `sparkle caps`.
   record CapUse, position : String, cap : String, line : Int32, col : Int32
 
   node Field, Node, name : String, type : TypeNode?, init : Expr?
 
+  # One condition of an `expects`, `guarantees` or `maintains` clause, with
+  # its source text; `kind` is the clause's word.
+  node Clause, Node, kind : String, cond : Expr, text : String
+
   # `kind` is "def", "be" or "abstract"; `self_recv` marks `def self.name`.
-  node Method, Node, kind : String, cap : String?, self_recv : Bool, name : String, params : Array(Param), ret : TypeNode?, body : Array(Expr)?, name_line : Int32, name_col : Int32
+  node Method, Node, kind : String, cap : String?, self_recv : Bool, name : String, params : Array(Param), ret : TypeNode?, body : Array(Expr)?, name_line : Int32, name_col : Int32, expects : Array(Clause) = [] of Clause, guarantees : Array(Clause) = [] of Clause
 
   node TypeParam, Node, name : String, constraint : TypeNode?
-  node TypeDecl, Node, kind : String, cap : String?, name : String, tparams : Array(TypeParam), includes : Array(TypeNode), fields : Array(Field), methods : Array(Method)
+  node TypeDecl, Node, kind : String, cap : String?, name : String, tparams : Array(TypeParam), includes : Array(TypeNode), fields : Array(Field), methods : Array(Method), maintains : Array(Clause) = [] of Clause
   node AliasDecl, Node, name : String, type : TypeNode
   node UseDecl, Node, path : String
 
   # `value` is the member's resolved integer value.
   node EnumMember, Node, name : String, value : Int64
   node EnumDecl, Node, name : String, members : Array(EnumMember)
+
+  # The primitive `_SpkContract` and the C functions it calls, which the
+  # checks made by `Contracts` need once per package.
+  node ContractSupport, Node
 
   class Program
     getter items : Array(Node)

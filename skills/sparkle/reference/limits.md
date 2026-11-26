@@ -16,6 +16,7 @@ What Sparkle does not do, and what to write instead.
 | Reopening a type | Declare it once |
 | Methods, flags or a base type inside an `enum` | Put the methods on a `primitive` |
 | Destructuring: `(a, b) = pair` | Read `pair._1` and `pair._2` |
+| Contract clauses on a method that yields, an abstract method or a `tag` method; `maintains` in a trait, interface or primitive | Check in the callers, or in a method that does not yield |
 
 ## Typeless translation
 
@@ -39,6 +40,14 @@ Sparkle translates before it knows types. These follow, each with its way out.
 | An index, setter or field write cannot be used as a value: `y = (a[0] = 1)` | Assign on one line, read on the next |
 | `x = (y = consume z)` fails for an `iso` `z`: reading the assignment aliases it | `y = consume z`, then `consume y` |
 | A variable first assigned inside an `if` or a loop exists only there | Assign it before the block |
+
+## Order of evaluation
+
+Pony evaluates a method call's arguments before its receiver. Arithmetic on numbers runs left to right, but `String`'s `+` is a method, and an interpolated string is a chain of `+`, so its parts run from the right:
+
+| Gap | Instead |
+|---|---|
+| `"took #{a.take(5)}, left #{a.left}"` reads `left` before `take` runs | `n = a.take(5)` on its own line, then interpolate `n` |
 
 ## Syntax
 

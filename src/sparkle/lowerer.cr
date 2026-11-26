@@ -2,6 +2,7 @@ require "./ast"
 require "./rules"
 require "./pony_type"
 require "./ponyc/tree"
+require "./contracts"
 
 module Sparkle
   # Lowers a Sparkle program to ponyc AST nodes, in the shape ponyc's parser
@@ -65,16 +66,60 @@ module Sparkle
       @collections = false
       program.items.each do |item|
         case item
-        when TypeDecl  then @tree.add(entity(item))
-        when EnumDecl  then enum_decl(item).each { |node| @tree.add(node) }
-        when AliasDecl then @tree.add(type_alias(item.name, type(item.type), at(item)))
-        when UseDecl   then next
-        else                unsupported(item, "this declaration")
+        when TypeDecl        then @tree.add(entity(item))
+        when EnumDecl        then enum_decl(item).each { |node| @tree.add(node) }
+        when AliasDecl       then @tree.add(type_alias(item.name, type(item.type), at(item)))
+        when UseDecl         then next
+        when ContractSupport then contract_support(at(item))
+        else                      unsupported(item, "this declaration")
         end
       end
       uses = program.items.select(UseDecl).map(&.path)
       uses << "collections" if @collections && !uses.includes?("collections")
       uses.reverse_each { |path| @tree.use(path) }
+    end
+
+    # `primitive _SpkContract` with `fail(message)`, which prints `message`
+    # on standard error and exits with status 1, and `keep(value: Any val)`,
+    # which only type-checks; then the C functions `fail` calls.
+    private def contract_support(pos : {Int32, Int32}) : Nil
+      string = nominal("String", pos)
+      bytes = -> { @tree.nominal("Pointer", pos, [nominal("U8", pos)], Tk::TAG) }
+      fail_body = [
+        ffi_call("fprintf", pos, [ffi_call("pony_os_stderr", pos), method_call_at(pos, @tree.named(Tk::STRING, "%s\n", pos), "cstring"), method_call_at(pos, reference("message", pos), "cstring")]),
+        ffi_call("exit", pos, [@tree.node(Tk::CALL, pos, [reference("I32", pos), @tree.node(Tk::POSITIONALARGS, pos, [@tree.node(Tk::SEQ, pos, [@tree.int(1, pos)])]), none, none])]),
+      ]
+      members = [
+        plain_fun("fail", params([{"message", string}], pos), fail_body, pos),
+        plain_fun("keep", params([{"value", @tree.nominal("Any", pos, cap: Tk::VAL)}], pos), [reference("None", pos)], pos),
+      ]
+      @tree.add(@tree.node(Tk::PRIMITIVE, pos, [id(Contracts::SUPPORT, pos), none, none, none, @tree.node(Tk::MEMBERS, pos, members), none, none], scope: true))
+      @tree.use_ffi(ffi_decl("exit", nominal("None", pos), pos, params([{"status", nominal("I32", pos)}], pos)))
+      @tree.use_ffi(ffi_decl("pony_os_stderr", @tree.nominal("Pointer", pos, [nominal("U8", pos)]), pos, none))
+      @tree.use_ffi(ffi_decl("fprintf", nominal("I32", pos), pos, params([{"stream", bytes.call}, {"fmt", bytes.call}], pos, variadic: true)))
+    end
+
+    private def plain_fun(name : String, params : Node, body : Array(Node), pos : {Int32, Int32}) : Node
+      @tree.node(Tk::FUN, pos, [none, id(name, pos), none, params, none, none, none, @tree.node(Tk::SEQ, pos, body), none], scope: true)
+    end
+
+    private def params(list : Array({String, Node}), pos : {Int32, Int32}, variadic : Bool = false) : Node
+      nodes = list.map { |name, type| @tree.node(Tk::PARAM, pos, [id(name, pos), type, none]) }
+      nodes << @tree.node(Tk::ELLIPSIS, pos) if variadic
+      @tree.node(Tk::PARAMS, pos, nodes)
+    end
+
+    private def ffi_decl(name : String, ret : Node, pos : {Int32, Int32}, params : Node) : Node
+      @tree.node(Tk::FFIDECL, pos, [id(name, pos), @tree.node(Tk::TYPEARGS, pos, [ret]), params, none, none], scope: true)
+    end
+
+    private def ffi_call(name : String, pos : {Int32, Int32}, args : Array(Node) = [] of Node) : Node
+      positional = args.empty? ? none : @tree.node(Tk::POSITIONALARGS, pos, args.map { |arg| @tree.node(Tk::SEQ, pos, [arg]) })
+      @tree.node(Tk::FFICALL, pos, [id(name, pos), none, positional, none, none])
+    end
+
+    private def method_call_at(pos : {Int32, Int32}, recv : Node, name : String) : Node
+      @tree.node(Tk::CALL, pos, [@tree.node(Tk::DOT, pos, [recv, id(name, pos)]), none, none, none])
     end
 
     private def unsupported(node : ::Sparkle::Node, what : String) : NoReturn

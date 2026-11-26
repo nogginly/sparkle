@@ -293,6 +293,61 @@ end
   In the yielding method, a bare `return` leaves the call, by the same flag.
 - **Not yet**, each an error that says so: `return` with a value in a yielding method; `next` or `break` in a block whose call's value is used, or whose `yield` value is used; and `return` in a yielding method whose call's value is used.
 
+### Contracts (step 3)
+
+A method states what it `expects` of its caller and what it `guarantees` in return; a type states what it `maintains`. Each clause is checked at run time, and a failure prints the clause and its place, then exits with status 1. The design and its reasons are in [contracts-design.md](contracts-design.md).
+
+```crystal
+class Account
+  maintains @balance >= 0
+
+  @balance : Int64 = 0
+
+  def ref withdraw(amount : Int64) : Int64
+    expects amount > 0, amount <= @balance
+    guarantees @balance == old(@balance) - amount, result == amount
+
+    @balance -= amount
+    amount
+  end
+end
+```
+
+becomes a wrapper with the method's name around the body, renamed `_spk_withdraw`, plus one method that checks the invariant:
+
+```pony
+fun ref withdraw(amount: I64): I64 =>
+  var spk_view: Account box = this
+  var spk_arg_amount: box->I64 = amount
+  if not (spk_arg_amount > 0) then _SpkContract.fail("main.spk:8:13: contract failed in Account.withdraw: expects amount > 0") end
+  if not (spk_arg_amount <= spk_view._balance) then _SpkContract.fail("…") end
+  var spk_old_1 = spk_view._balance
+  _SpkContract.keep(spk_old_1)
+  var spk_result = _spk_withdraw(amount)
+  var spk_result_view: box->I64 = spk_result
+  if not (spk_view._balance == (spk_old_1 - spk_arg_amount)) then _SpkContract.fail("…") end
+  if not (spk_result_view == spk_arg_amount) then _SpkContract.fail("…") end
+  _spk_maintains("Account.withdraw")
+  consume spk_result
+
+fun ref _spk_withdraw(amount: I64): I64 => …
+
+fun box _spk_maintains(spk_after: String) =>
+  if not (_balance >= 0) then _SpkContract.fail("main.spk:2:13: contract failed after " + spk_after + ": maintains @balance >= 0") end
+```
+
+- **Placement.** `expects` and then `guarantees` lines open a `def` or `be`, before its body; `maintains` lines open a type, before its fields and methods. A clause anywhere else is an error. A one-line `def x = expr` takes no clauses. The three words are reserved.
+- **Conditions.** A clause holds one or more conditions, separated by commas; each is checked, and reported, on its own. Each is a `Bool` expression.
+- **Read-only.** Conditions in the wrapper see `self` through `spk_view`, a `box` alias, and each argument through a `box->` alias, so calling a `ref` method in a condition is a type error. `maintains` is checked in a `box` method. An `iso` argument or result seen through `box->` is a `tag`, which a condition cannot read.
+- **`result`** is the return value, and **`old(expr)`** is `expr` evaluated before the body runs; both only in `guarantees`. `old`'s value must be `val`, which numbers, `Bool` and `String` literals are: `_SpkContract.keep` takes `Any val`, so `old(@items)` of a `ref` array is a type error. Write `old(@items.size)`.
+- **When.** `expects` is checked on entry, `guarantees` on each normal return; a partial method that fails promises nothing. Every call, recursive ones included, goes through the wrapper.
+- **`maintains`** is checked after each constructor, each public `ref` method and each behaviour. A method whose name starts with `_` is a helper and is not checked, so it may leave the invariant broken for its caller to restore.
+- **Constructors** are not wrapped: `expects` is checked before the body and `guarantees` and `maintains` after it. `result` and `old` are errors in a constructor's clauses, and so is `return` in a constructor with clauses or under `maintains`.
+- **Behaviours** take `expects`, checked when the message is processed, and `maintains`. `guarantees` on a behaviour is an error: no caller sees its end.
+- **Failure** writes `file:line:column: contract failed in Type.method: clause` to standard error and exits with status 1, through C's `fprintf` and `exit`, declared once per package with Pony FFI in a generated primitive `_SpkContract`. Output that other actors have not yet written, `env.out.print` included, may be lost.
+- **Builds.** `check` and `build` check every clause. `build --release` keeps only `expects`; `--contracts=all` keeps all three.
+- **Not yet**, each an error that says so: clauses on a yielding method, an abstract method or a `tag` method, and `maintains` in a trait, interface or primitive. A yielding `ref` method is not checked against `maintains`.
+
 ## 5. Tooling
 
 1. **Positions.** Every lowered node carries the `.spk` file, line and column it came from, so `ponyc` reports errors at the Sparkle line and quotes it.
@@ -304,12 +359,12 @@ end
 ```
 sparkle translate PATH              # print the lowered tree, in ponyc's AST notation
 sparkle check PATH                  # type-check only, no code generation
-sparkle build PATH [-o DIR] [--release]  # PATH is a .spk file or a directory (one Pony package)
-sparkle run PATH [--release] [-- args]   # build, then run the binary
+sparkle build PATH [-o DIR] [--release [--contracts=all]]  # PATH is a .spk file or a directory (one Pony package)
+sparkle run PATH [--release [--contracts=all]] [-- args]   # build, then run the binary
 sparkle caps PATH...                # capability statistics
 ```
 
-`build` generates unoptimised code, as `crystal build` does; `--release` optimises it, which takes about twice as long. It lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds `$SPARKLE_PONYC`, else `lib/pony` beside an installed `bin/sparkle` (`make install`), else the one holding the first `ponyc` found via `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
+`build` generates unoptimised code, as `crystal build` does; `--release` optimises it, which takes about twice as long, and drops `guarantees` and `maintains` checks unless `--contracts=all` is given. It lowers the package and compiles it with the `libponyc` linked into `sparkle`, writing the binary to `.sparkle/bin/` unless `-o` says otherwise, using the standard library of the Pony installation that holds `$SPARKLE_PONYC`, else `lib/pony` beside an installed `bin/sparkle` (`make install`), else the one holding the first `ponyc` found via `.tools/ponyc/bin/ponyc` (installed by `make ponyc`), then `vendor/ponyc/build/release/ponyc` (built by `make ponyc-source`), then `PATH`. Both paths are searched upward from the executable's directory and from the current directory.
 
 ## 7. Not in step 1
 
@@ -327,4 +382,5 @@ Macros (`getter`, `property`, `record`), methods inside an `enum`, calls with ar
 - A bare name is resolved once per position, so it cannot be a field for one caller and a method for another, for example in a generic method used with two types.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
+- Pony evaluates a method call's arguments before its receiver. Arithmetic on numbers runs left to right, but `String`'s `+` is a method, so an interpolated string, a chain of `+`, runs its parts from the right: `"#{a.take} #{a.left}"` reads `left` before `take` runs. Assign each call with an effect on a line of its own.
 - `def pop` and `def pop!` both become `pop`; `def empty?` and `def is_empty` both become `is_empty`. Defining both is an error from `ponyc`.

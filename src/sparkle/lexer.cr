@@ -10,6 +10,7 @@ module Sparkle
       "when", "in", "then", "begin", "rescue", "ensure", "raise", "return",
       "break", "next", "self", "nil", "true", "false", "consume", "recover",
       "use", "alias", "include", "abstract", "is", "isnt", "of", "enum", "yield",
+      "expects", "guarantees", "maintains",
     }
 
     OPERATORS = [
