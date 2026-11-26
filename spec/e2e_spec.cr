@@ -13,6 +13,44 @@ private def build_and_run(path : String) : {Int32, String, String}
   end
 end
 
+# Builds `source` as a one-file package and runs it.
+private def run_source(source : String, release : Bool = false) : {Int32, String, String}
+  dir = File.join(Dir.tempdir, "sparkle-e2e-#{Process.pid}-#{source.hash}")
+  Dir.mkdir_p(dir)
+  begin
+    File.write(File.join(dir, "main.spk"), source)
+    err = IO::Memory.new
+    code, binary = Sparkle::Driver.build(dir, File.join(dir, "bin"), err, release: release)
+    return {code, "", err.to_s} unless code == 0
+    stdout = IO::Memory.new
+    status = Process.run(binary || raise("no binary"), output: stdout, error: err)
+    {status.exit_code, stdout.to_s, err.to_s}
+  ensure
+    FileUtils.rm_rf(dir)
+  end
+end
+
+private CONTRACTED = <<-SPK
+  class Counter
+    @n : Int32 = 0
+
+    def ref add(by : Int32) : Int32
+      expects by > 0
+      guarantees result == 99
+
+      @n += by
+      @n
+    end
+  end
+
+  actor Main
+    def self.new(env : Env)
+      c = Counter.new
+      c.add(ARG)
+    end
+  end
+  SPK
+
 private def golden(path : String, actual : String) : Nil
   File.write(path, actual) if ENV["UPDATE_GOLDEN"]? == "1"
   actual.should eq File.read(path)
@@ -72,6 +110,28 @@ describe "end to end" do
       text = err.to_s
       text.should contain "spec/fixtures/undefined_name/main.spk:4:"
       text.should contain "    env.out.print(missing_name)"
+    end
+
+    it "stops at a failed contract, naming the clause and its place" do
+      code, _, err = run_source(CONTRACTED.sub("ARG", "0"))
+      code.should eq 1
+      err.should eq "main.spk:5:13: contract failed in Counter.add: expects by > 0\n"
+      code, _, err = run_source(CONTRACTED.sub("ARG", "1"))
+      code.should eq 1
+      err.should eq "main.spk:6:16: contract failed in Counter.add: guarantees result == 99\n"
+    end
+
+    it "checks only expects in a release build" do
+      code, _, err = run_source(CONTRACTED.sub("ARG", "1"), release: true)
+      code.should eq(0), err
+    end
+
+    it "rejects a contract that would change state" do
+      err = IO::Memory.new
+      Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/contract_ref_call/main.spk", err) }.should eq 1
+      text = err.to_s
+      text.should contain "spec/fixtures/contract_ref_call/main.spk:5:20: receiver type is not a subtype of target type"
+      text.should contain "receiver type: box Array(val String)"
     end
 
     it "prints types in ponyc messages in Sparkle syntax" do

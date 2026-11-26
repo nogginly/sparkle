@@ -2,6 +2,7 @@ require "./parser"
 require "./rules"
 require "./lowerer"
 require "./inliner"
+require "./contracts"
 require "./diagnostics"
 require "./ponyc/compiler"
 require "./ponyc/session"
@@ -63,7 +64,7 @@ module Sparkle
 
     # Parses the Sparkle files at `path` and finds ponyc; nil, with the
     # reason on `err`, if either fails.
-    private def self.load_project(path : String, err : IO) : Project?
+    private def self.load_project(path : String, err : IO, contracts : Bool = true) : Project?
       files, package = sources_for(path)
       if files.empty?
         err.puts "sparkle: no .spk files in #{path}"
@@ -71,12 +72,15 @@ module Sparkle
       end
       sources = files.map { |file| File.read(file) }
       programs = [] of Program
+      checked = false
       files.each_with_index do |file, i|
         programs << Parser.parse(sources[i])
+        checked = Contracts.apply(programs[i], file, all: contracts) || checked
       rescue e : ParseError
         err.print format_error(file, sources[i], e)
         return
       end
+      Contracts.support(programs.first) if checked
       home = find_pony_home
       unless home
         err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
@@ -226,9 +230,11 @@ module Sparkle
     # compiler, against the standard library of the Pony installation found
     # by `find_pony_home`. It lowers to ponyc's AST. The code is unoptimised,
     # as with `crystal build`, unless `release` is set.
+    # Every contract clause is checked, unless `release` is set and
+    # `all_contracts` is not: then only `expects` is.
     # Returns the exit code and the binary's path, which lands in `out_dir`.
-    def self.build(path : String, out_dir : String?, err : IO = STDERR, release : Bool = false) : {Int32, String?}
-      project = load_project(path, err) || return {1, nil}
+    def self.build(path : String, out_dir : String?, err : IO = STDERR, release : Bool = false, all_contracts : Bool = false) : {Int32, String?}
+      project = load_project(path, err, contracts: all_contracts || !release) || return {1, nil}
       build_tree(project, out_dir, err, release)
     end
   end

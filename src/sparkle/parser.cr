@@ -21,10 +21,13 @@ module Sparkle
     @caps = [] of CapUse
 
     def self.parse(source : String) : Program
-      new(Lexer.new(source).tokenize).parse_program
+      new(Lexer.new(source).tokenize, source.lines).parse_program
     end
 
-    def initialize(@tokens : Array(Token))
+    @clause : String? = nil
+
+    # `lines` is the source, for the text of contract clauses.
+    def initialize(@tokens : Array(Token), @lines : Array(String) = [] of String)
     end
 
     def parse_program : Program
@@ -195,6 +198,9 @@ module Sparkle
         elsif t.kw?("include")
           advance
           decl.includes << parse_type
+        elsif t.kw?("maintains")
+          error("`maintains` must come before the fields and methods of #{kw.text} #{name}", t) unless decl.fields.empty? && decl.methods.empty?
+          decl.maintains.concat(parse_clause)
         elsif t.kind.inst_var?
           decl.fields << parse_field
         elsif t.kw?("def") || t.kw?("be") || t.kw?("abstract")
@@ -266,15 +272,58 @@ module Sparkle
         ret = parse_type
       end
       body = nil
+      expects = [] of Clause
+      guarantees = [] of Clause
       if kind != "abstract"
         if accept_op("=")
           body = [parse_stmt]
         else
+          skip_separators
+          while tok.kw?("expects")
+            expects.concat(parse_clause)
+          end
+          while tok.kw?("guarantees")
+            guarantees.concat(parse_clause)
+          end
+          error("`expects` must come before `guarantees`") if tok.kw?("expects")
           body = parse_stmts
           expect_kw("end")
         end
       end
-      Method.new(start.line, start.col, kind, cap, self_recv, name, params, ret, body, nt.line, nt.col)
+      Method.new(start.line, start.col, kind, cap, self_recv, name, params, ret, body, nt.line, nt.col, expects, guarantees)
+    end
+
+    # One clause line: its word, then conditions separated by commas.
+    private def parse_clause : Array(Clause)
+      kw = advance
+      clauses = [] of Clause
+      loop do
+        skip_nl
+        start = tok
+        @clause = kw.text
+        cond = begin
+          parse_expr
+        ensure
+          @clause = nil
+        end
+        clauses << Clause.new(start.line, start.col, kw.text, cond, clause_text(start))
+        break unless accept_op(",")
+      end
+      error("unexpected #{tok}") unless tok.kind.newline? || tok.op?(";") || tok.kind.eof?
+      skip_separators
+      clauses
+    end
+
+    # The source of the condition from `start` to the current token.
+    private def clause_text(start : Token) : String
+      return "" if @lines.empty?
+      last = @tokens[@i - 1]
+      text = if tok.line == start.line && !tok.kind.eof?
+               @lines[start.line - 1][(start.col - 1)...(tok.col - 1)]
+             else
+               ([@lines[start.line - 1][(start.col - 1)..]] + @lines[start.line...last.line].map(&.strip)).join(" ")
+             end
+      text.sub(/\s+#[^"']*\z/, "").strip
     end
 
     private def parse_method_name : String
@@ -454,6 +503,8 @@ module Sparkle
 
     private def parse_stmt : Expr
       t = tok
+      error("`#{t.text}` must open a `def` or `be`, before its body") if t.kw?("expects") || t.kw?("guarantees")
+      error("`maintains` must open a type, before its fields and methods") if t.kw?("maintains")
       e = if t.kind.ident? && peek.op?(":")
             advance
             advance
@@ -713,6 +764,7 @@ module Sparkle
         advance
         CharLit.new(t.line, t.col, t.text)
       when Kind::Ident
+        return parse_contract_word(t) if @clause && (t.text == "result" || (t.text == "old" && peek.op?("(") && !peek.space_before?))
         advance
         Ident.new(t.line, t.col, t.text)
       when Kind::InstVar
@@ -727,6 +779,19 @@ module Sparkle
       else
         error("unexpected #{t}")
       end
+    end
+
+    # `old(expr)` or `result`, which only `guarantees` may use.
+    private def parse_contract_word(t : Token) : Expr
+      error("`#{t.text}` is only allowed in `guarantees`", t) unless @clause == "guarantees"
+      advance
+      return ResultRef.new(t.line, t.col) if t.text == "result"
+      expect_op("(")
+      skip_nl
+      inner = parse_expr
+      skip_nl
+      expect_op(")")
+      Old.new(t.line, t.col, inner)
     end
 
     private def parse_string(t : Token) : Expr

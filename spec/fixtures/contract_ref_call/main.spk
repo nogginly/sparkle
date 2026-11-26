@@ -1,0 +1,14 @@
+class Log
+  @lines : Array(String) = [] of String
+
+  def ref add(line : String)
+    expects @lines.push(line) == None
+    @lines.push(line)
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    Log.new.add("x")
+  end
+end

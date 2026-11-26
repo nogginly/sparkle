@@ -124,7 +124,4 @@ Contracts written now should be provable later, which constrains the language of
 
 ## Building it
 
-1. Parse `expects`, `guarantees`, `maintains`, `old` and `result`; a spec section first.
-2. Lower contracted methods to a wrapper and a body, with the `box` view, the FFI failure and `old` values. Errors in clauses are reported at their `.spk` lines.
-3. Invariants, constructors and behaviours.
-4. `--release` handling, and the skill's reference page.
+Built in step 3, as one change: parsing, the wrapper and body with the `box` view, the FFI failure and `old` values, invariants, constructors and behaviours, `--release` handling, and the skill's [contracts](../skills/sparkle/reference/contracts.md) page. The rules as built are in [step1-spec.md](step1-spec.md), *Contracts (step 3)*. Not yet: clauses on yielding, abstract and `tag` methods, and `maintains` in traits, interfaces and primitives.

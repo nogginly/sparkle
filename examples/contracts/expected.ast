@@ -1,0 +1,995 @@
+(module:scope
+  (file:scope
+    (use
+      x
+      (ffidecl:scope
+        (id fprintf)
+        (typeargs (nominal x (id I32) x x x))
+        (params
+          (param
+            (id stream)
+            (nominal x (id Pointer) (typeargs (nominal x (id U8) x x x)) tag x)
+            x
+          )
+          (param
+            (id fmt)
+            (nominal x (id Pointer) (typeargs (nominal x (id U8) x x x)) tag x)
+            x
+          )
+          ...
+        )
+        x
+        x
+      )
+      x
+    )
+    (use
+      x
+      (ffidecl:scope
+        (id pony_os_stderr)
+        (typeargs
+          (nominal x (id Pointer) (typeargs (nominal x (id U8) x x x)) x x)
+        )
+        x
+        x
+        x
+      )
+      x
+    )
+    (use
+      x
+      (ffidecl:scope
+        (id exit)
+        (typeargs (nominal x (id None) x x x))
+        (params (param (id status) (nominal x (id I32) x x x) x))
+        x
+        x
+      )
+      x
+    )
+    (class:scope
+      (id Account)
+      x
+      x
+      x
+      (members
+        (fvar (id _balance) (nominal x (id I64) x x x) 0 x)
+        (new:scope x (id create) x x x x x (seq (reference (id None))) x)
+        (fun:scope
+          ref
+          (id deposit)
+          x
+          (params (param (id amount) (nominal x (id I64) x x x) x))
+          x
+          x
+          x
+          (seq
+            (= (var (id spk_view) (nominal x (id Account) x box x)) this)
+            (=
+              (var (id spk_arg_amount) (-> box (nominal x (id I64) x x x)))
+              (reference (id amount))
+            )
+            (if:scope
+              (seq (not (seq (> (reference (id spk_arg_amount)) 0 x))))
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:10:13: contract failed in Account.deposit: expects amount > 0"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (=
+              (var (id spk_old_1) x)
+              (. (reference (id spk_view)) (id _balance))
+            )
+            (call
+              (. (reference (id _SpkContract)) (id keep))
+              (positionalargs (seq (reference (id spk_old_1))))
+              x
+              x
+            )
+            (call
+              (reference (id _spk_deposit))
+              (positionalargs (seq (reference (id amount))))
+              x
+              x
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (==
+                      (. (reference (id spk_view)) (id _balance))
+                      (seq
+                        (+
+                          (reference (id spk_old_1))
+                          (reference (id spk_arg_amount))
+                          x
+                        )
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:11:16: contract failed in Account.deposit: guarantees @balance == old(@balance) + amount"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (call
+              (reference (id _spk_maintains))
+              (positionalargs (seq "Account.deposit"))
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id _spk_deposit)
+          x
+          (params (param (id amount) (nominal x (id I64) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (reference (id _balance))
+              (+ (reference (id _balance)) (reference (id amount)) x)
+            )
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id withdraw)
+          x
+          (params (param (id amount) (nominal x (id I64) x x x) x))
+          (nominal x (id I64) x x x)
+          x
+          x
+          (seq
+            (= (var (id spk_view) (nominal x (id Account) x box x)) this)
+            (=
+              (var (id spk_arg_amount) (-> box (nominal x (id I64) x x x)))
+              (reference (id amount))
+            )
+            (if:scope
+              (seq (not (seq (> (reference (id spk_arg_amount)) 0 x))))
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:17:13: contract failed in Account.withdraw: expects amount > 0"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (<=
+                      (reference (id spk_arg_amount))
+                      (. (reference (id spk_view)) (id _balance))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:17:25: contract failed in Account.withdraw: expects amount <= @balance"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (=
+              (var (id spk_old_1) x)
+              (. (reference (id spk_view)) (id _balance))
+            )
+            (call
+              (. (reference (id _SpkContract)) (id keep))
+              (positionalargs (seq (reference (id spk_old_1))))
+              x
+              x
+            )
+            (=
+              (var (id spk_result) x)
+              (call
+                (reference (id _spk_withdraw))
+                (positionalargs (seq (reference (id amount))))
+                x
+                x
+              )
+            )
+            (=
+              (var (id spk_result_view) (-> box (nominal x (id I64) x x x)))
+              (reference (id spk_result))
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (==
+                      (. (reference (id spk_view)) (id _balance))
+                      (seq
+                        (-
+                          (reference (id spk_old_1))
+                          (reference (id spk_arg_amount))
+                          x
+                        )
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:18:16: contract failed in Account.withdraw: guarantees @balance == old(@balance) - amount"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (==
+                      (reference (id spk_result_view))
+                      (reference (id spk_arg_amount))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:18:52: contract failed in Account.withdraw: guarantees result == amount"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (call
+              (reference (id _spk_maintains))
+              (positionalargs (seq "Account.withdraw"))
+              x
+              x
+            )
+            (consume x (reference (id spk_result)))
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id _spk_withdraw)
+          x
+          (params (param (id amount) (nominal x (id I64) x x x) x))
+          (nominal x (id I64) x x x)
+          x
+          x
+          (seq
+            (=
+              (reference (id _balance))
+              (- (reference (id _balance)) (reference (id amount)) x)
+            )
+            (reference (id amount))
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id balance)
+          x
+          x
+          (nominal x (id I64) x x x)
+          x
+          x
+          (seq (reference (id _balance)))
+          x
+        )
+        (fun:scope
+          box
+          (id _spk_maintains)
+          x
+          (params (param (id spk_after) (nominal x (id String) x x x) x))
+          x
+          x
+          x
+          (seq
+            (if:scope
+              (seq (not (seq (>= (reference (id _balance)) 0 x))))
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      (+
+                        (+
+                          "main.spk:5:13: contract failed after "
+                          (call
+                            (. (reference (id spk_after)) (id string))
+                            x
+                            x
+                            x
+                          )
+                          x
+                        )
+                        ": maintains @balance >= 0"
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (class:scope
+      (id Stack)
+      (typeparams (typeparam (id A) (nominal x (id Any) x val x) x))
+      x
+      x
+      (members
+        (fvar
+          (id _items)
+          (nominal x (id Array) (typeargs (nominal x (id A) x x x)) x x)
+          (call
+            (.
+              (qualify
+                (reference (id Array))
+                (typeargs (nominal x (id A) x x x))
+              )
+              (id create)
+            )
+            x
+            x
+            x
+          )
+          x
+        )
+        (fvar (id _limit) (nominal x (id USize) x x x) x x)
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id limit) (nominal x (id USize) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id spk_arg_limit) (-> box (nominal x (id USize) x x x)))
+              (reference (id limit))
+            )
+            (if:scope
+              (seq (not (seq (> (reference (id spk_arg_limit)) 0 x))))
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:34:13: contract failed in Stack.new: expects limit > 0"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (= (reference (id _limit)) (reference (id limit)))
+            (=
+              (var
+                (id spk_view)
+                (nominal
+                  x
+                  (id Stack)
+                  (typeargs (nominal x (id A) x x x))
+                  box
+                  x
+                )
+              )
+              this
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (==
+                      (. (reference (id spk_view)) (id _limit))
+                      (reference (id spk_arg_limit))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:35:16: contract failed in Stack.new: guarantees @limit == limit"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (call
+              (reference (id _spk_maintains))
+              (positionalargs (seq "Stack.new"))
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id push)
+          x
+          (params (param (id x) (nominal x (id A) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var
+                (id spk_view)
+                (nominal
+                  x
+                  (id Stack)
+                  (typeargs (nominal x (id A) x x x))
+                  box
+                  x
+                )
+              )
+              this
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (<
+                      (call (. (reference (id spk_view)) (id size)) x x x)
+                      (. (reference (id spk_view)) (id _limit))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:41:13: contract failed in Stack.push: expects size < @limit"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (=
+              (var (id spk_old_1) x)
+              (call (. (reference (id spk_view)) (id size)) x x x)
+            )
+            (call
+              (. (reference (id _SpkContract)) (id keep))
+              (positionalargs (seq (reference (id spk_old_1))))
+              x
+              x
+            )
+            (call
+              (reference (id _spk_push))
+              (positionalargs (seq (reference (id x))))
+              x
+              x
+            )
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (==
+                      (call (. (reference (id spk_view)) (id size)) x x x)
+                      (seq (+ (reference (id spk_old_1)) 1 x))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:42:16: contract failed in Stack.push: guarantees size == old(size) + 1"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (call
+              (reference (id _spk_maintains))
+              (positionalargs (seq "Stack.push"))
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id _spk_push)
+          x
+          (params (param (id x) (nominal x (id A) x x x) x))
+          x
+          x
+          x
+          (seq
+            (call
+              (. (reference (id _items)) (id push))
+              (positionalargs (seq (reference (id x))))
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id pop)
+          x
+          x
+          (nominal x (id A) x x x)
+          x
+          ?
+          (seq
+            (=
+              (var
+                (id spk_view)
+                (nominal
+                  x
+                  (id Stack)
+                  (typeargs (nominal x (id A) x x x))
+                  box
+                  x
+                )
+              )
+              this
+            )
+            (=
+              (var (id spk_old_1) x)
+              (call (. (reference (id spk_view)) (id size)) x x x)
+            )
+            (call
+              (. (reference (id _SpkContract)) (id keep))
+              (positionalargs (seq (reference (id spk_old_1))))
+              x
+              x
+            )
+            (= (var (id spk_result) x) (call (reference (id _spk_pop)) x x ?))
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (==
+                      (call (. (reference (id spk_view)) (id size)) x x x)
+                      (seq (- (reference (id spk_old_1)) 1 x))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      "main.spk:48:16: contract failed in Stack.pop!: guarantees size == old(size) - 1"
+
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+            (call
+              (reference (id _spk_maintains))
+              (positionalargs (seq "Stack.pop!"))
+              x
+              x
+            )
+            (consume x (reference (id spk_result)))
+          )
+          x
+        )
+        (fun:scope
+          ref
+          (id _spk_pop)
+          x
+          x
+          (nominal x (id A) x x x)
+          x
+          ?
+          (seq (call (. (reference (id _items)) (id pop)) x x ?))
+          x
+        )
+        (fun:scope
+          x
+          (id size)
+          x
+          x
+          (nominal x (id USize) x x x)
+          x
+          x
+          (seq (call (. (reference (id _items)) (id size)) x x x))
+          x
+        )
+        (fun:scope
+          box
+          (id _spk_maintains)
+          x
+          (params (param (id spk_after) (nominal x (id String) x x x) x))
+          x
+          x
+          x
+          (seq
+            (if:scope
+              (seq
+                (not
+                  (seq
+                    (<=
+                      (call (. (reference (id _items)) (id size)) x x x)
+                      (reference (id _limit))
+                      x
+                    )
+                  )
+                )
+              )
+              (seq:scope
+                (call
+                  (. (reference (id _SpkContract)) (id fail))
+                  (positionalargs
+                    (seq
+                      (+
+                        (+
+                          "main.spk:28:13: contract failed after "
+                          (call
+                            (. (reference (id spk_after)) (id string))
+                            x
+                            x
+                            x
+                          )
+                          x
+                        )
+                        ": maintains @items.size <= @limit"
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id account) x)
+              (call (. (reference (id Account)) (id create)) x x x)
+            )
+            (call
+              (. (reference (id account)) (id deposit))
+              (positionalargs (seq 100))
+              x
+              x
+            )
+            (=
+              (var (id taken) x)
+              (call
+                (. (reference (id account)) (id withdraw))
+                (positionalargs (seq 30))
+                x
+                x
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    "took "
+                    (call (. (reference (id taken)) (id string)) x x x)
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    "left "
+                    (call
+                      (.
+                        (call (. (reference (id account)) (id balance)) x x x)
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (=
+              (var (id stack) x)
+              (call
+                (.
+                  (qualify
+                    (reference (id Stack))
+                    (typeargs (nominal x (id String) x x x))
+                  )
+                  (id create)
+                )
+                (positionalargs (seq 2))
+                x
+                x
+              )
+            )
+            (call
+              (. (reference (id stack)) (id push))
+              (positionalargs (seq "a"))
+              x
+              x
+            )
+            (call
+              (. (reference (id stack)) (id push))
+              (positionalargs (seq "b"))
+              x
+              x
+            )
+            (try
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "popped "
+                        (call
+                          (.
+                            (call (. (reference (id stack)) (id pop)) x x ?)
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "popped "
+                        (call
+                          (.
+                            (call (. (reference (id stack)) (id pop)) x x ?)
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (+
+                        "popped "
+                        (call
+                          (.
+                            (call (. (reference (id stack)) (id pop)) x x ?)
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+              )
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "empty"))
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+    (primitive:scope
+      (id _SpkContract)
+      x
+      x
+      x
+      (members
+        (fun:scope
+          x
+          (id fail)
+          x
+          (params (param (id message) (nominal x (id String) x x x) x))
+          x
+          x
+          x
+          (seq
+            (fficall
+              (id fprintf)
+              x
+              (positionalargs
+                (seq (fficall (id pony_os_stderr) x x x x))
+                (seq (call (. "%s
+" (id cstring)) x x x))
+                (seq (call (. (reference (id message)) (id cstring)) x x x))
+              )
+              x
+              x
+            )
+            (fficall
+              (id exit)
+              x
+              (positionalargs
+                (seq (call (reference (id I32)) (positionalargs (seq 1)) x x))
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+        (fun:scope
+          x
+          (id keep)
+          x
+          (params (param (id value) (nominal x (id Any) x val x) x))
+          x
+          x
+          x
+          (seq (reference (id None)))
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

@@ -1,0 +1,75 @@
+# Contracts: what a method expects, what it guarantees, and what a type
+# maintains, checked at run time.
+
+class Account
+  maintains @balance >= 0
+
+  @balance : Int64 = 0
+
+  def ref deposit(amount : Int64)
+    expects amount > 0
+    guarantees @balance == old(@balance) + amount
+
+    @balance += amount
+  end
+
+  def ref withdraw(amount : Int64) : Int64
+    expects amount > 0, amount <= @balance
+    guarantees @balance == old(@balance) - amount, result == amount
+
+    @balance -= amount
+    amount
+  end
+
+  def balance : Int64 = @balance
+end
+
+class Stack(A : val)
+  maintains @items.size <= @limit
+
+  @items : Array(A) = [] of A
+  @limit : USize
+
+  def self.new(limit : USize)
+    expects limit > 0
+    guarantees @limit == limit
+
+    @limit = limit
+  end
+
+  def ref push(x : A)
+    expects size < @limit
+    guarantees size == old(size) + 1
+
+    @items.push(x)
+  end
+
+  def ref pop! : A
+    guarantees size == old(size) - 1
+
+    @items.pop!
+  end
+
+  def size : USize = @items.size
+end
+
+actor Main
+  def self.new(env : Env)
+    account = Account.new
+    account.deposit(100)
+    taken = account.withdraw(30)
+    env.out.print("took #{taken}")
+    env.out.print("left #{account.balance}")
+
+    stack = Stack(String).new(2)
+    stack.push("a")
+    stack.push("b")
+    begin
+      env.out.print("popped #{stack.pop!}")
+      env.out.print("popped #{stack.pop!}")
+      env.out.print("popped #{stack.pop!}")
+    rescue
+      env.out.print("empty")
+    end
+  end
+end
