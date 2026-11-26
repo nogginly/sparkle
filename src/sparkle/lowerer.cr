@@ -894,20 +894,32 @@ module Sparkle
       @tree.node(Tk::LAMBDA, at(at), [none, none, @tree.preserve(none), @tree.preserve(params_node), none, @tree.preserve(none), none, @tree.preserve(body), none])
     end
 
-    # Parts joined with `+`; an interpolated expression has `string` called on it.
+    # Parts joined with `+`; an interpolated expression has `string` called on
+    # it. Pony evaluates a call's argument before its receiver, so when two
+    # or more parts are expressions, each but the last is first bound to a
+    # `let spk_s<line>_<col> : String val`, in order, and the join reads them.
     private def string(e : StrLit) : Node
+      return @tree.named(Tk::STRING, e.parts.join { |part| unescape(e, part.as(String)) }, at(e)) if e.parts.all?(String)
+      computed = e.parts.select { |part| part.is_a?(Expr) && !(part.is_a?(StrLit) && part.parts.all?(String)) }
+      bound = computed[0...-1]
+      lets = [] of Node
       parts = e.parts.map do |part|
         case part
         in String
           @tree.named(Tk::STRING, unescape(e, part), at(e))
         in Expr
           next expr(part) if part.is_a?(StrLit) && part.parts.all?(String)
-          @tree.node(Tk::CALL, at(part), [@tree.node(Tk::DOT, at(part), [receiver(part), id("string", at(part))]), none, none, none])
+          text = @tree.node(Tk::CALL, at(part), [@tree.node(Tk::DOT, at(part), [receiver(part), id("string", at(part))]), none, none, none])
+          next text unless bound.includes?(part)
+          name = "spk_s#{part.line}_#{part.col}"
+          type = @tree.nominal("String", at(part), cap: Tk::VAL)
+          lets << @tree.node(Tk::ASSIGN, at(part), [@tree.node(Tk::LET, at(part), [id(name, at(part)), type]), text])
+          reference(name, at(part))
         end
       end
-      return @tree.named(Tk::STRING, e.parts.join { |part| unescape(e, part.as(String)) }, at(e)) if e.parts.all?(String)
       parts.unshift(@tree.named(Tk::STRING, "", at(e))) if parts.size == 1
-      parts.reduce { |left, right| @tree.node(Tk::PLUS, at(e), [left, right, none]) }
+      joined = parts.reduce { |left, right| @tree.node(Tk::PLUS, at(e), [left, right, none]) }
+      lets.empty? ? joined : @tree.node(Tk::SEQ, at(e), lets << joined)
     end
 
     # The text `source` denotes: a Pony escape becomes the character it stands for.

@@ -126,6 +126,31 @@ describe "end to end" do
       code.should eq(0), err
     end
 
+    it "runs the parts of an interpolated string left to right" do
+      source = <<-'SPK'
+        class Log
+          @text : String = ""
+
+          def ref add(s : String) : String
+            @text = @text + s
+            s
+          end
+
+          def text : String = @text
+        end
+
+        actor Main
+          def self.new(env : Env)
+            log = Log.new
+            env.out.print("#{log.add("a")}#{log.add("b")}#{log.add("c")} #{log.text}")
+          end
+        end
+        SPK
+      code, stdout, err = run_source(source)
+      code.should eq(0), err
+      stdout.should eq "abc abc\n"
+    end
+
     it "rejects a contract that would change state" do
       err = IO::Memory.new
       Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/contract_ref_call/main.spk", err) }.should eq 1

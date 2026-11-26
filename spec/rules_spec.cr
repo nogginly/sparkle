@@ -469,7 +469,9 @@ describe "translation rules" do
             var f: Array[F64] = [1; 2.5]
             var x: I32 = if c then 1 else -2 end
             var t: (I32, String, Bool) = (1, "a", true)
-            var s = (I32(1) + I32(2)).string() + " " + I32(7).string().string() + " " + [as I32: 1; 2].size().string()
+            var s = (let spk_s8_12: String val = (I32(1) + I32(2)).string()
+              let spk_s8_21: String val = I32(7).string().string()
+              spk_s8_12 + " " + spk_s8_21 + " " + [as I32: 1; 2].size().string())
             var n: U8 = 1
             var m = n + 1
 
@@ -523,6 +525,7 @@ describe "translation rules" do
         t = "#{n}"
         u = "plain\n"
         v = "#{n + 1}"
+        w = "#{n} and #{n + 1}"
         SPK
         actor Main
           new create(env: Env) =>
@@ -531,6 +534,8 @@ describe "translation rules" do
             var t = "" + n.string()
             var u = "plain\n"
             var v = "" + (n + 1).string()
+            var w = (let spk_s8_12: String val = n.string()
+              spk_s8_12 + " and " + (n + 1).string())
 
         PONY
     end

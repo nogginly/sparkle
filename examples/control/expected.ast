@@ -269,34 +269,36 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
-                    (+
-                      (+
-                        "and "
-                        (call
-                          (.
-                            (seq (and (reference (id a)) (reference (id b)) x))
-                            (id string)
-                          )
-                          x
-                          x
-                          x
+                  (seq
+                    (=
+                      (let (id spk_s32_26) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq (and (reference (id a)) (reference (id b)) x))
+                          (id string)
                         )
                         x
+                        x
+                        x
                       )
-                      ", or "
+                    )
+                    (+
+                      (+
+                        (+ "and " (reference (id spk_s32_26)) x)
+                        ", or "
+                        x
+                      )
+                      (call
+                        (.
+                          (seq (or (reference (id a)) (reference (id b)) x))
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
                       x
                     )
-                    (call
-                      (.
-                        (seq (or (reference (id a)) (reference (id b)) x))
-                        (id string)
-                      )
-                      x
-                      x
-                      x
-                    )
-                    x
                   )
                 )
               )
@@ -307,48 +309,52 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
-                    (+
-                      (+
-                        "nested "
-                        (call
-                          (.
-                            (seq
-                              (and
-                                (reference (id a))
-                                (seq
-                                  (or (reference (id b)) (reference (id a)) x)
-                                )
-                                x
+                  (seq
+                    (=
+                      (let (id spk_s33_29) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (and
+                              (reference (id a))
+                              (seq
+                                (or (reference (id b)) (reference (id a)) x)
                               )
+                              x
                             )
-                            (id string)
                           )
-                          x
-                          x
-                          x
+                          (id string)
                         )
                         x
+                        x
+                        x
                       )
-                      ", "
-                      x
                     )
-                    (call
-                      (.
-                        (seq
-                          (or
-                            (reference (id a))
-                            (seq (and (reference (id b)) (reference (id a)) x))
-                            x
+                    (+
+                      (+
+                        (+ "nested " (reference (id spk_s33_29)) x)
+                        ", "
+                        x
+                      )
+                      (call
+                        (.
+                          (seq
+                            (or
+                              (reference (id a))
+                              (seq
+                                (and (reference (id b)) (reference (id a)) x)
+                              )
+                              x
+                            )
                           )
+                          (id string)
                         )
-                        (id string)
+                        x
+                        x
+                        x
                       )
                       x
-                      x
-                      x
                     )
-                    x
                   )
                 )
               )
@@ -412,56 +418,56 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
+                  (seq
+                    (=
+                      (let (id spk_s49_22) (nominal x (id String) x val x))
+                      (call (. (reference (id TempCold)) (id string)) x x x)
+                    )
+                    (=
+                      (let (id spk_s49_38) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (call (. (reference (id TempCold)) (id value)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (=
+                      (let (id spk_s49_59) (nominal x (id String) x val x))
+                      (call (. (reference (id TempMild)) (id string)) x x x)
+                    )
                     (+
                       (+
                         (+
                           (+
                             (+
-                              (call
-                                (. (reference (id TempCold)) (id string))
-                                x
-                                x
-                                x
-                              )
-                              " = "
+                              (+ (reference (id spk_s49_22)) " = " x)
+                              (reference (id spk_s49_38))
                               x
                             )
-                            (call
-                              (.
-                                (call
-                                  (. (reference (id TempCold)) (id value))
-                                  x
-                                  x
-                                  x
-                                )
-                                (id string)
-                              )
-                              x
-                              x
-                              x
-                            )
+                            ", "
                             x
                           )
-                          ", "
+                          (reference (id spk_s49_59))
                           x
                         )
-                        (call (. (reference (id TempMild)) (id string)) x x x)
+                        " = "
                         x
                       )
-                      " = "
-                      x
-                    )
-                    (call
-                      (.
-                        (call (. (reference (id TempMild)) (id value)) x x x)
-                        (id string)
+                      (call
+                        (.
+                          (call (. (reference (id TempMild)) (id value)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
                       )
                       x
-                      x
-                      x
                     )
-                    x
                   )
                 )
               )
