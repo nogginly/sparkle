@@ -91,6 +91,22 @@ A `class` or `struct` with no `def self.new` and every field initialised gets an
 
 Instance variables map to **private** Pony fields (`@n` → `_n`). This gives Crystal's rule that fields are private, and lets a field and a method share a name (`@count` and `def count`), which Pony otherwise forbids.
 
+### Packages
+
+A package is a directory of `.spk` files. `require` names one, at the top of a file:
+
+| Sparkle | Meaning |
+|---|---|
+| `require "./geometry"`, `require "../shared"` | the Sparkle package in that directory, relative to the file's own |
+| `require "json"` | the Sparkle library's package `json` if it has one, else Pony's package `json` |
+| `use "collections"` | an error: "`use` is written `require` in Sparkle" |
+
+- **Building.** `sparkle build app` parses `app`, then each Sparkle package it requires, and theirs, depth first. Each becomes an in-memory Pony package registered under a key, `spk_<directory name>` (numbered if two directories share a name), and the lowered `use` names that key. The packages are type-checked together, in one compiler session, and compiled into one binary.
+- **Scope.** Every public name of a required package comes into scope; there are no qualified names yet. A name starting with `_` is private to its package, and a field to its type, as in Pony.
+- **Errors.** A relative path with no `.spk` files is an error at the `require`, and so is a cycle, which is named. Errors inside a required package are reported at its own files.
+- **The library** is the directory named by `$SPARKLE_LIB`, else `share/sparkle/stdlib` beside an installed `bin/sparkle`, else `stdlib/` found upward from the executable or the working directory. Its package `prelude`, if present, is required by every package outside the prelude's own requirements, without a `require`.
+- **Reserved names.** An identifier starting with `spk_`, a local, method, field or parameter, is an error: Sparkle generates such names (`spk_view`, `spk_r1`, `spk_yf_items`).
+
 ## 3. Types
 
 | Sparkle | Pony |
@@ -318,7 +334,7 @@ becomes, in place of the call:
 
 ```pony
 var y1_self = bag
-for y1_x in y1_self._yf_items().values() do
+for y1_x in y1_self.spk_yf_items().values() do
   var v = y1_x
   total = total + v
 end
@@ -326,7 +342,7 @@ end
 
 - **Which method.** The receiver's type decides, read from a type-checking round as for fields and methods (see *Fields and methods*). A call with no receiver inside a type is that type's. A call whose receiver's type has no yielding method of that name is lowered as before, as loop sugar or a lambda, so `xs.each do … end` on an `Array` is still a `for` loop.
 - **Names.** The copy's receiver, parameters and locals get a fresh prefix (`y1_`), so they cannot clash with the caller's. Error messages print them without it.
-- **Fields.** Pony fields are private to their type, so the copy reads `@items` through a generated method `_yf_items`, private to the package, with the yielding method's capability and the return type `this->` the field's type.
+- **Fields.** Pony fields are private to their type, so the copy reads `@items` through a generated method `spk_yf_items`, with the yielding method's capability and the return type `this->` the field's type. It is public, so that a copy in another package can call it; the `spk_` prefix keeps it out of Sparkle code.
 - **Errors** inside the copy are reported at the yielding method's line, with a note giving the call.
 - **Nesting.** A yielding method may call another with a block. Each level is one more type-checking round. A yielding method that reaches itself is an error.
 - **Arguments.** `yield` takes values as a call does, with or without parentheses. A block may name fewer parameters than `yield` passes; the rest are ignored. Naming more is an error.

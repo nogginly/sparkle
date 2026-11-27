@@ -114,6 +114,7 @@ module Sparkle
       elsif c == '@' && (peek(1).ascii_letter? || peek(1) == '_')
         advance
         text = take_while { |char| char.ascii_alphanumeric? || char == '_' }
+        reserved(text, line, col)
         @tokens << Token.new(Kind::InstVar, text, line, col, space)
       elsif c.ascii_number?
         lex_number(line, col, space)
@@ -126,6 +127,11 @@ module Sparkle
       end
     end
 
+    private def reserved(text : String, line : Int32, col : Int32) : Nil
+      return unless text.starts_with?(RESERVED_PREFIX)
+      raise ParseError.new("names starting with `#{RESERVED_PREFIX}` are reserved for Sparkle", line, col)
+    end
+
     private def take_while(&) : String
       String.build do |buffer|
         while @pos < @chars.size && yield(@chars[@pos])
@@ -135,8 +141,11 @@ module Sparkle
       end
     end
 
+    RESERVED_PREFIX = "spk_"
+
     private def lex_ident(line, col, space) : Nil
       text = take_while { |char| char.ascii_alphanumeric? || char == '_' }
+      reserved(text, line, col)
       if (peek == '?' || peek == '!') && peek(1) != '='
         text += peek.to_s
         advance

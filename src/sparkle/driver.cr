@@ -3,6 +3,7 @@ require "./rules"
 require "./lowerer"
 require "./inliner"
 require "./contracts"
+require "./packages"
 require "./diagnostics"
 require "./ponyc/compiler"
 require "./ponyc/session"
@@ -13,6 +14,7 @@ module Sparkle
     MAX_ROUNDS          = 50
     PONYC_RELATIVES     = [".tools/ponyc/bin/ponyc", "vendor/ponyc/build/release/ponyc"]
     INSTALLED_PONY_HOME = "lib/pony"
+    INSTALLED_LIBRARY   = "share/sparkle/stdlib"
 
     # Formats a parse error as `file:line:col: message`, the source line and a caret.
     def self.format_error(path : String, source : String, err : ParseError) : String
@@ -30,6 +32,33 @@ module Sparkle
         return installed if File.directory?(File.join(installed, "packages", "builtin"))
       end
       find_ponyc(env_value, exe_path, cwd).try { |ponyc| File.dirname(File.dirname(ponyc)) }
+    end
+
+    # The Sparkle library's directory: `$SPARKLE_LIB`, else
+    # `share/sparkle/stdlib` beside an installed `bin/sparkle`, else
+    # `stdlib` searched upward from the executable and the working
+    # directory. Nil when there is none.
+    def self.find_library(env_value : String? = ENV["SPARKLE_LIB"]?, exe_path : String? = Process.executable_path, cwd : String = Dir.current) : String?
+      return env_value if env_value && !env_value.empty?
+      roots = [] of String
+      if exe_path
+        prefix = File.dirname(File.dirname(File.expand_path(exe_path)))
+        installed = File.join(prefix, INSTALLED_LIBRARY)
+        return installed if File.directory?(installed)
+        roots << prefix
+      end
+      roots << File.expand_path(cwd)
+      roots.each do |root|
+        dir = root
+        loop do
+          candidate = File.join(dir, "stdlib")
+          return candidate if File.directory?(candidate)
+          parent = File.dirname(dir)
+          break if parent == dir
+          dir = parent
+        end
+      end
+      nil
     end
 
     # Locates ponyc: `$SPARKLE_PONYC`, then `.tools/ponyc`, then the vendored
@@ -60,46 +89,61 @@ module Sparkle
     end
 
     # Everything `build` and `tree_text` need once the sources parse.
-    private record Project, files : Array(String), package : String, sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)), predicates : Rules::Predicates
+    # `files`, `sources` and `programs` hold every package's files; `units`
+    # groups them into packages, the root last.
+    private record Project, files : Array(String), package : String, sources : Array(String), programs : Array(Program), units : Array(PackageSet::Unit), home : String, primed : Hash(String, Set(String)), predicates : Rules::Predicates
 
-    # Parses the Sparkle files at `path` and finds ponyc; nil, with the
-    # reason on `err`, if either fails.
+    # Parses the Sparkle files at `path`, and the packages they require, and
+    # finds ponyc; nil, with the reason on `err`, if either fails.
     private def self.load_project(path : String, err : IO, contracts : Bool = true) : Project?
-      files, package = sources_for(path)
-      if files.empty?
+      root, package = sources_for(path)
+      if root.empty?
         err.puts "sparkle: no .spk files in #{path}"
         return
       end
-      sources = files.map { |file| File.read(file) }
-      programs = [] of Program
-      checked = false
-      files.each_with_index do |file, i|
-        programs << Parser.parse(sources[i])
-        checked = Contracts.apply(programs[i], file, all: contracts) || checked
-      rescue e : ParseError
-        err.print format_error(file, sources[i], e)
+      set = PackageSet.new(find_library, contracts)
+      begin
+        set.load(File.directory?(path) ? path : File.dirname(path), root)
+      rescue e : PackageSet::Failure
+        err.print format_error(e.file, e.source, e.error)
         return
       end
-      Contracts.support(programs.first) if checked
+      files, sources, programs = set.files, set.sources, set.programs
       home = find_pony_home
       unless home
         err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
         return
       end
-      Project.new(files, package, sources, programs, home, Rules.primed_params(programs), Rules.enum_predicates(programs))
+      Project.new(files, package, sources, programs, set.units, home, Rules.primed_params(programs), Rules.enum_predicates(programs))
     end
 
-    private def self.lower_files(tree : Ponyc::Tree, files : Array(String), sources : Array(String), programs : Array(Program), calls : Hash(String, Set({Int32, Int32})), primed : Hash(String, Set(String)), predicates : Rules::Predicates, stub : Inliner? = nil, & : Int32 -> Nil) : Nil
-      files.each_with_index do |file, i|
-        yield i
-        lowerer = Lowerer.new(tree, calls[file]? || Set({Int32, Int32}).new, primed, predicates)
-        stub.try { |inliner| lowerer.stub(inliner.names, inliner.plain) }
-        lowerer.lower(programs[i], file, sources[i])
+    # Lowers each package into its own tree: the root into the root's, and
+    # each package it requires into one `packages` adds, before the
+    # packages that require it, so their `use`s can name its key. Yields
+    # the index of each file before lowering it.
+    private def self.lower_units(packages : Ponyc::Packages, units : Array(PackageSet::Unit), files : Array(String), sources : Array(String), programs : Array(Program), calls : Hash(String, Set({Int32, Int32})), primed : Hash(String, Set(String)), predicates : Rules::Predicates, stub : Inliner? = nil, & : Int32 -> Nil) : Nil
+      keys = {} of String => String
+      units.each_with_index do |unit, position|
+        tree = if position == units.size - 1
+                 packages.root
+               else
+                 key, added = packages.add(unit.name)
+                 keys[unit.dir] = key
+                 added
+               end
+        requires = unit.requires.transform_values { |dir| keys[dir] }
+        implicit = unit.implicit.map { |dir| keys[dir] }
+        unit.files.each do |i|
+          yield i
+          lowerer = Lowerer.new(tree, calls[files[i]]? || Set({Int32, Int32}).new, primed, predicates).packages(requires, implicit)
+          stub.try { |inliner| lowerer.stub(inliner.names, inliner.plain) }
+          lowerer.lower(programs[i], files[i], sources[i])
+        end
       end
     end
 
-    private def self.lower_project(tree : Ponyc::Tree, project : Project, calls : Hash(String, Set({Int32, Int32})), & : Int32 -> Nil) : Nil
-      lower_files(tree, project.files, project.sources, project.programs, calls, project.primed, project.predicates) { |i| yield i }
+    private def self.lower_project(packages : Ponyc::Packages, project : Project, calls : Hash(String, Set({Int32, Int32})), & : Int32 -> Nil) : Nil
+      lower_units(packages, project.units, project.files, project.sources, project.programs, calls, project.primed, project.predicates) { |i| yield i }
     end
 
     # The lowered tree of the package at `path`, as `build` compiles it,
@@ -109,8 +153,8 @@ module Sparkle
       current = 0
       begin
         calls = tree_calls(project) { |i| current = i }.calls
-        text = Ponyc.tree_text(project.home) do |tree|
-          lower_project(tree, project, calls) { |i| current = i }
+        text = Ponyc.tree_text(project.home) do |packages|
+          lower_project(packages, project, calls) { |i| current = i }
         end
         {0, text}
       rescue e : ParseError
@@ -126,11 +170,11 @@ module Sparkle
       current = 0
       session = Ponyc::Session.new(project.home)
       begin
-        rounds = tree_calls(session, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| current = i }
+        rounds = tree_calls(session, project.units, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| current = i }
         calls, inliner = rounds.calls, rounds.inliner
         return 1 unless posts_match?(project, rounds, err)
-        ok, errors = session.verify do |tree|
-          lower_project(tree, project, calls) { |i| current = i }
+        ok, errors = session.verify do |packages|
+          lower_project(packages, project, calls) { |i| current = i }
         end
         err.print Diagnostics.rewrite(errors, names: Rules.enum_names(project.programs), origins: inliner.origins, sources: project.files.zip(project.sources).to_h)
         ok ? 0 : 1
@@ -150,8 +194,8 @@ module Sparkle
         return {1, nil} unless posts_match?(project, rounds, err)
         out_dir ||= File.join(".sparkle", "bin")
         Dir.mkdir_p(out_dir)
-        ok, errors = Ponyc.compile_tree(out_dir, project.package, project.home, release) do |tree|
-          lower_project(tree, project, calls) { |i| current = i }
+        ok, errors = Ponyc.compile_tree(out_dir, project.package, project.home, release) do |packages|
+          lower_project(packages, project, calls) { |i| current = i }
         end
         err.print Diagnostics.rewrite(errors, names: Rules.enum_names(project.programs), origins: inliner.origins, sources: project.files.zip(project.sources).to_h)
         {ok ? 0 : 1, File.join(out_dir, project.package)}
@@ -164,7 +208,7 @@ module Sparkle
     private def self.tree_calls(project : Project, & : Int32 -> Nil) : Rounds
       session = Ponyc::Session.new(project.home)
       begin
-        tree_calls(session, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| yield i }
+        tree_calls(session, project.units, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| yield i }
       ensure
         session.close
       end
@@ -177,7 +221,8 @@ module Sparkle
     def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)) = Rules.primed_params(programs), predicates : Rules::Predicates = Rules.enum_predicates(programs), & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
       session = Ponyc::Session.new(home)
       begin
-        tree_calls(session, files, sources, programs, primed, predicates) { |i| yield i }.calls
+        unit = PackageSet::Unit.new(".", "main", (0...files.size).to_a, {} of String => String, [] of String)
+        tree_calls(session, [unit], files, sources, programs, primed, predicates) { |i| yield i }.calls
       ensure
         session.close
       end
@@ -189,7 +234,7 @@ module Sparkle
     # types, and inlines the ones that reach a yielding method. Then the
     # yielding methods are dropped and the rounds go on, unstubbed, until no
     # new call is found. Programs are changed in place.
-    private def self.tree_calls(session : Ponyc::Session, files : Array(String), sources : Array(String), programs : Array(Program), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : Rounds
+    private def self.tree_calls(session : Ponyc::Session, units : Array(PackageSet::Unit), files : Array(String), sources : Array(String), programs : Array(Program), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : Rounds
       calls = Hash(String, Set({Int32, Int32})).new
       handled = Set({String, Int32, Int32}).new
       clean = false
@@ -198,8 +243,8 @@ module Sparkle
       MAX_ROUNDS.times do
         sites = finished ? [] of Inliner::Site : inliner.sites
         receivers = sites.select(&.call.recv).map { |site| {site.file, site.call.name_line, site.call.name_col} }.to_set
-        found, types, handled = session.check(receivers) do |tree|
-          lower_files(tree, files, sources, programs, calls, primed, predicates, finished ? nil : inliner) { |i| yield i }
+        found, types, handled = session.check(receivers) do |packages|
+          lower_units(packages, units, files, sources, programs, calls, primed, predicates, finished ? nil : inliner) { |i| yield i }
         end
         clean = found.empty?
         grown = false
