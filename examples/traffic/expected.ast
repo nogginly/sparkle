@@ -284,53 +284,54 @@
                   (. (. (reference (id env)) (id out)) (id print))
                   (positionalargs
                     (seq
-                      (+
+                      (seq
+                        (=
+                          (let (id spk_s11_24) (nominal x (id String) x val x))
+                          (call (. (reference (id light)) (id string)) x x x)
+                        )
+                        (=
+                          (let (id spk_s11_35) (nominal x (id String) x val x))
+                          (call
+                            (.
+                              (call
+                                (. (reference (id light)) (id value))
+                                x
+                                x
+                                x
+                              )
+                              (id string)
+                            )
+                            x
+                            x
+                            x
+                          )
+                        )
                         (+
                           (+
                             (+
-                              (call
-                                (. (reference (id light)) (id string))
-                                x
-                                x
-                                x
-                              )
-                              " = "
+                              (+ (reference (id spk_s11_24)) " = " x)
+                              (reference (id spk_s11_35))
                               x
                             )
-                            (call
-                              (.
-                                (call
-                                  (. (reference (id light)) (id value))
-                                  x
-                                  x
-                                  x
-                                )
-                                (id string)
-                              )
-                              x
-                              x
-                              x
-                            )
+                            ", next "
                             x
                           )
-                          ", next "
-                          x
-                        )
-                        (call
-                          (.
-                            (call
-                              (reference (id after))
-                              (positionalargs (seq (reference (id light))))
-                              x
-                              x
+                          (call
+                            (.
+                              (call
+                                (reference (id after))
+                                (positionalargs (seq (reference (id light))))
+                                x
+                                x
+                              )
+                              (id string)
                             )
-                            (id string)
+                            x
+                            x
+                            x
                           )
                           x
-                          x
-                          x
                         )
-                        x
                       )
                     )
                   )

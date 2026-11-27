@@ -18,14 +18,16 @@
           x
           x
           (seq
-            (+
-              (+
+            (seq
+              (=
+                (let (id spk_s5_30) (nominal x (id String) x val x))
                 (call (. (call (reference (id name)) x x x) (id string)) x x x)
-                " with area "
+              )
+              (+
+                (+ (reference (id spk_s5_30)) " with area " x)
+                (call (. (call (reference (id area)) x x x) (id string)) x x x)
                 x
               )
-              (call (. (call (reference (id area)) x x x) (id string)) x x x)
-              x
             )
           )
           x
@@ -425,8 +427,9 @@
                   (. (. (reference (id env)) (id out)) (id print))
                   (positionalargs
                     (seq
-                      (+
-                        (+
+                      (seq
+                        (=
+                          (let (id spk_s88_24) (nominal x (id String) x val x))
                           (call
                             (.
                               (call (. (reference (id s)) (id describe)) x x x)
@@ -436,19 +439,20 @@
                             x
                             x
                           )
-                          " big="
-                          x
                         )
-                        (call
-                          (.
-                            (call (. (reference (id s)) (id is_big)) x x x)
-                            (id string)
+                        (+
+                          (+ (reference (id spk_s88_24)) " big=" x)
+                          (call
+                            (.
+                              (call (. (reference (id s)) (id is_big)) x x x)
+                              (id string)
+                            )
+                            x
+                            x
+                            x
                           )
                           x
-                          x
-                          x
                         )
-                        x
                       )
                     )
                   )
@@ -480,38 +484,40 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
-                    (+
-                      (+
-                        (+
-                          "sum = ("
-                          (call
-                            (.
-                              (call (. (reference (id sum)) (id x)) x x x)
-                              (id string)
-                            )
-                            x
-                            x
-                            x
-                          )
-                          x
-                        )
-                        ", "
-                        x
-                      )
+                  (seq
+                    (=
+                      (let (id spk_s92_29) (nominal x (id String) x val x))
                       (call
                         (.
-                          (call (. (reference (id sum)) (id y)) x x x)
+                          (call (. (reference (id sum)) (id x)) x x x)
                           (id string)
                         )
                         x
                         x
                         x
                       )
+                    )
+                    (+
+                      (+
+                        (+
+                          (+ "sum = (" (reference (id spk_s92_29)) x)
+                          ", "
+                          x
+                        )
+                        (call
+                          (.
+                            (call (. (reference (id sum)) (id y)) x x x)
+                            (id string)
+                          )
+                          x
+                          x
+                          x
+                        )
+                        x
+                      )
+                      ")"
                       x
                     )
-                    ")"
-                    x
                   )
                 )
               )
@@ -599,39 +605,36 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
-                    (+
-                      (+
-                        "empty = "
-                        (call
-                          (.
-                            (call
-                              (. (reference (id stack)) (id is_empty))
-                              x
-                              x
-                              x
-                            )
-                            (id string)
-                          )
-                          x
-                          x
-                          x
+                  (seq
+                    (=
+                      (let (id spk_s100_30) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (call (. (reference (id stack)) (id is_empty)) x x x)
+                          (id string)
                         )
                         x
+                        x
+                        x
                       )
-                      " size = "
+                    )
+                    (+
+                      (+
+                        (+ "empty = " (reference (id spk_s100_30)) x)
+                        " size = "
+                        x
+                      )
+                      (call
+                        (.
+                          (call (. (reference (id stack)) (id size)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
                       x
                     )
-                    (call
-                      (.
-                        (call (. (reference (id stack)) (id size)) x x x)
-                        (id string)
-                      )
-                      x
-                      x
-                      x
-                    )
-                    x
                   )
                 )
               )
@@ -691,41 +694,40 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
-                    (+
-                      (+
-                        "missing nil = "
-                        (call
-                          (.
-                            (seq
-                              (is
-                                (reference (id missing))
-                                (reference (id None))
-                              )
-                            )
-                            (id string)
+                  (seq
+                    (=
+                      (let (id spk_s108_36) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (is (reference (id missing)) (reference (id None)))
                           )
-                          x
-                          x
-                          x
+                          (id string)
                         )
                         x
+                        x
+                        x
                       )
-                      ", present nil = "
-                      x
                     )
-                    (call
-                      (.
-                        (seq
-                          (is (reference (id present)) (reference (id None)))
+                    (+
+                      (+
+                        (+ "missing nil = " (reference (id spk_s108_36)) x)
+                        ", present nil = "
+                        x
+                      )
+                      (call
+                        (.
+                          (seq
+                            (is (reference (id present)) (reference (id None)))
+                          )
+                          (id string)
                         )
-                        (id string)
+                        x
+                        x
+                        x
                       )
                       x
-                      x
-                      x
                     )
-                    x
                   )
                 )
               )

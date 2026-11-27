@@ -43,11 +43,11 @@ Sparkle translates before it knows types. These follow, each with its way out.
 
 ## Order of evaluation
 
-Pony evaluates a method call's arguments before its receiver. Arithmetic on numbers runs left to right, but `String`'s `+` is a method, and an interpolated string is a chain of `+`, so its parts run from the right:
+Pony evaluates a method call's arguments before its receiver. Arithmetic on numbers and string interpolation run left to right, but a chain of calls with effects does not:
 
 | Gap | Instead |
 |---|---|
-| `"took #{a.take(5)}, left #{a.left}"` reads `left` before `take` runs | `n = a.take(5)` on its own line, then interpolate `n` |
+| `"took " + a.take(5).string() + ", left " + a.left.string()` runs `a.left` first | Interpolate: `"took #{a.take(5)}, left #{a.left}"` |
 
 ## Syntax
 

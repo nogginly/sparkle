@@ -43,31 +43,36 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
+                  (seq
+                    (=
+                      (let (id spk_s5_22) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (call (. (reference (id names)) (id size)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
                     (+
                       (+
+                        (+ (reference (id spk_s5_22)) " names, " x)
                         (call
                           (.
-                            (call (. (reference (id names)) (id size)) x x x)
+                            (call (. "hello" (id size)) x x x)
                             (id string)
                           )
                           x
                           x
                           x
                         )
-                        " names, "
                         x
                       )
-                      (call
-                        (. (call (. "hello" (id size)) x x x) (id string))
-                        x
-                        x
-                        x
-                      )
+                      " letters"
                       x
                     )
-                    " letters"
-                    x
                   )
                 )
               )

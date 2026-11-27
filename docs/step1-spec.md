@@ -195,8 +195,11 @@ Pony has no operator precedence, so every nested binary expression is grouped, a
 |---|---|
 | `nil`, `true`, `false` | `None`, `true`, `false` |
 | `"n = #{n}!"` / `"#{n}"` | `"n = " + n.string() + "!"` / `"" + n.string()` |
+| `"#{a.f} and #{b}"` | `(let spk_s1_4: String val = a.f().string(); spk_s1_4 + " and " + b.string())` |
 | `[1, 2, 3]` / `[1, 2] of UInt8` / `[] of String` | `[1; 2; 3]` / `[as U8: 1; 2]` / `Array[String].create()` |
 | `{a, b}` in expression position | `(a, b)` |
+
+Parts of an interpolated string run left to right, as in Crystal. Pony evaluates a method call's argument before its receiver, and `String`'s `+` is a method, so a plain chain of `+` would run them from the right. With two or more expression parts, each but the last is first bound to a `let`, named for its line and column.
 
 #### Literal defaults
 
@@ -382,5 +385,5 @@ Macros (`getter`, `property`, `record`), methods inside an `enum`, calls with ar
 - A bare name is resolved once per position, so it cannot be a field for one caller and a method for another, for example in a generic method used with two types.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
-- Pony evaluates a method call's arguments before its receiver. Arithmetic on numbers runs left to right, but `String`'s `+` is a method, so an interpolated string, a chain of `+`, runs its parts from the right: `"#{a.take} #{a.left}"` reads `left` before `take` runs. Assign each call with an effect on a line of its own.
+- Pony evaluates a method call's arguments before its receiver, so in `a.f(b.g)`, `b.g` runs before `a`. Arithmetic on numbers runs left to right, and so does string interpolation (see *Literals*), but an explicit chain of method calls, `s.add(x.f).add(y.f)` or `s + x.f + y.f` on strings, runs `y.f` first.
 - `def pop` and `def pop!` both become `pop`; `def empty?` and `def is_empty` both become `is_empty`. Defining both is an error from `ponyc`.

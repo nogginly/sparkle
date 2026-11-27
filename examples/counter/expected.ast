@@ -73,47 +73,56 @@
               (. (. (reference (id env)) (id out)) (id print))
               (positionalargs
                 (seq
-                  (+
+                  (seq
+                    (=
+                      (let (id spk_s13_30) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (call (. (reference (id c)) (id count)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (=
+                      (let (id spk_s13_49) (nominal x (id String) x val x))
+                      (call (. (reference (id last)) (id string)) x x x)
+                    )
+                    (=
+                      (let (id spk_s13_62) (nominal x (id String) x val x))
+                      (call (. (reference (id a)) (id string)) x x x)
+                    )
                     (+
                       (+
                         (+
                           (+
                             (+
                               (+
-                                "count = "
-                                (call
-                                  (.
-                                    (call
-                                      (. (reference (id c)) (id count))
-                                      x
-                                      x
-                                      x
-                                    )
-                                    (id string)
-                                  )
-                                  x
-                                  x
+                                (+
+                                  "count = "
+                                  (reference (id spk_s13_30))
                                   x
                                 )
+                                ", last = "
                                 x
                               )
-                              ", last = "
+                              (reference (id spk_s13_49))
                               x
                             )
-                            (call (. (reference (id last)) (id string)) x x x)
+                            ", a = "
                             x
                           )
-                          ", a = "
+                          (reference (id spk_s13_62))
                           x
                         )
-                        (call (. (reference (id a)) (id string)) x x x)
+                        ", b = "
                         x
                       )
-                      ", b = "
+                      (call (. (reference (id b)) (id string)) x x x)
                       x
                     )
-                    (call (. (reference (id b)) (id string)) x x x)
-                    x
                   )
                 )
               )
