@@ -113,10 +113,11 @@ module Sparkle
 
     private def parse_toplevel : Node
       t = tok
-      if t.kw?("use")
+      error("`use` is written `require` in Sparkle", t) if t.kw?("use")
+      if t.kw?("require")
         advance
         s = expect_kind(Kind::Str, "a string")
-        UseDecl.new(t.line, t.col, plain_string(s))
+        RequireDecl.new(t.line, t.col, plain_string(s))
       elsif t.kw?("alias")
         advance
         name = expect_kind(Kind::Const, "a type name").text

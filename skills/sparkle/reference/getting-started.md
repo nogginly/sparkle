@@ -46,10 +46,10 @@ n = 42, half = 21
 
 ## Packages
 
-Pony's standard library is available. Import a package with `use` at the top of a file:
+Pony's standard library is available. Import a package with `require` at the top of a file:
 
 ```crystal
-use "collections"
+require "collections"
 
 actor Main
   def self.new(env : Env)

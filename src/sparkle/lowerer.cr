@@ -70,12 +70,12 @@ module Sparkle
         when TypeDecl        then @tree.add(entity(item))
         when EnumDecl        then enum_decl(item).each { |node| @tree.add(node) }
         when AliasDecl       then @tree.add(type_alias(item.name, type(item.type), at(item)))
-        when UseDecl         then next
+        when RequireDecl         then next
         when ContractSupport then contract_support(at(item))
         else                      unsupported(item, "this declaration")
         end
       end
-      uses = program.items.select(UseDecl).map(&.path)
+      uses = program.items.select(RequireDecl).map(&.path)
       uses << "collections" if @collections && !uses.includes?("collections")
       uses.reverse_each { |path| @tree.use(path) }
     end

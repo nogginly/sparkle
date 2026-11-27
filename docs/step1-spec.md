@@ -25,7 +25,7 @@ flowchart LR
 
 | Sparkle | Pony |
 |---|---|
-| `use "collections"` | `use "collections"` |
+| `require "collections"` | `use "collections"` |
 | `class Foo … end` (also `actor`, `struct`, `primitive`, `trait`, `interface`) | same keyword |
 | `class val Point` | `class val Point` |
 | `class Box(A)` / `class Box(A : val)` / `class Box(A : val Stringable)` | `class Box[A]` / `class Box[A: Any val]` / `class Box[A: Stringable val]` |

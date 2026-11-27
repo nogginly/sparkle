@@ -10,7 +10,7 @@ Sparkle reads like Crystal, but it has no type inference across methods and no m
 | `getter name`, `property name`, `record` | Write the method: `def name : String = @name` |
 | `yield` and `&block` | `yield` works in your own methods, which are inlined at each call; `&block` does not exist. On Pony's types, `each`, `each_with_index` and `times` are loops, and other blocks are lambdas |
 | `puts x`, `foo 1, 2` | Parentheses are required when there are arguments. Print with `env.out.print(s)` |
-| `{"a" => 1}`, `:sym` | Not supported: no hashes, no symbols. `Map` and `Set` come from `use "collections"` |
+| `{"a" => 1}`, `:sym` | Not supported: no hashes, no symbols. `Map` and `Set` come from `require "collections"` |
 | Reopening a class | Not supported |
 | `Foo(T)` generic methods | Only types are generic, not methods |
 | `[1, 2]` is `Array(Int32)` | The same, unless the context asks for another type: `xs : Array(UInt8) = [1, 2]` |

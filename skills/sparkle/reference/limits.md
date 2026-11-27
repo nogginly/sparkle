@@ -8,7 +8,7 @@ What Sparkle does not do, and what to write instead.
 |---|---|
 | `return` with a value in a method that yields; `next` or `break` in a block whose call's value is used | Assign to a local in the block, and read it after the call; see [blocks](blocks.md) |
 | Macros: `getter`, `property`, `record` | Write the methods |
-| Hash and symbol literals | `Map` and `Set` from `use "collections"` |
+| Hash and symbol literals | `Map` and `Set` from `require "collections"` |
 | `puts "x"`: a call with arguments and no parentheses | `env.out.print("x")` |
 | FFI | none |
 | `let` and `embed` fields | `@name : Type` |
