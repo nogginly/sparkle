@@ -109,7 +109,7 @@ describe "end to end" do
       code.should_not eq 0
       text = err.to_s
       text.should contain "spec/fixtures/undefined_name/main.spk:4:"
-      text.should contain "    env.out.print(missing_name)"
+      text.should contain "    env.out <~ print(missing_name)"
     end
 
     it "stops at a failed contract, naming the clause and its place" do
@@ -142,13 +142,23 @@ describe "end to end" do
         actor Main
           def self.new(env : Env)
             log = Log.new
-            env.out.print("#{log.add("a")}#{log.add("b")}#{log.add("c")} #{log.text}")
+            env.out <~ print("#{log.add("a")}#{log.add("b")}#{log.add("c")} #{log.text}")
           end
         end
         SPK
       code, stdout, err = run_source(source)
       code.should eq(0), err
       stdout.should eq "abc abc\n"
+    end
+
+    it "requires <~ for a message, and only for one" do
+      err = IO::Memory.new
+      Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/message_calls/main.spk", err) }.should eq 1
+      err.to_s.lines.select(&.matches?(/\A\S+:\d+:\d+: /)).should eq [
+        "spec/fixtures/message_calls/main.spk:13:13: `print` is a message: post it with `<~`",
+        "spec/fixtures/message_calls/main.spk:17:7: `tick` is a message: post it with `self <~`",
+        "spec/fixtures/message_calls/main.spk:19:13: `<~` posts a message, and `size` is a method: call it with `.`",
+      ]
     end
 
     it "rejects a contract that would change state" do
@@ -163,7 +173,7 @@ describe "end to end" do
       err = IO::Memory.new
       Dir.cd(ROOT) { Sparkle::Driver.build("spec/fixtures/iso_mismatch/main.spk", File.join(".sparkle", "bin"), err) }
       text = err.to_s
-      text.should contain "spec/fixtures/iso_mismatch/main.spk:10:20: argument not assignable to parameter"
+      text.should contain "spec/fixtures/iso_mismatch/main.spk:10:23: argument not assignable to parameter"
       text.should contain "argument type is ref Array(val String)"
       text.should contain "parameter type requires iso^ Array(val String)"
       text.should contain "spec/fixtures/iso_mismatch/main.spk:11:5: right side must be a subtype of left side"

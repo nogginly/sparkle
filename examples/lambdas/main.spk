@@ -15,9 +15,9 @@ end
 actor Main
   def self.new(env : Env)
     five : U32 = 5
-    env.out.print(Run.twice(five) { |x| x * 2 }.string)
-    env.out.print(Run.measure("sparkle", &.size).string)
+    env.out <~ print(Run.twice(five) { |x| x * 2 }.string)
+    env.out <~ print(Run.measure("sparkle", &.size).string)
     pair = Run.pair(7)
-    env.out.print(pair._2)
+    env.out <~ print(pair._2)
   end
 end

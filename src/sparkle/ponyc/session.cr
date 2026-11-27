@@ -29,11 +29,13 @@ module Sparkle::Ponyc
 
     # As `check`, and also the printed type of the receiver of each call
     # whose method name is at one of `receivers` (file, line, column), such
-    # as `Bag ref` or `Box[String val] ref`.
-    def check(receivers : Set({String, Int32, Int32}), & : Tree -> Nil) : {Array({String, Int32, Int32, String}), Hash({String, Int32, Int32}, String)}
+    # as `Bag ref` or `Box[String val] ref`, and the positions of the calls
+    # that reach a message handler (Pony's behaviour).
+    def check(receivers : Set({String, Int32, Int32}), & : Tree -> Nil) : {Array({String, Int32, Int32, String}), Hash({String, Int32, Int32}, String), Set({String, Int32, Int32})}
       types = {} of {String, Int32, Int32} => String
-      round(LibPonyc.spk_pass_expr, receivers.empty? ? nil : ->(package : LibPonyc::Ast) { receiver_types(package, receivers, types) }) { |tree| yield tree }
-      {Ponyc.errors(@opt), types}
+      handled = Set({String, Int32, Int32}).new
+      round(LibPonyc.spk_pass_expr, ->(package : LibPonyc::Ast) { inspect_calls(package, receivers, types, handled) }) { |tree| yield tree }
+      {Ponyc.errors(@opt), types, handled}
     end
 
     # Runs every pass but code generation on the package built by the block;
@@ -49,21 +51,23 @@ module Sparkle::Ponyc
 
     # Loads a new package, lets the block build it, runs the passes up to
     # `limit` over the program, and removes the package again.
-    # After the expression pass a call is `(call (funref receiver name) ...)`.
-    private def receiver_types(ast : LibPonyc::Ast, receivers : Set({String, Int32, Int32}), types : Hash({String, Int32, Int32}, String)) : Nil
+    # After the expression pass a call is `(call (funref receiver name) ...)`,
+    # or `(call (beref receiver name) ...)` for a message handler.
+    private def inspect_calls(ast : LibPonyc::Ast, receivers : Set({String, Int32, Int32}), types : Hash({String, Int32, Int32}, String), handled : Set({String, Int32, Int32})) : Nil
       child = LibPonyc.ast_child(ast)
       until child.null?
         if LibPonyc.ast_id(child) == Tk::CALL.value
           file = LibPonyc.spk_ast_file(child)
           at = {file.null? ? "" : String.new(file), LibPonyc.ast_line(child).to_i32, LibPonyc.ast_pos(child).to_i32}
+          callee = LibPonyc.ast_child(child)
+          handled << at if !callee.null? && LibPonyc.ast_id(callee) == Tk::BEREF.value
           if receivers.includes?(at) && !types.has_key?(at)
-            callee = LibPonyc.ast_child(child)
             receiver = callee.null? ? callee : LibPonyc.ast_child(callee)
             type = receiver.null? ? receiver : LibPonyc.ast_type(receiver)
             types[at] = String.new(LibPonyc.ast_print_type(type, LibPonyc.spk_opt_strtab(@opt))) unless type.null?
           end
         end
-        receiver_types(child, receivers, types)
+        inspect_calls(child, receivers, types, handled)
         child = LibPonyc.ast_sibling(child)
       end
     end

@@ -19,7 +19,7 @@ end
 actor Main
   def self.new(env : Env)
     p = Point.new(3, 4)
-    env.out.print("(#{p.x}, #{p.y})")
+    env.out <~ print("(#{p.x}, #{p.y})")
   end
 end
 ```
@@ -99,7 +99,7 @@ actor Main
   def self.new(env : Env)
     s = Stack.new
     s.push("a")
-    env.out.print("#{s.size} #{s.empty?}")
+    env.out <~ print("#{s.size} #{s.empty?}")
   end
 end
 ```
@@ -135,7 +135,7 @@ end
 actor Main
   def self.new(env : Env)
     total = Score.new(2) + Score.new(3)
-    env.out.print("#{total.points} #{Score.new(1) < total}")
+    env.out <~ print("#{total.points} #{Score.new(1) < total}")
   end
 end
 ```

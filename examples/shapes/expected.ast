@@ -429,7 +429,7 @@
                     (seq
                       (seq
                         (=
-                          (let (id spk_s88_24) (nominal x (id String) x val x))
+                          (let (id spk_s88_27) (nominal x (id String) x val x))
                           (call
                             (.
                               (call (. (reference (id s)) (id describe)) x x x)
@@ -441,7 +441,7 @@
                           )
                         )
                         (+
-                          (+ (reference (id spk_s88_24)) " big=" x)
+                          (+ (reference (id spk_s88_27)) " big=" x)
                           (call
                             (.
                               (call (. (reference (id s)) (id is_big)) x x x)
@@ -486,7 +486,7 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s92_29) (nominal x (id String) x val x))
+                      (let (id spk_s92_32) (nominal x (id String) x val x))
                       (call
                         (.
                           (call (. (reference (id sum)) (id x)) x x x)
@@ -500,7 +500,7 @@
                     (+
                       (+
                         (+
-                          (+ "sum = (" (reference (id spk_s92_29)) x)
+                          (+ "sum = (" (reference (id spk_s92_32)) x)
                           ", "
                           x
                         )
@@ -607,7 +607,7 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s100_30) (nominal x (id String) x val x))
+                      (let (id spk_s100_33) (nominal x (id String) x val x))
                       (call
                         (.
                           (call (. (reference (id stack)) (id is_empty)) x x x)
@@ -620,7 +620,7 @@
                     )
                     (+
                       (+
-                        (+ "empty = " (reference (id spk_s100_30)) x)
+                        (+ "empty = " (reference (id spk_s100_33)) x)
                         " size = "
                         x
                       )
@@ -696,7 +696,7 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s108_36) (nominal x (id String) x val x))
+                      (let (id spk_s108_39) (nominal x (id String) x val x))
                       (call
                         (.
                           (seq
@@ -711,7 +711,7 @@
                     )
                     (+
                       (+
-                        (+ "missing nil = " (reference (id spk_s108_36)) x)
+                        (+ "missing nil = " (reference (id spk_s108_39)) x)
                         ", present nil = "
                         x
                       )

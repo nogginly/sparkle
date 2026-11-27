@@ -137,6 +137,8 @@ Without types the translator cannot tell `x.size` the method from `x.size` the f
 | A parameter named like a method | Forbidden | Given a prime (`payload'`) |
 | A class whose fields all have defaults | Infers an `iso` constructor | Gets an explicit constructor, giving `ref` |
 
+Pony's behaviours are Sparkle's **message handlers**, declared with `on` and reached with `<~`, not with `be` and a plain call. A caller calls a method and waits for its reply, or posts a message and goes on, trusting the handler to process it and expecting nothing back. `be` read as "be a method", and "behaviour" says nothing about a message, so both words stay in Pony; the handler runs later, when its message reaches the actor, and returns nothing. `on add(n)` names when it runs. At the call, `counter <~ add(3)` shows the hand-off, which a plain `counter.add(3)` hides; the marker is required both ways, so its presence and its absence can both be trusted. It also explains why output from two actors interleaves: `env.out <~ print(s)` is a message too. `<~` points into the receiver, as Go's `<-` does, and the wave says "not now"; it costs Crystal's `a <~b` (`a < ~b`), which needs a space. `->` stays free for lambdas. The aim is that Sparkle does not expose Pony's spelling where Crystal or Ruby would expect another.
+
 The integer default is `Int32`, matching Crystal and Rust. `Int64` was weighed and set aside for now: it costs almost nothing on 64-bit hardware and moves the overflow point from about 2.1 billion to out of reach, which matters because Pony's `+` wraps silently. The trade is compatibility over overflow headroom, and it may be revisited. Contracts (roadmap step 7) are the planned answer to overflow: prove a value stays in range rather than widen its type.
 
 ### An assignment's value is the new value
@@ -220,7 +222,7 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 - **Memory.** Each actor gets a long-lived heap for its state and a scratch arena per behaviour, wiped when the behaviour returns. A value that escapes into a field is promoted to the actor's heap. Sending an `iso` hands over ownership; shared `val` objects are reference-counted.
 - **Inlined `yield`.** A block's code runs inside the caller with no closure object, so nothing is allocated. Lambdas remain for blocks that outlive the call.
 - **Errors.** A function that can fail returns a typed error; `raise` and `rescue` are sugar for that.
-- **Fan-out and gather.** A behaviour that returns a value gives back a future; `await_all` parks the calling actor until the results arrive.
+- **Fan-out and gather.** A message handler that returns a value gives back a future; `await_all` parks the calling actor until the results arrive.
 - **Contracts.** Checked at runtime first, then proved with an SMT solver where possible. `iso` and `val` rule out aliasing, which is what usually makes proofs about imperative code hard.
 
 ## Open questions

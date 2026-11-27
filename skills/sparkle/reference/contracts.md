@@ -31,7 +31,7 @@ actor Main
     account = Account.new
     account.deposit(100)
     taken = account.withdraw(30)
-    env.out.print("left #{account.balance}")
+    env.out <~ print("left #{account.balance}")
   end
 end
 ```
@@ -44,9 +44,9 @@ left 70
 
 | Clause | Written | Checked | A failure means |
 |---|---|---|---|
-| `expects cond, …` | first lines of a `def` or `be` | on entry | the caller broke the contract |
+| `expects cond, …` | first lines of a `def` or `on` | on entry | the caller broke the contract |
 | `guarantees cond, …` | after any `expects` | on each normal return | the method broke its promise |
-| `maintains cond, …` | first lines of a `class`, `struct` or `actor` | after each constructor, public `ref` method and behaviour | the type broke its own rule |
+| `maintains cond, …` | first lines of a `class`, `struct` or `actor` | after each constructor, public `ref` method and message handler | the type broke its own rule |
 
 - The body starts at the first line that is not a clause. A one-line `def x = expr` takes none.
 - Commas separate conditions; each is checked and reported on its own.
@@ -83,7 +83,7 @@ An `iso` argument or result cannot be read in a clause: seen as `box`, it is a `
 | `def ref`, public | yes | yes | yes |
 | `def ref _helper` | yes | yes | no: a helper may leave the rule broken for its caller to restore |
 | `def self.new` | its arguments only | yes, without `result` or `old` | yes |
-| `be` | yes, when the message is processed | no: no caller sees its end | yes |
+| `on` | yes, when the message is processed | no: no caller sees its end | yes |
 | `def name!` | yes | on normal return only | yes, if `ref` |
 
 ```crystal
@@ -92,7 +92,7 @@ actor Counter
 
   @count : Int32 = 0
 
-  be add(n : Int32)
+  on add(n : Int32)
     expects n > 0
     @count += n
   end

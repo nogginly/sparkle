@@ -10,16 +10,16 @@ actor Printer
     @out = out
   end
 
-  be say(text : String)
-    @out.print(text)
+  on say(text : String)
+    @out <~ print(text)
   end
 end
 
 actor Main
   def self.new(env : Env)
     printer = Printer.new(env.out)
-    printer.say("one")
-    printer.say("two")
+    printer <~ say("one")
+    printer <~ say("two")
   end
 end
 ```
@@ -29,14 +29,23 @@ one
 two
 ```
 
-## Behaviours
+## Messages
 
-`be` declares a behaviour: a method that runs later, asynchronously. The call returns at once, with nothing.
+You **call a method** and wait for its reply before going on. You **post a message** and go on at once: the actor's handler will process it later, and you expect nothing back.
 
-- A behaviour has no return type and no value. To get an answer, pass the sender and have the behaviour send one back.
+| You write | It means |
+|---|---|
+| `on say(text : String)` | declare the handler for the message `say` |
+| `printer <~ say("one")` | post `say` to `printer`; do not wait |
+| `self <~ tick` | post to this actor; `tick` is handled after the current message |
+| `env.out <~ print(s)` | printing is a message to the output actor |
+
+- `<~` is required for a message, and only for a message: `printer.say("one")` and `printer <~ size` are both errors that say which to write.
+
+- A handler has no return type and no value. To get an answer, pass the sender and have the handler post one back.
 - Messages from one actor to another arrive in the order they were sent.
 - Messages from different senders arrive in no fixed order. Make one actor do all the printing, and do not depend on the order between actors.
-- A behaviour's parameters must be `iso`, `val` or `tag`, since they cross to another actor. A `String` literal is `val`, so it is fine. See [capabilities](capabilities.md).
+- A handler's parameters must be `iso`, `val` or `tag`, since they cross to another actor. A `String` literal is `val`, so it is fine. See [capabilities](capabilities.md).
 
 ## Replying
 
@@ -53,11 +62,11 @@ actor Collector
     @pending = expected
   end
 
-  be add(value : UInt64)
+  on add(value : UInt64)
     @total += value
     @pending -= 1
     if @pending == 0
-      @out.print("total = #{@total}")
+      @out <~ print("total = #{@total}")
     end
   end
 end
@@ -69,8 +78,8 @@ actor Worker
     @sink = sink
   end
 
-  be run(n : UInt64)
-    @sink.add(n * n)
+  on run(n : UInt64)
+    @sink <~ add(n * n)
   end
 end
 
@@ -80,7 +89,7 @@ actor Main
     sink = Collector.new(env.out, count)
     n : UInt64 = 1
     count.times do |i|
-      Worker.new(sink).run(n + i.u64)
+      Worker.new(sink) <~ run(n + i.u64)
     end
   end
 end
@@ -102,22 +111,22 @@ actor Greeter
     @out = out
   end
 
-  be greet(name : String)
-    @out.print(line(name))
+  on greet(name : String)
+    @out <~ print(line(name))
   end
 
   def line(name : String) : String = "hello, #{name}"
 end
 ```
 
-Other code cannot call a `def` on an actor, because a `tag` reference gives access only to behaviours. Use `def` for helpers.
+Other code cannot call a `def` on an actor, because a `tag` reference can only be posted messages. Use `def` for helpers.
 
 ## Sending data
 
 ```crystal
 actor Sink
-  be take(data : val Array(String), out : OutStream)
-    out.print("got #{data.size}")
+  on take(data : val Array(String), out : OutStream)
+    out <~ print("got #{data.size}")
   end
 end
 
@@ -129,8 +138,8 @@ actor Main
       list << "b"
       list
     end
-    Sink.new.take(data, env.out)
-    Sink.new.take(data, env.out)
+    Sink.new <~ take(data, env.out)
+    Sink.new <~ take(data, env.out)
   end
 end
 ```
@@ -146,7 +155,7 @@ end
 ```crystal
 actor Main
   def self.new(env : Env)
-    env.out.print("args: #{env.args.size}")
+    env.out <~ print("args: #{env.args.size}")
   end
 end
 ```

@@ -10,10 +10,10 @@ actor Worker
     @stream = env.@out
   end
 
-  be process(names : iso Array(String))
+  on process(names : iso Array(String))
     sealed : val Array(String) = consume names
     sealed.each do |name|
-      @stream.print("hello, #{name}")
+      @stream <~ print("hello, #{name}")
     end
   end
 end
@@ -22,7 +22,7 @@ actor Main
   def self.new(env : Env)
     names = recover iso do Array(String).new end
     names << "ada"
-    Worker.new(env).process(consume names)
+    Worker.new(env) <~ process(consume names)
   end
 end
 ```

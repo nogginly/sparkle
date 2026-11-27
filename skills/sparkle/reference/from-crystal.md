@@ -18,7 +18,7 @@ Sparkle reads like Crystal, but it has no type inference across methods and no m
 | `begin … rescue ex : Foo` | `begin … rescue … end`; no exception types or values |
 | `case … when Foo` | Also `when n : Foo` to bind the value |
 | Every object may be shared | Every reference has a capability, see below |
-| Fibers and channels | Actors and `be` methods |
+| Fibers and channels | Actors: `on` declares a message handler, `<~` posts the message |
 
 ## Numbers
 
@@ -26,7 +26,7 @@ Sparkle reads like Crystal, but it has no type inference across methods and no m
 ticks : USize = 0
 limit = 3
 limit_size = limit.usize
-env.out.print("#{ticks < limit_size}")
+env.out <~ print("#{ticks < limit_size}")
 ```
 
 ```text
@@ -51,7 +51,7 @@ end
 actor Main
   def self.new(env : Env)
     p = Person.new("ada")
-    env.out.print("#{p.name} #{env.args.size}")
+    env.out <~ print("#{p.name} #{env.args.size}")
   end
 end
 ```
@@ -80,7 +80,7 @@ actor Main
   def self.new(env : Env)
     c = Counter.new
     c.incr
-    env.out.print("#{c.count}")
+    env.out <~ print("#{c.count}")
   end
 end
 ```
@@ -98,7 +98,7 @@ A method changes its object only if it is `def ref`. Passing data to another act
 ```crystal
 3.times do |i|
   next if i == 1
-  env.out.print("#{i}")
+  env.out <~ print("#{i}")
 end
 ```
 

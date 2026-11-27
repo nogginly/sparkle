@@ -20,7 +20,7 @@ A program is one `.spk` file, or a directory of them that form one package. It s
 ```crystal
 actor Main
   def self.new(env : Env)
-    env.out.print("args: #{env.args.size}")
+    env.out <~ print("args: #{env.args.size}")
   end
 end
 ```
@@ -37,7 +37,7 @@ args: 1
 
 ```crystal
 n = 42
-env.out.print("n = #{n}, half = #{n / 2}")
+env.out <~ print("n = #{n}, half = #{n / 2}")
 ```
 
 ```text
@@ -56,7 +56,7 @@ actor Main
     seen = Set(String).new
     seen.set("a")
     seen.set("a")
-    env.out.print("#{seen.size}")
+    env.out <~ print("#{seen.size}")
   end
 end
 ```

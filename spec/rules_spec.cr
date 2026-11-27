@@ -129,8 +129,8 @@ describe "translation rules" do
         PONY
     end
 
-    it "maps abstract methods without bodies and behaviours" do
-      rule "trait T\n  abstract def area : F64\nend\nactor A\n  be go(x : iso Array(String))\n  end\nend\n", <<-PONY
+    it "maps abstract methods without bodies and message handlers" do
+      rule "trait T\n  abstract def area : F64\nend\nactor A\n  on go(x : iso Array(String))\n  end\nend\n", <<-PONY
         trait T
           fun area(): F64
 

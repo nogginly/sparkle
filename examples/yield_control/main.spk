@@ -49,25 +49,25 @@ actor Main
     doubled = bag.sum_of do |x|
       x * 2
     end
-    env.out.print("doubled #{doubled}")
+    env.out <~ print("doubled #{doubled}")
     skipped : U32 = 0
     bag.each_item do |x|
       next if x == 2
       skipped += x
     end
-    env.out.print("without 2 #{skipped}")
+    env.out <~ print("without 2 #{skipped}")
     log = Array(String).new
     upto : U32 = 0
     bag.each_then_log(log) do |x|
       break if x == 3
       upto += x
     end
-    env.out.print("before 3 #{upto}, log #{log.size}")
+    env.out <~ print("before 3 #{upto}, log #{log.size}")
     nonzero : U32 = 0
     bag.each_until_zero do |x|
       nonzero += x
     end
-    env.out.print("until 0 #{nonzero}")
-    env.out.print("first over 2: #{Find.over(bag, 2)}")
+    env.out <~ print("until 0 #{nonzero}")
+    env.out <~ print("first over 2: #{Find.over(bag, 2)}")
   end
 end

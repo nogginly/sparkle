@@ -10,8 +10,8 @@ end
 actor Main
   def self.new(env : Env)
     light = Light::Amber
-    env.out.print("#{light} = #{light.value}")
-    env.out.print("#{Light::Green} = #{Light::Green.value}")
+    env.out <~ print("#{light} = #{light.value}")
+    env.out <~ print("#{Light::Green} = #{Light::Green.value}")
   end
 end
 ```
@@ -52,8 +52,8 @@ actor Main
   def self.new(env : Env)
     signal = Signal.new
     signal.flip
-    env.out.print("#{signal.state}")
-    env.out.print("#{signal.state == Light::Green}")
+    env.out <~ print("#{signal.state}")
+    env.out <~ print("#{signal.state == Light::Green}")
   end
 end
 ```
@@ -78,7 +78,7 @@ end
 actor Main
   def self.new(env : Env)
     light = Light::Green
-    env.out.print("#{light.red?} #{light.green?}")
+    env.out <~ print("#{light.red?} #{light.green?}")
   end
 end
 ```
@@ -108,7 +108,7 @@ end
 
 actor Main
   def self.new(env : Env)
-    env.out.print("#{Next.after(Light::Red)}")
+    env.out <~ print("#{Next.after(Light::Red)}")
   end
 end
 ```

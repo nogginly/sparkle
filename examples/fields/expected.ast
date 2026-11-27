@@ -45,7 +45,7 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s5_22) (nominal x (id String) x val x))
+                      (let (id spk_s5_25) (nominal x (id String) x val x))
                       (call
                         (.
                           (call (. (reference (id names)) (id size)) x x x)
@@ -58,7 +58,7 @@
                     )
                     (+
                       (+
-                        (+ (reference (id spk_s5_22)) " names, " x)
+                        (+ (reference (id spk_s5_25)) " names, " x)
                         (call
                           (.
                             (call (. "hello" (id size)) x x x)

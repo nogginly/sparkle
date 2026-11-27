@@ -58,18 +58,18 @@ actor Main
     account = Account.new
     account.deposit(100)
     taken = account.withdraw(30)
-    env.out.print("took #{taken}")
-    env.out.print("left #{account.balance}")
+    env.out <~ print("took #{taken}")
+    env.out <~ print("left #{account.balance}")
 
     stack = Stack(String).new(2)
     stack.push("a")
     stack.push("b")
     begin
-      env.out.print("popped #{stack.pop!}")
-      env.out.print("popped #{stack.pop!}")
-      env.out.print("popped #{stack.pop!}")
+      env.out <~ print("popped #{stack.pop!}")
+      env.out <~ print("popped #{stack.pop!}")
+      env.out <~ print("popped #{stack.pop!}")
     rescue
-      env.out.print("empty")
+      env.out <~ print("empty")
     end
   end
 end

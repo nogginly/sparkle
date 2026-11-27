@@ -12,19 +12,19 @@ end
 actor Main
   def self.new(env : Env)
     (1..15).each do |i|
-      env.out.print(FizzBuzz.label(i))
+      env.out <~ print(FizzBuzz.label(i))
     end
 
     ticks = 0
     while ticks < 5
       ticks += 1
       next if ticks == 2
-      env.out.print("tick #{ticks}")
+      env.out <~ print("tick #{ticks}")
       break if ticks >= 4
     end
 
     3.times do |n|
-      env.out.print("n = #{n}")
+      env.out <~ print("n = #{n}")
     end
   end
 end

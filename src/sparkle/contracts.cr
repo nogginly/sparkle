@@ -74,7 +74,7 @@ module Sparkle
       unsupported(first, "a yielding method") if yields?(m)
       unsupported(first, "a `tag` method") if m.cap == "tag"
       if (g = m.guarantees.first?) && m.kind == "be"
-        raise ParseError.new("a behaviour cannot have `guarantees`: no caller sees its end", g.line, g.col)
+        raise ParseError.new("a message handler cannot have `guarantees`: no caller sees its end", g.line, g.col)
       end
     end
 
@@ -89,7 +89,7 @@ module Sparkle
       @view_used = false
     end
 
-    # Whether `maintains` is checked after `m`: a constructor, a behaviour,
+    # Whether `maintains` is checked after `m`: a constructor, a handler,
     # or a public `ref` method that does not yield.
     private def maintained?(m : Method) : Bool
       return false if m.name.starts_with?('_') || m.kind == "abstract" || yields?(m)
