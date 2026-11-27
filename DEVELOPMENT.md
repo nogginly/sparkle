@@ -76,6 +76,7 @@ Command                          | Description
 ~/.local/sparkle/
 ├── bin/sparkle           the compiler
 ├── lib/pony/             Pony's packages/ and lib/<arch>/ (runtime), from .tools/ponyc
+├── share/sparkle/stdlib/ the Sparkle library, once the repository has one
 ├── share/sparkle/skills/ the language skill and reference, for coding agents
 └── .sparkle-install      marker, with the Sparkle and Pony versions
 ```

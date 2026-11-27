@@ -5,8 +5,9 @@
 #   script/install.sh uninstall PREFIX
 #
 # PREFIX/bin/sparkle is the compiler, PREFIX/lib/pony the Pony standard
-# library and runtime it builds against, PREFIX/share/sparkle/skills the
-# language skill and its reference, and PREFIX/.sparkle-install the
+# library and runtime it builds against, PREFIX/share/sparkle/stdlib the
+# Sparkle library, when the repository has one, PREFIX/share/sparkle/skills
+# the language skill and its reference, and PREFIX/.sparkle-install the
 # marker that lets a later install or uninstall replace the whole directory.
 # A PREFIX that exists without the marker, and is not empty, is left alone.
 # SPARKLE_VERSION and PONYC_VERSION, when set, are written into the marker.
@@ -45,6 +46,7 @@ case $action in
     cp -R "$home/packages" "$home/lib" "$stage/lib/pony/"
     rm -f "$stage"/lib/pony/lib/*/libponyc*.a
     cp -R skills "$stage/share/sparkle/"
+    if [ -d stdlib ]; then cp -R stdlib "$stage/share/sparkle/"; fi
     printf 'sparkle %s\nponyc %s\n' "${SPARKLE_VERSION:-unknown}" "${PONYC_VERSION:-unknown}" > "$stage/$MARK"
     rm -rf "$prefix"
     mv "$stage" "$prefix"

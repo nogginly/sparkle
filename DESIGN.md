@@ -35,6 +35,7 @@ Each layer is one file in `src/sparkle/`, or a directory for the compiler, and d
 | Statistics | `cap_stats.cr` | Capability annotations are counted per file |
 | Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/session.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | An AST built node by node is type-checked or compiled in-process by the linked-in `libponyc`, and its errors come back as data and as text |
 | Contracts | `contracts.cr` | `expects`, `guarantees` and `maintains` become plain methods: a wrapper that checks around the renamed body |
+| Packages | `packages.cr`, `ponyc/packages.cr` | The packages a build requires are found, parsed and ordered, and each is added to the program as an in-memory Pony package |
 | Inlining | `inliner.cr` | Each call with a block to a yielding method is replaced by a copy of its body |
 | Lowering | `lowerer.cr` | The AST becomes ponyc AST nodes with Sparkle positions |
 | Driver | `driver.cr`, `src/sparkle.cr` | A Pony installation is found, fields are told from methods, the package is compiled, and the CLI is exposed |
@@ -242,5 +243,6 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 - `let` and `embed` fields
 - Generic method calls
 - Reopening types
+- Qualified names across packages (`Geometry::Point`), and two packages defining the same type name
 - Ranges and `times` over anything but `USize`
 - Contracts, Sparkle packages beyond one, and everything from step 3 onward
