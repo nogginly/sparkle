@@ -57,4 +57,4 @@ Guidance for coding agents, and for anyone new to the repository. Sparkle is an 
 
 ## What comes next
 
-Step 4 of the roadmap in `DESIGN.md`: Enumerable and Array as inline-only methods over Pony's types. It needs a Sparkle package to be usable from another (`use`) first. `HANDOFF.md` has the current state.
+Step 4 of the roadmap in `DESIGN.md`: Enumerable and Array as inline-only methods over Pony's types. It needs a Sparkle package to be usable from another first: read [docs/packages-design.md](docs/packages-design.md) and the user's answers to its decisions. `HANDOFF.md` has the current state.
