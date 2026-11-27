@@ -43,7 +43,8 @@ Errors are reported at `.spk` lines with types in Sparkle syntax. Fix the first 
 7. **Blocks.** A method of yours that `yield`s is inlined at each call, as in Crystal. On Pony's types, `each`, `each_with_index` and `times` are loops, and any other block is a lambda. See [blocks](reference/blocks.md).
 8. **Contracts.** `expects`, `guarantees` and `maintains` lines open a method or type, and are checked at run time; a failure exits the program. See [contracts](reference/contracts.md).
 9. **Actors.** Call a method and wait for its reply; post a message and go on. `on name(args)` declares a message handler, and `actor <~ name(args)` posts the message. Output order between actors is not fixed. See [actors](reference/actors.md).
-10. **Not supported:** macros (`getter`, `property`, `record`), hashes, symbols, calls without parentheses that take arguments (`puts x`). See [limits](reference/limits.md).
+10. **Packages.** `require "./geometry"` names a package, a directory of `.spk` files, not a file. Its public names come into scope unqualified. See [packages](reference/packages.md).
+11. **Not supported:** macros (`getter`, `property`, `record`), hashes, symbols, calls without parentheses that take arguments (`puts x`). See [limits](reference/limits.md).
 
 ## Reference
 
@@ -62,6 +63,7 @@ Read the page for the feature at hand.
 | [enums](reference/enums.md) | `enum`, members, predicates, exhaustive `case … in` |
 | [contracts](reference/contracts.md) | `expects`, `guarantees`, `maintains`, `old`, `result`, release builds |
 | [errors](reference/errors.md) | Partial methods (`!`), `raise`, `begin … rescue … ensure` |
+| [packages](reference/packages.md) | `require` of a directory, the library, the prelude, names |
 | [from-crystal](reference/from-crystal.md) | What a Crystal programmer must unlearn |
 | [from-pony](reference/from-pony.md) | Pony constructs and their Sparkle spelling |
 | [limits](reference/limits.md) | What is not supported, and known gaps |

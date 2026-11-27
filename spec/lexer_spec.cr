@@ -70,4 +70,11 @@ describe Lexer do
     lex("Colour::Red").map { |token| {token.kind, token.text} }.first(3).should eq [{Kind::Const, "Colour"}, {Kind::Op, "::"}, {Kind::Const, "Red"}]
     lex("x : Int32").map(&.text).first(3).should eq ["x", ":", "Int32"]
   end
+
+  it "refuses names starting with spk_, which Sparkle generates" do
+    {"spk_view = 1" => "1:1", "x = @spk_n" => "1:5"}.each do |source, position|
+      error = expect_raises(ParseError, "names starting with `spk_` are reserved for Sparkle") { lex(source) }
+      "#{error.line}:#{error.col}".should eq position
+    end
+  end
 end

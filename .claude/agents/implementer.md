@@ -58,3 +58,4 @@ All four must pass. **A pending spec is a failure**: it means the generated Pony
 ## Lessons from earlier tasks
 
 - Specs run on macOS and Linux. Do not hard-code system paths such as `/bin/true`; a stand-in `ponyc` is the `with_ponyc` helper in `spec/driver_spec.cr`, a `#!/bin/sh` script.
+- Error messages and positions quoted in docs must come from running the CLI on a real case, not be written by hand: a hand-written cycle error named the wrong file.
