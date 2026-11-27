@@ -158,18 +158,24 @@
           (seq
             (=
               (var (id value) x)
-              (*
-                (call
-                  (.
-                    (call (. (reference (id job)) (id payload)) x x x)
-                    (id u64)
+              (seq
+                (=
+                  (let (id spk_r1) x)
+                  (call
+                    (.
+                      (call (. (reference (id job)) (id payload)) x x x)
+                      (id u64)
+                    )
+                    x
+                    x
+                    x
                   )
-                  x
-                  x
+                )
+                (*
+                  (seq (consume x (reference (id spk_r1))))
+                  (call (. (reference (id _id)) (id u64)) x x x)
                   x
                 )
-                (call (. (reference (id _id)) (id u64)) x x x)
-                x
               )
             )
             (call

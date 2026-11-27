@@ -151,6 +151,37 @@ describe "end to end" do
       stdout.should eq "abc abc\n"
     end
 
+    it "evaluates a receiver before the arguments, as Crystal does" do
+      source = <<-SPK
+        class Log
+          @text : String = ""
+
+          def ref add(s : String) : Log
+            @text = @text + s
+            self
+          end
+
+          def ref word(s : String) : String
+            add(s)
+            s
+          end
+
+          def text : String = @text
+        end
+
+        actor Main
+          def self.new(env : Env)
+            log = Log.new
+            log.add("a").add("b").add(log.word("c") + log.word("d"))
+            env.out <~ print(log.text)
+          end
+        end
+        SPK
+      code, stdout, err = run_source(source)
+      code.should eq(0), err
+      stdout.should eq "abcdcd\n"
+    end
+
     it "requires <~ for a message, and only for one" do
       err = IO::Memory.new
       Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/message_calls/main.spk", err) }.should eq 1

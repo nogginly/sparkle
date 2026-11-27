@@ -38,6 +38,7 @@ module Sparkle
     @ivars = Set(String).new
     @method_names = Set(String).new
     @collections = false
+    @bound = 0
 
     # `calls` holds the positions of the bare `x.name`s that are method calls;
     # `primed` is `Rules.primed_params` and `predicates` is
@@ -452,8 +453,11 @@ module Sparkle
 
     private def binary(e : Binary) : Node
       return push(e) if e.op == "<<"
-      kind = BINARY[e.op]? || LOGICAL[e.op]? || unsupported(e, "this operator")
-      @tree.node(kind, at(e), [operand(e.left), operand(e.right), none])
+      if kind = LOGICAL[e.op]?
+        return @tree.node(kind, at(e), [operand(e.left), operand(e.right), none])
+      end
+      kind = BINARY[e.op]? || unsupported(e, "this operator")
+      ordered(e.left, [e.right], operand(e.left)) { |left| @tree.node(kind, at(e), [left, operand(e.right), none]) }
     end
 
     private def keyword(e : NilLit | BoolLit) : Node
@@ -479,9 +483,11 @@ module Sparkle
 
     private def push(e : Binary) : Node
       name_at = at(e)
-      callee = @tree.node(Tk::DOT, name_at, [expr(e.left), id("push", name_at)])
-      args = @tree.node(Tk::POSITIONALARGS, name_at, [@tree.node(Tk::SEQ, at(e.right), [expr(e.right)])])
-      @tree.node(Tk::CALL, name_at, [callee, args, none, none])
+      ordered(e.left, [e.right], expr(e.left)) do |left|
+        callee = @tree.node(Tk::DOT, name_at, [left, id("push", name_at)])
+        args = @tree.node(Tk::POSITIONALARGS, name_at, [@tree.node(Tk::SEQ, at(e.right), [expr(e.right)])])
+        @tree.node(Tk::CALL, name_at, [callee, args, none, none])
+      end
     end
 
     private def range(at : {Int32, Int32}, from : Node, to : Node, exclusive : Bool) : Node
@@ -576,10 +582,20 @@ module Sparkle
       case target
       when Call
         name_at = {target.name_line, target.name_col}
-        setter = @tree.node(Tk::DOT, name_at, [receiver(setter_receiver(target)), id("set_#{target.name}", name_at)])
-        @tree.node(Tk::CALL, name_at, [setter, @tree.node(Tk::POSITIONALARGS, name_at, [single(e.value)]), none, none])
-      when Index, FieldRead then @tree.node(Tk::ASSIGN, at(e), [expr(target), expr(e.value)])
-      else                       unsupported(e, "this assignment")
+        recv = setter_receiver(target)
+        ordered(recv, [e.value], receiver(recv)) do |lowered|
+          setter = @tree.node(Tk::DOT, name_at, [lowered, id("set_#{target.name}", name_at)])
+          @tree.node(Tk::CALL, name_at, [setter, @tree.node(Tk::POSITIONALARGS, name_at, [single(e.value)]), none, none])
+        end
+      when Index
+        ordered(target.recv, target.args + [e.value], receiver(target.recv)) do |recv|
+          args = target.args.map { |arg| @tree.node(Tk::SEQ, at(arg), [expr(arg)]) }
+          partial = target.bang ? @tree.node(Tk::QUESTION, at(target)) : none
+          read = @tree.node(Tk::CALL, at(target), [recv, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, at(target), args), none, partial])
+          @tree.node(Tk::ASSIGN, at(e), [read, expr(e.value)])
+        end
+      when FieldRead then @tree.node(Tk::ASSIGN, at(e), [expr(target), expr(e.value)])
+      else                unsupported(e, "this assignment")
       end
     end
 
@@ -627,6 +643,59 @@ module Sparkle
     end
 
     # The receiver of a call, in parentheses unless it stands alone.
+    # Builds a call on `recv`, already lowered as `lowered`, with the block.
+    # Pony evaluates a method call's arguments before its receiver, so when
+    # `recv` can change and an argument has effects, `recv` is first bound to
+    # `let spk_r<n>` and the call reads `consume spk_r<n>`, which keeps its
+    # type; the receiver then runs first, as in Crystal.
+    private def ordered(recv : Expr, args : Array(Expr), lowered : Node, & : Node -> Node) : Node
+      return yield lowered if stable?(recv) || args.none? { |arg| effects?(arg) }
+      @bound += 1
+      name = "spk_r#{@bound}"
+      pos = at(recv)
+      bind = @tree.node(Tk::ASSIGN, pos, [@tree.node(Tk::LET, pos, [id(name, pos), none]), lowered])
+      @tree.node(Tk::SEQ, pos, [bind, yield @tree.node(Tk::SEQ, pos, [@tree.node(Tk::CONSUME, pos, [none, reference(name, pos)])])])
+    end
+
+    # Whether `e` is left unbound: a literal, `self`, a type, an enum member
+    # or a local, which the arguments cannot change, or a field, which an
+    # `iso` field could not be bound from.
+    private def stable?(e : Expr) : Bool
+      case e
+      when IntLit, FloatLit, CharLit, BoolLit, NilLit, SelfRef, TypeRef, EnumRef, IVarRef, FieldRead then true
+      when StrLit                                                                                    then e.parts.all?(String)
+      when Ident                                                                                     then @scope.includes?(e.name)
+      when Paren                                                                                     then stable?(e.expr)
+      when Call                                                                                      then field_read?(e) && stable?(e.recv || e)
+      else                                                                                                !literal_kind(e).nil?
+      end
+    end
+
+    # Whether evaluating `e` may have an effect: it calls, indexes, assigns,
+    # yields or raises. A block's body runs later, so a block has none, and
+    # neither has a bare `x.name` the type checker found to be a field.
+    private def effects?(e : Expr) : Bool
+      case e
+      when Lambda, AmpMethod                     then false
+      when Call                                  then (recv = e.recv) && field_read?(e) ? effects?(recv) : true
+      when Index, Assign, OpAssign, Yield, Raise then true
+      when Ident                                 then !@scope.includes?(e.name)
+      else
+        found = false
+        Walk.map_children(e) do |child|
+          found ||= effects?(child)
+          child
+        end
+        found
+      end
+    end
+
+    # Whether `c` is a bare `x.name` that the type checker found to be a field.
+    private def field_read?(c : Call) : Bool
+      recv = c.recv
+      !recv.nil? && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?({c.name_line, c.name_col})
+    end
+
     private def receiver(e : Expr) : Node
       if default = literal_default(e)
         return typed_array(e, default) if e.is_a?(ArrayLit)
@@ -818,7 +887,9 @@ module Sparkle
     private def index(e : Index) : Node
       args = e.args.map { |arg| @tree.node(Tk::SEQ, at(arg), [expr(arg)]) }
       partial = e.bang ? @tree.node(Tk::QUESTION, at(e)) : none
-      @tree.node(Tk::CALL, at(e), [receiver(e.recv), args.empty? ? none : @tree.node(Tk::POSITIONALARGS, at(e), args), none, partial])
+      ordered(e.recv, e.args, receiver(e.recv)) do |recv|
+        @tree.node(Tk::CALL, at(e), [recv, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, at(e), args), none, partial])
+      end
     end
 
     private def type_ref(e : TypeRef) : Node
@@ -843,12 +914,13 @@ module Sparkle
       return @tree.node(Tk::SEQ, at(c), [@tree.node(Tk::IS, at(c), [receiver(recv), reference("None", at(c))])]) if recv && c.name == "nil?" && c.args.empty?
       method = Rules.pony_method_name(c.name, recv.is_a?(TypeRef) && c.name == "new")
       name = id(method, name_at)
-      callee = recv ? @tree.node(Tk::DOT, name_at, [receiver(recv), name]) : @tree.node(Tk::REFERENCE, name_at, [name])
-      return callee if recv && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?(name_at)
+      return @tree.node(Tk::DOT, name_at, [receiver(recv), name]) if recv && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?(name_at)
       args = c.args.map { |arg| @tree.node(Tk::SEQ, at(arg), [expr(arg)]) }
       args << @tree.node(Tk::SEQ, at(block), [lambda(block)]) if block
       partial = c.name.ends_with?('!') ? @tree.node(Tk::QUESTION, name_at) : none
-      @tree.node(Tk::CALL, name_at, [callee, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, name_at, args), named_args(c, method), partial])
+      build = ->(callee : Node) { @tree.node(Tk::CALL, name_at, [callee, args.empty? ? none : @tree.node(Tk::POSITIONALARGS, name_at, args), named_args(c, method), partial]) }
+      return build.call(@tree.node(Tk::REFERENCE, name_at, [name])) unless recv
+      ordered(recv, c.args + c.named.map(&.value), receiver(recv)) { |lowered| build.call(@tree.node(Tk::DOT, name_at, [lowered, name])) }
     end
 
     # Named arguments, with the names of primed parameters primed.
