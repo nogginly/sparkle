@@ -543,7 +543,7 @@ module Sparkle
         block = e.block.try do |blk|
           Rules::LOOP_METHODS.includes?(e.name) ? loop_body { copy_lambda(blk) } : copy_lambda(blk)
         end
-        copied = Call.new(*pos, recv, e.name, copy_all(e.args), named, block, e.parens || e.recv.nil?, *name_pos)
+        copied = Call.new(*pos, recv, e.name, copy_all(e.args), named, block, e.parens || e.recv.nil?, *name_pos, e.post)
         @inliner.chain(copied, @site.chain + [@method])
         copied
       end

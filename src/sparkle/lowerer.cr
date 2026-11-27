@@ -832,7 +832,7 @@ module Sparkle
 
     private def call(c : Call) : Node
       if c.block && @stub_names.includes?(c.name) && !@plain.includes?({@file, c.name_line, c.name_col})
-        c = Call.new(c.line, c.col, c.recv, c.name, c.args, c.named, nil, true, c.name_line, c.name_col)
+        c = Call.new(c.line, c.col, c.recv, c.name, c.args, c.named, nil, true, c.name_line, c.name_col, c.post)
       end
       recv = c.recv
       block = c.block

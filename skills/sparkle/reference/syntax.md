@@ -7,7 +7,7 @@
 x = 1 # to the end of the line
 total = x +
   2
-env.out.print("#{total}")
+env.out <~ print("#{total}")
 ```
 
 ```text
@@ -19,7 +19,7 @@ A newline ends a statement. It does not end one after a binary operator, a comma
 ```crystal
 size = "hello"
   .size()
-env.out.print("#{size}")
+env.out <~ print("#{size}")
 ```
 
 ```text
@@ -32,7 +32,7 @@ env.out.print("#{size}")
 n = 7
 n = n + 1
 count : USize = 0
-env.out.print("#{n} #{count}")
+env.out <~ print("#{n} #{count}")
 ```
 
 ```text
@@ -54,7 +54,7 @@ c = 0b101
 d = 2.5
 e = 7_u8
 f : U64 = 9
-env.out.print("#{a} #{b} #{c} #{d} #{e} #{f}")
+env.out <~ print("#{a} #{b} #{c} #{d} #{e} #{f}")
 ```
 
 ```text
@@ -76,8 +76,8 @@ Division of integers is integer division. Integer types never mix: `Int32 + UInt
 ```crystal
 name = "ada"
 greeting = "Hello, " + name + "!"
-env.out.print("#{greeting} (#{greeting.size} bytes)")
-env.out.print("tab\there \"quoted\"")
+env.out <~ print("#{greeting} (#{greeting.size} bytes)")
+env.out <~ print("tab\there \"quoted\"")
 ```
 
 ```text
@@ -105,7 +105,7 @@ tab	here "quoted"
 bytes = [1, 2, 3] of UInt8
 names = [] of String
 names << "ada"
-env.out.print("#{bytes.size} #{names.size}")
+env.out <~ print("#{bytes.size} #{names.size}")
 ```
 
 ```text
@@ -135,7 +135,7 @@ Nested operators group by Crystal's precedence, tightest first:
 n = 7
 ok = n > 3 && n % 2 == 1
 label = ok ? "odd and big" : "no"
-env.out.print("#{1 + n * 3} #{(1 + n) * 3} #{label}")
+env.out <~ print("#{1 + n * 3} #{(1 + n) * 3} #{label}")
 ```
 
 ```text
@@ -149,7 +149,7 @@ env.out.print("#{1 + n * 3} #{(1 + n) * 3} #{label}")
 ```crystal
 xs = [3, 1, 2] of U32
 xs.push(4)
-env.out.print("#{xs.size}")
+env.out <~ print("#{xs.size}")
 ```
 
 - Parentheses are required when there are arguments: `f(x)`, not `f x`.

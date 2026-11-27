@@ -18,7 +18,7 @@ actor Main
     c = Counter.new
     c.incr
     c.incr
-    env.out.print("#{c.count}")
+    env.out <~ print("#{c.count}")
   end
 end
 ```
@@ -65,7 +65,7 @@ Leave the capability off and Sparkle uses the default:
 | `primitive` | `val` |
 | `def` | `box` |
 | `def self.new` | `ref` |
-| `be` | `tag` |
+| `on` | `tag` |
 
 A type declaration may set its own default, `class val Point`, so that every `Point` is a `val Point`. A constructor of such a class says so too, `def val self.new`.
 
@@ -81,16 +81,16 @@ class val Point
 end
 
 actor Printer
-  be show(p : Point, out : OutStream)
-    out.print("x = #{p.x}")
+  on show(p : Point, out : OutStream)
+    out <~ print("x = #{p.x}")
   end
 end
 
 actor Main
   def self.new(env : Env)
     p = Point.new(4)
-    Printer.new.show(p, env.out)
-    Printer.new.show(p, env.out)
+    Printer.new <~ show(p, env.out)
+    Printer.new <~ show(p, env.out)
   end
 end
 ```
@@ -109,9 +109,9 @@ An `iso` value has a single reference. `consume x` moves it: `x` cannot be used 
 
 ```crystal
 actor Worker
-  be process(names : iso Array(String), out : OutStream)
+  on process(names : iso Array(String), out : OutStream)
     sealed : val Array(String) = consume names
-    out.print("got #{sealed.size} names")
+    out <~ print("got #{sealed.size} names")
   end
 end
 
@@ -120,7 +120,7 @@ actor Main
     names = recover iso do Array(String).new end
     names << "ada"
     names << "grace"
-    Worker.new.process(consume names, env.out)
+    Worker.new <~ process(consume names, env.out)
   end
 end
 ```
@@ -142,7 +142,7 @@ shared = recover val do
   list << "x"
   list
 end
-env.out.print("#{shared.size}")
+env.out <~ print("#{shared.size}")
 ```
 
 ```text

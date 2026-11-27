@@ -16,11 +16,11 @@ end
 actor Main
   def self.new(env : Env)
     begin
-      env.out.print("got #{Parse.digit!("7")}")
-      env.out.print("got #{Parse.digit!("x")}")
-      env.out.print("not reached")
+      env.out <~ print("got #{Parse.digit!("7")}")
+      env.out <~ print("got #{Parse.digit!("x")}")
+      env.out <~ print("not reached")
     rescue
-      env.out.print("rescued")
+      env.out <~ print("rescued")
     end
   end
 end
@@ -60,8 +60,8 @@ end
 actor Main
   def self.new(env : Env)
     names = ["ada", "grace"]
-    env.out.print(Names.at_or(names, 1))
-    env.out.print(Names.at_or(names, 7))
+    env.out <~ print(Names.at_or(names, 1))
+    env.out <~ print(Names.at_or(names, 7))
   end
 end
 ```
@@ -77,9 +77,9 @@ none
 
 ```crystal
 begin
-  env.out.print("body")
+  env.out <~ print("body")
 ensure
-  env.out.print("ensure")
+  env.out <~ print("ensure")
 end
 ```
 

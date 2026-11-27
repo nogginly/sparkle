@@ -271,7 +271,7 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s32_26) (nominal x (id String) x val x))
+                      (let (id spk_s32_29) (nominal x (id String) x val x))
                       (call
                         (.
                           (seq (and (reference (id a)) (reference (id b)) x))
@@ -284,7 +284,7 @@
                     )
                     (+
                       (+
-                        (+ "and " (reference (id spk_s32_26)) x)
+                        (+ "and " (reference (id spk_s32_29)) x)
                         ", or "
                         x
                       )
@@ -311,7 +311,7 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s33_29) (nominal x (id String) x val x))
+                      (let (id spk_s33_32) (nominal x (id String) x val x))
                       (call
                         (.
                           (seq
@@ -332,7 +332,7 @@
                     )
                     (+
                       (+
-                        (+ "nested " (reference (id spk_s33_29)) x)
+                        (+ "nested " (reference (id spk_s33_32)) x)
                         ", "
                         x
                       )
@@ -420,11 +420,11 @@
                 (seq
                   (seq
                     (=
-                      (let (id spk_s49_22) (nominal x (id String) x val x))
+                      (let (id spk_s49_25) (nominal x (id String) x val x))
                       (call (. (reference (id TempCold)) (id string)) x x x)
                     )
                     (=
-                      (let (id spk_s49_38) (nominal x (id String) x val x))
+                      (let (id spk_s49_41) (nominal x (id String) x val x))
                       (call
                         (.
                           (call (. (reference (id TempCold)) (id value)) x x x)
@@ -436,7 +436,7 @@
                       )
                     )
                     (=
-                      (let (id spk_s49_59) (nominal x (id String) x val x))
+                      (let (id spk_s49_62) (nominal x (id String) x val x))
                       (call (. (reference (id TempMild)) (id string)) x x x)
                     )
                     (+
@@ -444,14 +444,14 @@
                         (+
                           (+
                             (+
-                              (+ (reference (id spk_s49_22)) " = " x)
-                              (reference (id spk_s49_38))
+                              (+ (reference (id spk_s49_25)) " = " x)
+                              (reference (id spk_s49_41))
                               x
                             )
                             ", "
                             x
                           )
-                          (reference (id spk_s49_59))
+                          (reference (id spk_s49_62))
                           x
                         )
                         " = "

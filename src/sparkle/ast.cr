@@ -61,7 +61,7 @@ module Sparkle
   node NamedArg, Node, name : String, value : Expr
   node Lambda, Expr, params : Array(Param), body : Array(Expr), brace : Bool = false
   node AmpMethod, Expr, name : String
-  node Call, Expr, recv : Expr?, name : String, args : Array(Expr), named : Array(NamedArg), block : Lambda?, parens : Bool, name_line : Int32, name_col : Int32
+  node Call, Expr, recv : Expr?, name : String, args : Array(Expr), named : Array(NamedArg), block : Lambda?, parens : Bool, name_line : Int32, name_col : Int32, post : Bool = false
   node FieldRead, Expr, recv : Expr, name : String
   node Index, Expr, recv : Expr, args : Array(Expr), bang : Bool
   node Assign, Expr, target : Expr, value : Expr, type : TypeNode?
@@ -107,7 +107,7 @@ module Sparkle
   # its source text; `kind` is the clause's word.
   node Clause, Node, kind : String, cond : Expr, text : String
 
-  # `kind` is "def", "be" or "abstract"; `self_recv` marks `def self.name`.
+  # `kind` is "def", "be" (a behaviour, written `on`) or "abstract"; `self_recv` marks `def self.name`.
   node Method, Node, kind : String, cap : String?, self_recv : Bool, name : String, params : Array(Param), ret : TypeNode?, body : Array(Expr)?, name_line : Int32, name_col : Int32, expects : Array(Clause) = [] of Clause, guarantees : Array(Clause) = [] of Clause
 
   node TypeParam, Node, name : String, constraint : TypeNode?

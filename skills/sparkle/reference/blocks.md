@@ -7,7 +7,7 @@ A block follows a call as `do |x| … end` or `{ |x| … }`. Three method names 
 ```crystal
 names = ["ada", "grace"]
 names.each do |name|
-  env.out.print("hello, #{name}")
+  env.out <~ print("hello, #{name}")
 end
 ```
 
@@ -23,7 +23,7 @@ hello, grace
 ```crystal
 names = ["ada", "grace"]
 names.each_with_index do |name, i|
-  env.out.print("#{i}: #{name}")
+  env.out <~ print("#{i}: #{name}")
 end
 ```
 
@@ -44,7 +44,7 @@ end
 (1..3).each do |n|
   total += n
 end
-env.out.print("#{total}")
+env.out <~ print("#{total}")
 ```
 
 ```text
@@ -65,7 +65,7 @@ found = ""
   found = name
   break
 end
-env.out.print(found)
+env.out <~ print(found)
 ```
 
 ```text
@@ -91,7 +91,7 @@ actor Main
   def self.new(env : Env)
     five : UInt32 = 5
     doubled = Run.twice(five) { |x| x * 2 }
-    env.out.print("#{doubled}")
+    env.out <~ print("#{doubled}")
   end
 end
 ```
@@ -130,7 +130,7 @@ actor Main
     Bag.new.each_item do |v|
       total += v
     end
-    env.out.print("#{total}")
+    env.out <~ print("#{total}")
   end
 end
 ```

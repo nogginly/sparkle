@@ -5,7 +5,7 @@
 ```crystal
 small : UInt8 = 200
 wide = small.u32 + 100
-env.out.print("#{wide} #{small.f64}")
+env.out <~ print("#{wide} #{small.f64}")
 ```
 
 ```text
@@ -32,7 +32,7 @@ Numbers never convert on their own. A conversion is a method named after the tar
 
 ```crystal
 n = 300_u32
-env.out.print("#{n.u8} #{n.f64 / 8}")
+env.out <~ print("#{n.u8} #{n.f64 / 8}")
 ```
 
 ```text
@@ -58,8 +58,8 @@ end
 actor Main
   def self.new(env : Env)
     show = Show.new
-    env.out.print(show.describe(5))
-    env.out.print(show.describe("hi"))
+    env.out <~ print(show.describe(5))
+    env.out <~ print(show.describe("hi"))
   end
 end
 ```
@@ -88,7 +88,7 @@ actor Main
   def self.new(env : Env)
     missing = Names.first([] of String)
     present = Names.first(["ada"])
-    env.out.print("#{missing.nil?} #{present.nil?}")
+    env.out <~ print("#{missing.nil?} #{present.nil?}")
   end
 end
 ```
@@ -103,7 +103,7 @@ true false
 
 ```crystal
 t = {1_u8, "a"}
-env.out.print("#{t._1} #{t._2}")
+env.out <~ print("#{t._1} #{t._2}")
 ```
 
 ```text
@@ -142,7 +142,7 @@ end
 actor Main
   def self.new(env : Env)
     box = Box(String).new("boxed")
-    env.out.print(box.get)
+    env.out <~ print(box.get)
   end
 end
 ```
@@ -164,7 +164,7 @@ n = 5
 half = n / 2
 ratio = 2.5
 evens = [2, 4, 6]
-env.out.print("#{half} #{ratio} #{evens.size} #{1 + 2}")
+env.out <~ print("#{half} #{ratio} #{evens.size} #{1 + 2}")
 ```
 
 ```text

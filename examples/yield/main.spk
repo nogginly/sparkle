@@ -41,17 +41,17 @@ actor Main
     words.each_item do |w|
       joined = joined + w
     end
-    env.out.print("joined #{joined}")
+    env.out <~ print("joined #{joined}")
     twice = ""
     words.each_twice do |w|
       twice = twice + w
     end
-    env.out.print("twice #{twice}")
-    env.out.print("count #{words.count}")
+    env.out <~ print("twice #{twice}")
+    env.out <~ print("count #{words.count}")
     total : U32 = 0
     [1, 2, 3].each do |n|
       total += n.u32
     end
-    env.out.print("total #{total}")
+    env.out <~ print("total #{total}")
   end
 end

@@ -108,7 +108,7 @@ module Sparkle
       project = load_project(path, err) || return {1, nil}
       current = 0
       begin
-        calls = tree_calls(project) { |i| current = i }[0]
+        calls = tree_calls(project) { |i| current = i }.calls
         text = Ponyc.tree_text(project.home) do |tree|
           lower_project(tree, project, calls) { |i| current = i }
         end
@@ -126,7 +126,9 @@ module Sparkle
       current = 0
       session = Ponyc::Session.new(project.home)
       begin
-        calls, inliner = tree_calls(session, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| current = i }
+        rounds = tree_calls(session, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| current = i }
+        calls, inliner = rounds.calls, rounds.inliner
+        return 1 unless posts_match?(project, rounds, err)
         ok, errors = session.verify do |tree|
           lower_project(tree, project, calls) { |i| current = i }
         end
@@ -143,7 +145,9 @@ module Sparkle
     private def self.build_tree(project : Project, out_dir : String?, err : IO, release : Bool) : {Int32, String?}
       current = 0
       begin
-        calls, inliner = tree_calls(project) { |i| current = i }
+        rounds = tree_calls(project) { |i| current = i }
+        calls, inliner = rounds.calls, rounds.inliner
+        return {1, nil} unless posts_match?(project, rounds, err)
         out_dir ||= File.join(".sparkle", "bin")
         Dir.mkdir_p(out_dir)
         ok, errors = Ponyc.compile_tree(out_dir, project.package, project.home, release) do |tree|
@@ -157,7 +161,7 @@ module Sparkle
       end
     end
 
-    private def self.tree_calls(project : Project, & : Int32 -> Nil) : {Hash(String, Set({Int32, Int32})), Inliner}
+    private def self.tree_calls(project : Project, & : Int32 -> Nil) : Rounds
       session = Ponyc::Session.new(project.home)
       begin
         tree_calls(session, project.files, project.sources, project.programs, project.primed, project.predicates) { |i| yield i }
@@ -173,7 +177,7 @@ module Sparkle
     def self.tree_calls(files : Array(String), sources : Array(String), programs : Array(Program), home : String, primed : Hash(String, Set(String)) = Rules.primed_params(programs), predicates : Rules::Predicates = Rules.enum_predicates(programs), & : Int32 -> Nil) : Hash(String, Set({Int32, Int32}))
       session = Ponyc::Session.new(home)
       begin
-        tree_calls(session, files, sources, programs, primed, predicates) { |i| yield i }[0]
+        tree_calls(session, files, sources, programs, primed, predicates) { |i| yield i }.calls
       ensure
         session.close
       end
@@ -185,16 +189,19 @@ module Sparkle
     # types, and inlines the ones that reach a yielding method. Then the
     # yielding methods are dropped and the rounds go on, unstubbed, until no
     # new call is found. Programs are changed in place.
-    private def self.tree_calls(session : Ponyc::Session, files : Array(String), sources : Array(String), programs : Array(Program), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : {Hash(String, Set({Int32, Int32})), Inliner}
+    private def self.tree_calls(session : Ponyc::Session, files : Array(String), sources : Array(String), programs : Array(Program), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : Rounds
       calls = Hash(String, Set({Int32, Int32})).new
+      behaviours = Set({String, Int32, Int32}).new
+      clean = false
       inliner = Inliner.new(files, programs)
       finished = !inliner.yielding?
       MAX_ROUNDS.times do
         sites = finished ? [] of Inliner::Site : inliner.sites
         receivers = sites.select(&.call.recv).map { |site| {site.file, site.call.name_line, site.call.name_col} }.to_set
-        found, types = session.check(receivers) do |tree|
+        found, types, behaviours = session.check(receivers) do |tree|
           lower_files(tree, files, sources, programs, calls, primed, predicates, finished ? nil : inliner) { |i| yield i }
         end
+        clean = found.empty?
         grown = false
         found.each do |file, line, column, message|
           next unless message == METHOD_WITHOUT_CALL && files.includes?(file)
@@ -213,7 +220,61 @@ module Sparkle
         end
         break unless grown
       end
-      {calls, inliner}
+      Rounds.new(calls, inliner, behaviours, clean)
+    end
+
+    # What the field-or-method loop found: the method calls among bare
+    # names, the inliner, the calls of its last round that reach a
+    # behaviour, and whether that round had no errors.
+    private record Rounds, calls : Hash(String, Set({Int32, Int32})), inliner : Inliner, behaviours : Set({String, Int32, Int32}), clean : Bool
+
+    # Whether every call that reaches a behaviour is written with `<~`, and
+    # every `<~` reaches one; reports each that is not on `err`. Decided
+    # only when the last round type-checked cleanly; ponyc's own errors
+    # come first otherwise.
+    private def self.posts_match?(project : Project, rounds : Rounds, err : IO) : Bool
+      return true unless rounds.clean
+      ok = true
+      project.files.each_with_index do |file, i|
+        each_call(project.programs[i]) do |e, name, post, bare|
+          origin = rounds.inliner.origins[{file, e[0], e[1]}]?
+          behaviour = rounds.behaviours.includes?({file, e[0], e[1]})
+          next if behaviour == post
+          ok = false
+          message = if post
+                      "`<~` posts to a behaviour, and `#{name}` is not one: call it with `.`"
+                    else
+                      "`#{name}` is a behaviour: post it with `#{bare ? "self " : ""}<~`"
+                    end
+          at_file, line, col = origin ? {origin.file, origin.line, origin.col} : {file, e[0], e[1]}
+          index = project.files.index(at_file) || i
+          err.print format_error(at_file, project.sources[index], ParseError.new(message, line, col))
+        end
+      end
+      ok
+    end
+
+    # Yields each call in `program`, a bare name included: the position of
+    # its name, the name, whether it is written with `<~`, and whether it
+    # has no receiver.
+    private def self.each_call(program : Program, & : {Int32, Int32}, String, Bool, Bool -> Nil) : Nil
+      program.items.each do |item|
+        next unless item.is_a?(TypeDecl)
+        exprs = item.methods.flat_map { |method| method.body || [] of Expr } + item.fields.compact_map(&.init)
+        found = [] of Expr
+        exprs.each do |stmt|
+          Walk.find(stmt) do |e|
+            found << e if e.is_a?(Call) || e.is_a?(Ident)
+            false
+          end
+        end
+        found.each do |e|
+          case e
+          when Call  then yield({e.name_line, e.name_col}, e.name, e.post, e.recv.nil?)
+          when Ident then yield({e.line, e.col}, e.name, false, true)
+          end
+        end
+      end
     end
 
     # The Sparkle files and package name for a build path.

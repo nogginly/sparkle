@@ -1,0 +1,26 @@
+class Bag
+  @items : Array(String) = ["a"]
+
+  def each_item
+    @items.each do |x|
+      yield x
+    end
+  end
+end
+
+actor Main
+  def self.new(env : Env)
+    env.out.print("plain")
+    env.out <~ write("ok")
+    Bag.new.each_item do |s|
+      env.out <~ print(s)
+      tick
+    end
+    self <~ size
+  end
+
+  on tick
+  end
+
+  def tag size : USize = 0
+end

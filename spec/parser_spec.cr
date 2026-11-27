@@ -121,4 +121,28 @@ describe Parser do
       {ref.enum_name, ref.member}.should eq({"Colour", "Red"})
     end
   end
+
+  describe "behaviours" do
+    it "parses on as a behaviour and <~ as a post" do
+      program = Parser.parse("actor A\n  on go(n : U8)\n    self <~ go(n)\n    @out <~ print(\"x\")\n  end\nend\n")
+      m = program.items[0].as(TypeDecl).methods[0]
+      m.kind.should eq "be"
+      body = m.body || raise "no body"
+      first = body[0].as(Call)
+      {first.name, first.post, first.parens, first.recv.class}.should eq({"go", true, true, SelfRef})
+      body[1].as(Call).recv.should be_a IVarRef
+    end
+
+    it "rejects be, a post without a name, and a post with a block" do
+      bad = {
+        "actor A\n  be go\n  end\nend\n"                                      => "2:3: `be` is written `on` in Sparkle",
+        "class C\n  def f\n    x <~ 1\n  end\nend\n"                          => "3:10: expected a behaviour name after `<~` but found '1'",
+        "class C\n  def f\n    x <~ go do |y|\n    end\n  end\nend\n"         => "3:10: a posted message takes no block",
+        "class C\n  def f(a : A)\n    expects (a <~ go) == nil\n  end\nend\n" => "3:16: a contract cannot post a message",
+      }
+      bad.each do |source, message|
+        expect_raises(ParseError) { Parser.parse(source) }.try { |e| "#{e.line}:#{e.col}: #{e.message}" }.should eq message
+      end
+    end
+  end
 end

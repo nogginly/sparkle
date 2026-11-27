@@ -203,7 +203,9 @@ module Sparkle
           decl.maintains.concat(parse_clause)
         elsif t.kind.inst_var?
           decl.fields << parse_field
-        elsif t.kw?("def") || t.kw?("be") || t.kw?("abstract")
+        elsif t.kw?("be")
+          error("`be` is written `on` in Sparkle", t)
+        elsif t.kw?("def") || t.kw?("on") || t.kw?("abstract")
           decl.methods << parse_method
         else
           error("unexpected #{t} in #{kw.text} body")
@@ -248,7 +250,7 @@ module Sparkle
 
     private def parse_method : Method
       start = advance
-      kind = start.text
+      kind = start.text == "on" ? "be" : start.text
       if kind == "abstract"
         expect_kw("def")
       end
@@ -633,6 +635,8 @@ module Sparkle
         t = tok
         if t.op?(".")
           e = parse_member(e)
+        elsif t.op?("<~")
+          e = parse_post(e)
         elsif t.op?("[") && !t.space_before?
           e = parse_index(e)
         elsif t.op?("(") && !t.space_before? && e.is_a?(Ident)
@@ -686,6 +690,20 @@ module Sparkle
     end
 
     # Parses arguments and an optional block after a method name token `n`.
+    # `recv <~ name(args)`: a call to a behaviour, marked as a post.
+    private def parse_post(recv : Expr) : Expr
+      arrow = advance
+      error("a contract cannot post a message", arrow) if @clause
+      skip_nl
+      n = expect_kind(Kind::Ident, "a behaviour name after `<~`")
+      call = parse_call_rest(recv, n)
+      error("`<~` takes a behaviour name and its arguments", arrow) unless call.is_a?(Call)
+      error("a posted message takes no block", n) if call.block
+      call.parens = true
+      call.post = true
+      call
+    end
+
     private def parse_call_rest(recv : Expr?, n : Token) : Expr
       args = [] of Expr
       named = [] of NamedArg

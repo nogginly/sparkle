@@ -205,7 +205,7 @@ describe Contracts do
 
           @n : Int32 = 0
 
-          be bump(by : Int32)
+          on bump(by : Int32)
             expects by > 0
             @n += by
           end
@@ -298,7 +298,7 @@ describe Contracts do
     it "rejects clauses it cannot check yet, or that cannot hold" do
       contract_error("class C\n  def each\n    expects true\n    yield 1\n  end\nend\n").should eq "3:13: clauses on a yielding method are not supported yet"
       contract_error("class C\n  def tag f\n    expects true\n  end\nend\n").should eq "3:13: clauses on a `tag` method are not supported yet"
-      contract_error("actor A\n  be go(x : U8)\n    guarantees x == 1\n  end\nend\n").should eq "3:16: a behaviour cannot have `guarantees`: no caller sees its end"
+      contract_error("actor A\n  on go(x : U8)\n    guarantees x == 1\n  end\nend\n").should eq "3:16: a behaviour cannot have `guarantees`: no caller sees its end"
       contract_error("class C\n  def ref f(x : U8)\n    guarantees result == 1\n  end\nend\n").should eq "3:16: `result` in a method that returns nothing"
       contract_error("primitive P\n  maintains true\nend\n").should eq "2:13: `maintains` is not supported in a primitive yet"
       contract_error("class C\n  @n : U8 = 0\n  def self.new(n : U8)\n    expects @n == 0\n  end\nend\n").should eq "4:13: a constructor's `expects` can only read its arguments"

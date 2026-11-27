@@ -10,16 +10,16 @@ actor Printer
     @out = out
   end
 
-  be say(text : String)
-    @out.print(text)
+  on say(text : String)
+    @out <~ print(text)
   end
 end
 
 actor Main
   def self.new(env : Env)
     printer = Printer.new(env.out)
-    printer.say("one")
-    printer.say("two")
+    printer <~ say("one")
+    printer <~ say("two")
   end
 end
 ```
@@ -31,7 +31,16 @@ two
 
 ## Behaviours
 
-`be` declares a behaviour: a method that runs later, asynchronously. The call returns at once, with nothing.
+`on` declares a behaviour: a method that runs later, when its message reaches the actor. `<~` posts the message, and returns at once, with nothing.
+
+| You write | It means |
+|---|---|
+| `on say(text : String)` | declare a behaviour |
+| `printer <~ say("one")` | post `say` to `printer`; do not wait |
+| `self <~ tick` | post to this actor; `tick` runs after the current behaviour |
+| `env.out <~ print(s)` | printing is a behaviour of the output actor |
+
+- `<~` is required for a behaviour, and only for a behaviour: `printer.say("one")` and `printer <~ size` are both errors that say which to write.
 
 - A behaviour has no return type and no value. To get an answer, pass the sender and have the behaviour send one back.
 - Messages from one actor to another arrive in the order they were sent.
@@ -53,11 +62,11 @@ actor Collector
     @pending = expected
   end
 
-  be add(value : UInt64)
+  on add(value : UInt64)
     @total += value
     @pending -= 1
     if @pending == 0
-      @out.print("total = #{@total}")
+      @out <~ print("total = #{@total}")
     end
   end
 end
@@ -69,8 +78,8 @@ actor Worker
     @sink = sink
   end
 
-  be run(n : UInt64)
-    @sink.add(n * n)
+  on run(n : UInt64)
+    @sink <~ add(n * n)
   end
 end
 
@@ -80,7 +89,7 @@ actor Main
     sink = Collector.new(env.out, count)
     n : UInt64 = 1
     count.times do |i|
-      Worker.new(sink).run(n + i.u64)
+      Worker.new(sink) <~ run(n + i.u64)
     end
   end
 end
@@ -102,8 +111,8 @@ actor Greeter
     @out = out
   end
 
-  be greet(name : String)
-    @out.print(line(name))
+  on greet(name : String)
+    @out <~ print(line(name))
   end
 
   def line(name : String) : String = "hello, #{name}"
@@ -116,8 +125,8 @@ Other code cannot call a `def` on an actor, because a `tag` reference gives acce
 
 ```crystal
 actor Sink
-  be take(data : val Array(String), out : OutStream)
-    out.print("got #{data.size}")
+  on take(data : val Array(String), out : OutStream)
+    out <~ print("got #{data.size}")
   end
 end
 
@@ -129,8 +138,8 @@ actor Main
       list << "b"
       list
     end
-    Sink.new.take(data, env.out)
-    Sink.new.take(data, env.out)
+    Sink.new <~ take(data, env.out)
+    Sink.new <~ take(data, env.out)
   end
 end
 ```
@@ -146,7 +155,7 @@ end
 ```crystal
 actor Main
   def self.new(env : Env)
-    env.out.print("args: #{env.args.size}")
+    env.out <~ print("args: #{env.args.size}")
   end
 end
 ```

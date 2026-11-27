@@ -85,26 +85,26 @@ actor Main
   def self.new(env : Env)
     shapes = [Circle.new(1), Square.new(4), Circle.new(3)] of Shape
     shapes.each do |s|
-      env.out.print("#{s.describe} big=#{s.big?}")
+      env.out <~ print("#{s.describe} big=#{s.big?}")
     end
 
     sum = Vec2.new(1, 2) + Vec2.new(3, 4)
-    env.out.print("sum = (#{sum.x}, #{sum.y})")
+    env.out <~ print("sum = (#{sum.x}, #{sum.y})")
 
     stack = Stack(UInt32).new
     stack.push(10)
     stack.push(20)
     3.times do
-      env.out.print("popped #{Report.pop_or(stack, 0)}")
+      env.out <~ print("popped #{Report.pop_or(stack, 0)}")
     end
-    env.out.print("empty = #{stack.empty?} size = #{stack.size}")
+    env.out <~ print("empty = #{stack.empty?} size = #{stack.size}")
 
     names = ["ada", "grace"]
-    env.out.print(Report.at_or(names, 1))
-    env.out.print(Report.at_or(names, 7))
+    env.out <~ print(Report.at_or(names, 1))
+    env.out <~ print(Report.at_or(names, 7))
 
     missing = Report.tag_for(0)
     present = Report.tag_for(5)
-    env.out.print("missing nil = #{missing.nil?}, present nil = #{present.nil?}")
+    env.out <~ print("missing nil = #{missing.nil?}, present nil = #{present.nil?}")
   end
 end

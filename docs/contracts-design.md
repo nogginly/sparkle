@@ -33,7 +33,7 @@ end
 
 | Clause | Where | Checked | A failure means |
 |---|---|---|---|
-| `expects cond, …` | first lines of a `def` or `be` | on entry, after the arguments are bound | the caller broke the contract |
+| `expects cond, …` | first lines of a `def` or `on` | on entry, after the arguments are bound | the caller broke the contract |
 | `guarantees cond, …` | first lines of a `def`, after any `expects` | on every normal return | the method broke its promise |
 | `maintains cond` | first lines of a `class` or `actor`, before any field or method | after each constructor, and around each `ref` method and behaviour | the type broke its own rule |
 
@@ -83,7 +83,7 @@ fun ref deposit(amount: I64) =>
 | `box` method | Cannot change `self`, so its invariant is not rechecked |
 | `ref` method | Invariant checked after it returns. Not before: every way in is already checked on its way out |
 | Constructor | `expects` on entry; invariant on exit; `guarantees` may name the new object's fields |
-| Behaviour (`be`) | `expects` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `guarantees` is not allowed, because no caller sees the end. The invariant is checked after each behaviour |
+| Behaviour (`on`) | `expects` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `guarantees` is not allowed, because no caller sees the end. The invariant is checked after each behaviour |
 | Partial method (`!`) | `guarantees` holds only on normal return; when it fails, no promise is made |
 | Yielding method | Clauses are copied with the body into each call; `guarantees` cannot see a block's effects, so only `expects` is allowed for now |
 

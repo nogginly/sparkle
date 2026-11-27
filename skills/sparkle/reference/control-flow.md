@@ -5,11 +5,11 @@
 ```crystal
 n = 7
 if n < 5
-  env.out.print("small")
+  env.out <~ print("small")
 elsif n < 10
-  env.out.print("medium")
+  env.out <~ print("medium")
 else
-  env.out.print("large")
+  env.out <~ print("large")
 end
 ```
 
@@ -29,8 +29,8 @@ size = if n < 5
 else
   "large"
 end
-env.out.print(size)
-env.out.print("not above 8") unless n > 8
+env.out <~ print(size)
+env.out <~ print("not above 8") unless n > 8
 ```
 
 ```text
@@ -45,7 +45,7 @@ ticks : USize = 0
 while ticks < 5
   ticks += 1
   next if ticks == 2
-  env.out.print("tick #{ticks}")
+  env.out <~ print("tick #{ticks}")
   break if ticks >= 4
 end
 ```
@@ -68,10 +68,10 @@ tick 4
 
 ```crystal
 3.times do |i|
-  env.out.print("i = #{i}")
+  env.out <~ print("i = #{i}")
 end
 (1..3).each do |i|
-  env.out.print("n = #{i}")
+  env.out <~ print("n = #{i}")
 end
 ```
 
@@ -101,8 +101,8 @@ end
 
 actor Main
   def self.new(env : Env)
-    env.out.print(Grade.label(2))
-    env.out.print(Grade.label(9))
+    env.out <~ print(Grade.label(2))
+    env.out <~ print(Grade.label(9))
   end
 end
 ```
@@ -147,9 +147,9 @@ end
 
 actor Main
   def self.new(env : Env)
-    env.out.print(FizzBuzz.label(9))
-    env.out.print(FizzBuzz.label(10))
-    env.out.print(FizzBuzz.label(15))
+    env.out <~ print(FizzBuzz.label(9))
+    env.out <~ print(FizzBuzz.label(10))
+    env.out <~ print(FizzBuzz.label(15))
   end
 end
 ```

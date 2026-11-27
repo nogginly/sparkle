@@ -137,6 +137,8 @@ Without types the translator cannot tell `x.size` the method from `x.size` the f
 | A parameter named like a method | Forbidden | Given a prime (`payload'`) |
 | A class whose fields all have defaults | Infers an `iso` constructor | Gets an explicit constructor, giving `ref` |
 
+Behaviours are declared with `on` and called with `<~`, not Pony's `be` and a plain call. `be` read as "be a method" and said nothing about what differs: a behaviour runs later, when its message reaches the actor, and returns nothing. `on add(n)` names when it runs. At the call, `counter <~ add(3)` shows the hand-off, which a plain `counter.add(3)` hides; the marker is required both ways, so its presence and its absence can both be trusted. It also explains why output from two actors interleaves: `env.out <~ print(s)` is a message too. `<~` points into the receiver, as Go's `<-` does, and the wave says "not now"; it costs Crystal's `a <~b` (`a < ~b`), which needs a space. `->` stays free for lambdas. The aim is that Sparkle does not expose Pony's spelling where Crystal or Ruby would expect another.
+
 The integer default is `Int32`, matching Crystal and Rust. `Int64` was weighed and set aside for now: it costs almost nothing on 64-bit hardware and moves the overflow point from about 2.1 billion to out of reach, which matters because Pony's `+` wraps silently. The trade is compatibility over overflow headroom, and it may be revisited. Contracts (roadmap step 7) are the planned answer to overflow: prove a value stays in range rather than widen its type.
 
 ### An assignment's value is the new value

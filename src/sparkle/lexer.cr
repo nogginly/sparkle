@@ -5,7 +5,7 @@ module Sparkle
   # `Newline` tokens except where the line obviously continues.
   class Lexer
     KEYWORDS = Set{
-      "class", "actor", "struct", "primitive", "trait", "interface", "def", "be",
+      "class", "actor", "struct", "primitive", "trait", "interface", "def", "be", "on",
       "end", "if", "elsif", "else", "unless", "while", "until", "do", "case",
       "when", "in", "then", "begin", "rescue", "ensure", "raise", "return",
       "break", "next", "self", "nil", "true", "false", "consume", "recover",
@@ -14,7 +14,7 @@ module Sparkle
     }
 
     OPERATORS = [
-      "...", "..", "&.", "->", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||",
+      "...", "..", "&.", "->", "<~", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||",
       "+=", "-=", "*=", "/=", "%=", "::",
     ]
     SINGLE = "+-*/%=<>!&|?:,.()[]{};^~"
@@ -22,7 +22,7 @@ module Sparkle
     CONTINUATION = Set{
       ",", ".", "(", "[", "{", "+", "-", "*", "/", "%", "=", "==", "!=", "<",
       "<=", ">", ">=", "&&", "||", "&", "<<", ">>", "+=", "-=", "*=", "/=",
-      "%=", "?", ":", "..", "...", "&.", "->",
+      "%=", "?", ":", "..", "...", "&.", "->", "<~",
     }
 
     SUFFIX     = /_?([iuf])(8|16|32|64|128)\z/
