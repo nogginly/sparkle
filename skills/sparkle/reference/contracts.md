@@ -46,7 +46,7 @@ left 70
 |---|---|---|---|
 | `expects cond, …` | first lines of a `def` or `on` | on entry | the caller broke the contract |
 | `guarantees cond, …` | after any `expects` | on each normal return | the method broke its promise |
-| `maintains cond, …` | first lines of a `class`, `struct` or `actor` | after each constructor, public `ref` method and behaviour | the type broke its own rule |
+| `maintains cond, …` | first lines of a `class`, `struct` or `actor` | after each constructor, public `ref` method and message handler | the type broke its own rule |
 
 - The body starts at the first line that is not a clause. A one-line `def x = expr` takes none.
 - Commas separate conditions; each is checked and reported on its own.

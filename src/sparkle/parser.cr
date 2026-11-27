@@ -690,14 +690,14 @@ module Sparkle
     end
 
     # Parses arguments and an optional block after a method name token `n`.
-    # `recv <~ name(args)`: a call to a behaviour, marked as a post.
+    # `recv <~ name(args)`: a message posted to `recv`.
     private def parse_post(recv : Expr) : Expr
       arrow = advance
       error("a contract cannot post a message", arrow) if @clause
       skip_nl
-      n = expect_kind(Kind::Ident, "a behaviour name after `<~`")
+      n = expect_kind(Kind::Ident, "a message name after `<~`")
       call = parse_call_rest(recv, n)
-      error("`<~` takes a behaviour name and its arguments", arrow) unless call.is_a?(Call)
+      error("`<~` takes a message name and its arguments", arrow) unless call.is_a?(Call)
       error("a posted message takes no block", n) if call.block
       call.parens = true
       call.post = true

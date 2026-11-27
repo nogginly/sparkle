@@ -92,7 +92,7 @@ ensure
 
 ## Where the compiler insists
 
-An actor's constructor and a behaviour cannot be partial. A failing call in one needs a `begin … rescue`. A plain method that calls a partial one without handling it fails with:
+An actor's constructor and a message handler cannot be partial. A failing call in one needs a `begin … rescue`. A plain method that calls a partial one without handling it fails with:
 
 ```text
 function signature is not marked as partial but the function body can raise an error

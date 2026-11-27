@@ -191,14 +191,14 @@ module Sparkle
     # new call is found. Programs are changed in place.
     private def self.tree_calls(session : Ponyc::Session, files : Array(String), sources : Array(String), programs : Array(Program), primed : Hash(String, Set(String)), predicates : Rules::Predicates, & : Int32 -> Nil) : Rounds
       calls = Hash(String, Set({Int32, Int32})).new
-      behaviours = Set({String, Int32, Int32}).new
+      handled = Set({String, Int32, Int32}).new
       clean = false
       inliner = Inliner.new(files, programs)
       finished = !inliner.yielding?
       MAX_ROUNDS.times do
         sites = finished ? [] of Inliner::Site : inliner.sites
         receivers = sites.select(&.call.recv).map { |site| {site.file, site.call.name_line, site.call.name_col} }.to_set
-        found, types, behaviours = session.check(receivers) do |tree|
+        found, types, handled = session.check(receivers) do |tree|
           lower_files(tree, files, sources, programs, calls, primed, predicates, finished ? nil : inliner) { |i| yield i }
         end
         clean = found.empty?
@@ -220,16 +220,16 @@ module Sparkle
         end
         break unless grown
       end
-      Rounds.new(calls, inliner, behaviours, clean)
+      Rounds.new(calls, inliner, handled, clean)
     end
 
     # What the field-or-method loop found: the method calls among bare
-    # names, the inliner, the calls of its last round that reach a
-    # behaviour, and whether that round had no errors.
-    private record Rounds, calls : Hash(String, Set({Int32, Int32})), inliner : Inliner, behaviours : Set({String, Int32, Int32}), clean : Bool
+    # names, the inliner, the calls of its last round that reach a message
+    # handler, and whether that round had no errors.
+    private record Rounds, calls : Hash(String, Set({Int32, Int32})), inliner : Inliner, handled : Set({String, Int32, Int32}), clean : Bool
 
-    # Whether every call that reaches a behaviour is written with `<~`, and
-    # every `<~` reaches one; reports each that is not on `err`. Decided
+    # Whether every call that reaches a message handler is written with
+    # `<~`, and every `<~` reaches one; reports each that is not on `err`. Decided
     # only when the last round type-checked cleanly; ponyc's own errors
     # come first otherwise.
     private def self.posts_match?(project : Project, rounds : Rounds, err : IO) : Bool
@@ -238,17 +238,17 @@ module Sparkle
       project.files.each_with_index do |file, i|
         each_call(project.programs[i]) do |e, name, post, bare|
           origin = rounds.inliner.origins[{file, e[0], e[1]}]?
-          behaviour = rounds.behaviours.includes?({file, e[0], e[1]})
-          next if behaviour == post
+          message = rounds.handled.includes?({file, e[0], e[1]})
+          next if message == post
           ok = false
-          message = if post
-                      "`<~` posts to a behaviour, and `#{name}` is not one: call it with `.`"
-                    else
-                      "`#{name}` is a behaviour: post it with `#{bare ? "self " : ""}<~`"
-                    end
+          text = if post
+                   "`<~` posts a message, and `#{name}` is a method: call it with `.`"
+                 else
+                   "`#{name}` is a message: post it with `#{bare ? "self " : ""}<~`"
+                 end
           at_file, line, col = origin ? {origin.file, origin.line, origin.col} : {file, e[0], e[1]}
           index = project.files.index(at_file) || i
-          err.print format_error(at_file, project.sources[index], ParseError.new(message, line, col))
+          err.print format_error(at_file, project.sources[index], ParseError.new(text, line, col))
         end
       end
       ok

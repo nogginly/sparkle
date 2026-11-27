@@ -18,7 +18,7 @@ Sparkle reads like Crystal, but it has no type inference across methods and no m
 | `begin … rescue ex : Foo` | `begin … rescue … end`; no exception types or values |
 | `case … when Foo` | Also `when n : Foo` to bind the value |
 | Every object may be shared | Every reference has a capability, see below |
-| Fibers and channels | Actors: `on` declares a behaviour, `<~` posts it |
+| Fibers and channels | Actors: `on` declares a message handler, `<~` posts the message |
 
 ## Numbers
 

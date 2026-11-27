@@ -37,7 +37,7 @@ class Counter
 | `fun ref push(x: A) =>` | `def ref push(x : A)` |
 | `fun name(): R => expr` | `def name : R = expr` |
 | `be run(x: U32) =>` | `on run(x : U32)` |
-| `w.run(1)`, a behaviour | `w <~ run(1)` |
+| `w.run(1)`, calling a behaviour | `w <~ run(1)`, posting a message |
 | `fun first(): A ?` | `def first! : A` |
 | `fun is_empty(): Bool` | `def empty? : Bool` |
 | `fun ref set_name(v: A)` | `def name=(v : A)` |

@@ -42,7 +42,7 @@ Errors are reported at `.spk` lines with types in Sparkle syntax. Fix the first 
 6. **Numbers.** `x = 0` is an `Int32` and `x = 1.5` a `Float64`. Types never mix silently: convert with `n.usize`, or declare `i : USize = 0`.
 7. **Blocks.** A method of yours that `yield`s is inlined at each call, as in Crystal. On Pony's types, `each`, `each_with_index` and `times` are loops, and any other block is a lambda. See [blocks](reference/blocks.md).
 8. **Contracts.** `expects`, `guarantees` and `maintains` lines open a method or type, and are checked at run time; a failure exits the program. See [contracts](reference/contracts.md).
-9. **Actors.** `on` declares a behaviour, and `actor <~ name(args)` posts it: it runs later and returns nothing. Output order between actors is not fixed. See [actors](reference/actors.md).
+9. **Actors.** Call a method and wait for its reply; post a message and go on. `on name(args)` declares a message handler, and `actor <~ name(args)` posts the message. Output order between actors is not fixed. See [actors](reference/actors.md).
 10. **Not supported:** macros (`getter`, `property`, `record`), hashes, symbols, calls without parentheses that take arguments (`puts x`). See [limits](reference/limits.md).
 
 ## Reference
@@ -56,7 +56,7 @@ Read the page for the feature at hand.
 | [types](reference/types.md) | Built-in types, unions, `?`, tuples, aliases, generics, `Proc` |
 | [capabilities](reference/capabilities.md) | `iso` … `tag`, `recover`, `consume`, defaults |
 | [classes](reference/classes.md) | `class`, `struct`, `primitive`, `trait`, `interface`, fields, methods, operators |
-| [actors](reference/actors.md) | Actors, behaviours, sending data |
+| [actors](reference/actors.md) | Actors, messages and handlers, sending data |
 | [control-flow](reference/control-flow.md) | `if`, `unless`, `while`, `until`, `loop`, `case` |
 | [blocks](reference/blocks.md) | Loops over collections, lambdas, `&.name` |
 | [enums](reference/enums.md) | `enum`, members, predicates, exhaustive `case … in` |

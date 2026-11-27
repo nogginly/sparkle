@@ -130,7 +130,7 @@ got 2 names
 ```
 
 - Consuming an `iso` into a `val` freezes it. Nobody can write to it again, so it can be shared.
-- A parameter of an actor behaviour must be `iso`, `val` or `tag`.
+- A parameter of a message handler must be `iso`, `val` or `tag`.
 
 ## `recover`
 

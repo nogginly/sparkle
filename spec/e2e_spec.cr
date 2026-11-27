@@ -151,13 +151,13 @@ describe "end to end" do
       stdout.should eq "abc abc\n"
     end
 
-    it "requires <~ for a behaviour, and only for one" do
+    it "requires <~ for a message, and only for one" do
       err = IO::Memory.new
-      Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/behaviour_calls/main.spk", err) }.should eq 1
+      Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/message_calls/main.spk", err) }.should eq 1
       err.to_s.lines.select(&.matches?(/\A\S+:\d+:\d+: /)).should eq [
-        "spec/fixtures/behaviour_calls/main.spk:13:13: `print` is a behaviour: post it with `<~`",
-        "spec/fixtures/behaviour_calls/main.spk:17:7: `tick` is a behaviour: post it with `self <~`",
-        "spec/fixtures/behaviour_calls/main.spk:19:13: `<~` posts to a behaviour, and `size` is not one: call it with `.`",
+        "spec/fixtures/message_calls/main.spk:13:13: `print` is a message: post it with `<~`",
+        "spec/fixtures/message_calls/main.spk:17:7: `tick` is a message: post it with `self <~`",
+        "spec/fixtures/message_calls/main.spk:19:13: `<~` posts a message, and `size` is a method: call it with `.`",
       ]
     end
 

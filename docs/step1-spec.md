@@ -137,11 +137,11 @@ All other type names pass through unchanged, so every Pony stdlib type is usable
 | `x.empty?` | `x.is_empty()` | |
 | `x.as!(T)` | `(x as T)` | |
 | `x.nil?` | `(x is None)` |
-| `counter <~ add(3)` / `self <~ tick` | `counter.add(3)` / `this.tick()` | posts a message to a behaviour; see *Behaviours* below | |
+| `counter <~ add(3)` / `self <~ tick` | `counter.add(3)` / `this.tick()` | posts a message; see *Messages* below | |
 
-### Behaviours
+### Messages
 
-`on` declares a behaviour: a method of an actor that runs later, when its message is processed, and returns nothing to the caller. `<~` posts the message; the call returns at once.
+A caller **calls a method** and waits for its reply, or **posts a message** and goes on at once, trusting the actor's handler to process it and expecting nothing back. `on` declares a message handler; `<~` posts the message. Both lower to Pony's behaviour (`be`) and an ordinary call.
 
 ```crystal
 actor Counter
@@ -160,10 +160,10 @@ counter <~ add(3)
 env.out <~ print("added")
 ```
 
-- **Required both ways.** A behaviour, the standard library's included (`env.out <~ print(s)`), must be called with `<~`, and `<~` must reach a behaviour. Either mistake is an error at the call: "`add` is a behaviour: post it with `<~`", or "`<~` posts to a behaviour, and `size` is a method: call it with `.`".
-- **A target is required.** A behaviour of the actor itself is posted with `self <~ name`; there is no bare form. It runs after the current behaviour, not in place.
+- **Required both ways.** A message, the standard library's included (`env.out <~ print(s)`), must be posted with `<~`, and `<~` must reach a message handler. Either mistake is an error at the call: "`add` is a message: post it with `<~`", or "`<~` posts a message, and `size` is a method: call it with `.`".
+- **A target is required.** A message to the actor itself is posted with `self <~ name`; there is no bare form. It is handled after the current message, not in place.
 - **The right side** is a method name with its arguments, in parentheses or none; a block is not allowed. `<~` binds like `.`, so `a.b <~ c(1)` posts `c` to `a.b`.
-- **How it is checked** *(typeless)*: after ponyc's expression pass, a call whose callee is a behaviour reference (`beref`) is a behaviour call. The type-checking rounds that tell fields from methods record them; after the last round, each is compared with the calls written with `<~`.
+- **How it is checked** *(typeless)*: after ponyc's expression pass, a call whose callee is a behaviour reference (`beref`) reaches a message handler. The type-checking rounds that tell fields from methods record them; after the last round, each is compared with the calls written with `<~`.
 - **Lexing.** `<~` is one token, so Crystal's `a <~b`, meaning `a < ~b`, must be written with a space.
 - `be` is not Sparkle: it is an error that says to write `on`.
 
@@ -373,9 +373,9 @@ fun box _spk_maintains(spk_after: String) =>
 - **Read-only.** Conditions in the wrapper see `self` through `spk_view`, a `box` alias, and each argument through a `box->` alias, so calling a `ref` method in a condition is a type error. `maintains` is checked in a `box` method. An `iso` argument or result seen through `box->` is a `tag`, which a condition cannot read.
 - **`result`** is the return value, and **`old(expr)`** is `expr` evaluated before the body runs; both only in `guarantees`. `old`'s value must be `val`, which numbers, `Bool` and `String` literals are: `_SpkContract.keep` takes `Any val`, so `old(@items)` of a `ref` array is a type error. Write `old(@items.size)`.
 - **When.** `expects` is checked on entry, `guarantees` on each normal return; a partial method that fails promises nothing. Every call, recursive ones included, goes through the wrapper.
-- **`maintains`** is checked after each constructor, each public `ref` method and each behaviour. A method whose name starts with `_` is a helper and is not checked, so it may leave the invariant broken for its caller to restore.
+- **`maintains`** is checked after each constructor, each public `ref` method and each message handler. A method whose name starts with `_` is a helper and is not checked, so it may leave the invariant broken for its caller to restore.
 - **Constructors** are not wrapped: `expects` is checked before the body and `guarantees` and `maintains` after it. `result` and `old` are errors in a constructor's clauses, and so is `return` in a constructor with clauses or under `maintains`.
-- **Behaviours** take `expects`, checked when the message is processed, and `maintains`. `guarantees` on a behaviour is an error: no caller sees its end.
+- **Message handlers** take `expects`, checked when the message is processed, and `maintains`. `guarantees` on a handler is an error: no caller sees its end.
 - **Failure** writes `file:line:column: contract failed in Type.method: clause` to standard error and exits with status 1, through C's `fprintf` and `exit`, declared once per package with Pony FFI in a generated primitive `_SpkContract`. Output that other actors have not yet written, `env.out <~ print` included, may be lost.
 - **Builds.** `check` and `build` check every clause. `build --release` keeps only `expects`; `--contracts=all` keeps all three.
 - **Not yet**, each an error that says so: clauses on a yielding method, an abstract method or a `tag` method, and `maintains` in a trait, interface or primitive. A yielding `ref` method is not checked against `maintains`.

@@ -35,7 +35,7 @@ end
 |---|---|---|---|
 | `expects cond, …` | first lines of a `def` or `on` | on entry, after the arguments are bound | the caller broke the contract |
 | `guarantees cond, …` | first lines of a `def`, after any `expects` | on every normal return | the method broke its promise |
-| `maintains cond` | first lines of a `class` or `actor`, before any field or method | after each constructor, and around each `ref` method and behaviour | the type broke its own rule |
+| `maintains cond` | first lines of a `class` or `actor`, before any field or method | after each constructor, and around each `ref` method and message handler | the type broke its own rule |
 
 - The body starts at the first line that is not a clause. No separator is needed, because a clause keyword cannot start a statement.
 - A clause anywhere else is an error, so an invariant cannot drift into the middle of a type.
@@ -72,7 +72,7 @@ fun ref deposit(amount: I64) =>
   if not (view._balance >= 0) then _SpkContract.fail("main.spk:2: maintains @balance >= 0") end
 ```
 
-- **Read-only by construction.** Every condition is evaluated through `view`, a `box` alias of `self`, and arguments are seen as `box` too. Calling a `ref` method from a contract is then a type error from ponyc, not a convention. One hole remains: a `box` method may still send a message to an actor. Rejecting behaviour calls in contracts closes it.
+- **Read-only by construction.** Every condition is evaluated through `view`, a `box` alias of `self`, and arguments are seen as `box` too. Calling a `ref` method from a contract is then a type error from ponyc, not a convention. One hole remains: a `box` method may still send a message to an actor. A contract cannot post a message (`<~`), which closes it.
 - **Failure** prints the clause and its Sparkle line on standard error and exits with status 1, through `fprintf` and `exit` declared with Pony FFI in the generated code. It never becomes a Pony `error`, so contracts never change which methods are partial.
 - **`old(expr)`** must have a type that can be kept unchanged: a number, `Bool`, or anything `val`. `old(@items)` on a `ref` array would keep a reference, not a snapshot, and would silently compare the array with itself, so it is an error; write `old(@items.size)`. `old` of an `iso` is an error too, because keeping it would alias it.
 
@@ -83,11 +83,11 @@ fun ref deposit(amount: I64) =>
 | `box` method | Cannot change `self`, so its invariant is not rechecked |
 | `ref` method | Invariant checked after it returns. Not before: every way in is already checked on its way out |
 | Constructor | `expects` on entry; invariant on exit; `guarantees` may name the new object's fields |
-| Behaviour (`on`) | `expects` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `guarantees` is not allowed, because no caller sees the end. The invariant is checked after each behaviour |
+| Message handler (`on`) | `expects` is checked when the message is processed, in the receiving actor, not when it is sent: the sender never waits. `guarantees` is not allowed, because no caller sees the end. The invariant is checked after each handler |
 | Partial method (`!`) | `guarantees` holds only on normal return; when it fails, no promise is made |
 | Yielding method | Clauses are copied with the body into each call; `guarantees` cannot see a block's effects, so only `expects` is allowed for now |
 
-Actors suit invariants well. An actor's state changes only inside its behaviours, one message at a time, so an invariant checked after each behaviour holds whenever any other actor could observe it.
+Actors suit invariants well. An actor's state changes only inside its message handlers, one message at a time, so an invariant checked after each handler holds whenever any other actor could observe it.
 
 ## Release builds
 
@@ -124,4 +124,4 @@ Contracts written now should be provable later, which constrains the language of
 
 ## Building it
 
-Built in step 3, as one change: parsing, the wrapper and body with the `box` view, the FFI failure and `old` values, invariants, constructors and behaviours, `--release` handling, and the skill's [contracts](../skills/sparkle/reference/contracts.md) page. The rules as built are in [step1-spec.md](step1-spec.md), *Contracts (step 3)*. Not yet: clauses on yielding, abstract and `tag` methods, and `maintains` in traits, interfaces and primitives.
+Built in step 3, as one change: parsing, the wrapper and body with the `box` view, the FFI failure and `old` values, invariants, constructors and message handlers, `--release` handling, and the skill's [contracts](../skills/sparkle/reference/contracts.md) page. The rules as built are in [step1-spec.md](step1-spec.md), *Contracts (step 3)*. Not yet: clauses on yielding, abstract and `tag` methods, and `maintains` in traits, interfaces and primitives.

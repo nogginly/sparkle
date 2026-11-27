@@ -107,7 +107,7 @@ module Sparkle
   # its source text; `kind` is the clause's word.
   node Clause, Node, kind : String, cond : Expr, text : String
 
-  # `kind` is "def", "be" (a behaviour, written `on`) or "abstract"; `self_recv` marks `def self.name`.
+  # `kind` is "def", "be" (a message handler, written `on`) or "abstract"; `self_recv` marks `def self.name`.
   node Method, Node, kind : String, cap : String?, self_recv : Bool, name : String, params : Array(Param), ret : TypeNode?, body : Array(Expr)?, name_line : Int32, name_col : Int32, expects : Array(Clause) = [] of Clause, guarantees : Array(Clause) = [] of Clause
 
   node TypeParam, Node, name : String, constraint : TypeNode?

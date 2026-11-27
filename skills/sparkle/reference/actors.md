@@ -29,23 +29,23 @@ one
 two
 ```
 
-## Behaviours
+## Messages
 
-`on` declares a behaviour: a method that runs later, when its message reaches the actor. `<~` posts the message, and returns at once, with nothing.
+You **call a method** and wait for its reply before going on. You **post a message** and go on at once: the actor's handler will process it later, and you expect nothing back.
 
 | You write | It means |
 |---|---|
-| `on say(text : String)` | declare a behaviour |
+| `on say(text : String)` | declare the handler for the message `say` |
 | `printer <~ say("one")` | post `say` to `printer`; do not wait |
-| `self <~ tick` | post to this actor; `tick` runs after the current behaviour |
-| `env.out <~ print(s)` | printing is a behaviour of the output actor |
+| `self <~ tick` | post to this actor; `tick` is handled after the current message |
+| `env.out <~ print(s)` | printing is a message to the output actor |
 
-- `<~` is required for a behaviour, and only for a behaviour: `printer.say("one")` and `printer <~ size` are both errors that say which to write.
+- `<~` is required for a message, and only for a message: `printer.say("one")` and `printer <~ size` are both errors that say which to write.
 
-- A behaviour has no return type and no value. To get an answer, pass the sender and have the behaviour send one back.
+- A handler has no return type and no value. To get an answer, pass the sender and have the handler post one back.
 - Messages from one actor to another arrive in the order they were sent.
 - Messages from different senders arrive in no fixed order. Make one actor do all the printing, and do not depend on the order between actors.
-- A behaviour's parameters must be `iso`, `val` or `tag`, since they cross to another actor. A `String` literal is `val`, so it is fine. See [capabilities](capabilities.md).
+- A handler's parameters must be `iso`, `val` or `tag`, since they cross to another actor. A `String` literal is `val`, so it is fine. See [capabilities](capabilities.md).
 
 ## Replying
 
@@ -119,7 +119,7 @@ actor Greeter
 end
 ```
 
-Other code cannot call a `def` on an actor, because a `tag` reference gives access only to behaviours. Use `def` for helpers.
+Other code cannot call a `def` on an actor, because a `tag` reference can only be posted messages. Use `def` for helpers.
 
 ## Sending data
 
