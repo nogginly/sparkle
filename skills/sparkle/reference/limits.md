@@ -43,11 +43,11 @@ Sparkle translates before it knows types. These follow, each with its way out.
 
 ## Order of evaluation
 
-Pony evaluates a method call's arguments before its receiver. Arithmetic on numbers and string interpolation run left to right, but a chain of calls with effects does not:
+Sparkle evaluates left to right, as Crystal does: the receiver, then the arguments in order. One exception:
 
 | Gap | Instead |
 |---|---|
-| `"took " + a.take(5).string() + ", left " + a.left.string()` runs `a.left` first | Interpolate: `"took #{a.take(5)}, left #{a.left}"` |
+| A field receiver is read after the arguments: in `@items.push(swap_items)`, if `swap_items` reassigns `@items`, the new array gets the push | Read the field into a local first: `items = @items` |
 
 ## Syntax
 

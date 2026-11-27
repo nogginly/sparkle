@@ -518,6 +518,27 @@ describe "translation rules" do
         PONY
     end
 
+    it "binds a receiver that may change before arguments with effects" do
+      rule in_main(<<-SPK), <<-PONY
+        a = Log.new
+        a.f().g(a.h())
+        a.g(a.h())
+        v = make() + make()
+        w = make() + a
+        SPK
+        actor Main
+          new create(env: Env) =>
+            var a = Log.create()
+            (let spk_r1 = a.f()
+              (consume spk_r1).g(a.h()))
+            a.g(a.h())
+            var v = (let spk_r2 = make()
+              (consume spk_r2) + make())
+            var w = make() + a
+
+        PONY
+    end
+
     it "maps string interpolation as concatenation" do
       rule in_main(<<-'SPK'), <<-'PONY'
         n = 1

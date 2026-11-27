@@ -167,6 +167,20 @@ env.out <~ print("added")
 - **Lexing.** `<~` is one token, so Crystal's `a <~b`, meaning `a < ~b`, must be written with a space.
 - `be` is not Sparkle: it is an error that says to write `on`.
 
+### Order of evaluation
+
+Sparkle evaluates left to right, as Crystal does: a receiver, then its arguments in order. Pony evaluates a method call's arguments first and its receiver last (only operators on numbers, which it compiles inline, go left to right), so the lowering binds the receiver first when the order could show:
+
+| Sparkle | Pony |
+|---|---|
+| `log.add("a").add(log.word("b"))` | `(let spk_r1 = log.add("a"); (consume spk_r1).add(log.word("b")))` |
+| `make() + make()` | `(let spk_r2 = make(); (consume spk_r2) + make())` |
+| `log.add(log.word("b"))` | unchanged: a local receiver cannot change |
+
+- **When.** The receiver is bound when it may change, and some argument may have an effect. It may change unless it is a literal, `self`, a type, an enum member, a local, a field (see *Known semantic gaps*) or a bare `x.name` that the type checker found to be a field. An argument may have an effect if it holds a call, an index, an assignment, a `yield` or a `raise`; a block's body runs later, so a block has none.
+- **Which calls.** Method calls, indexing, operators (`+`, `==`, … on any type; `&&` and `||` are always left to right), `<<`, setters and index assignment. String interpolation has its own lowering (see *Literals*).
+- **Types.** `consume` gives the bound value back with the type the receiver had, so an `iso` result stays `iso^`. The `let` costs nothing after optimisation.
+
 ### Fields and methods
 
 In Crystal `x.name` with no parentheses is a method call, but Pony types also have public fields, such as `env.out`. A bare `x.name` is therefore a field read when `x`'s type has a field `name`, and a call otherwise. The translator has no types, so `sparkle build` asks the compiler:
@@ -414,5 +428,5 @@ Macros (`getter`, `property`, `record`), methods inside an `enum`, calls with ar
 - A bare name is resolved once per position, so it cannot be a field for one caller and a method for another, for example in a generic method used with two types.
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
-- Pony evaluates a method call's arguments before its receiver, so in `a.f(b.g)`, `b.g` runs before `a`. Arithmetic on numbers runs left to right, and so does string interpolation (see *Literals*), but an explicit chain of method calls, `s.add(x.f).add(y.f)` or `s + x.f + y.f` on strings, runs `y.f` first.
+- A field used as a receiver, `@items.push(next_item)`, is read after the arguments (see *Order of evaluation*), so an argument that reassigns that field changes which object the call reaches. Binding the field would break an `iso` field, which cannot be aliased.
 - `def pop` and `def pop!` both become `pop`; `def empty?` and `def is_empty` both become `is_empty`. Defining both is an error from `ponyc`.
