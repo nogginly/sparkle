@@ -15,7 +15,7 @@ describe Lowerer do
     it "reports a construct it cannot lower yet at its Sparkle position" do
       source = "class Point\n  @s : String = \"a\\0\"\nend\n"
       expect_raises(ParseError, "the AST path does not lower") do
-        Ponyc.tree_text(home) { |tree| Lowerer.new(tree).lower(Parser.parse(source), "main.spk", source) }
+        Ponyc.tree_text(home) { |packages| Lowerer.new(packages.root).lower(Parser.parse(source), "main.spk", source) }
       end
     end
   else

@@ -21,36 +21,37 @@ module Sparkle::Ponyc
       raise "ponyc failed to load builtin" if @program.null?
     end
 
-    # Type-checks the package built by the block, up to the expression pass;
-    # returns each error's file, line, column and message.
-    def check(& : Tree -> Nil) : Array({String, Int32, Int32, String})
-      check(Set({String, Int32, Int32}).new) { |tree| yield tree }[0]
+    # Type-checks the packages built by the block, up to the expression
+    # pass; returns each error's file, line, column and message.
+    def check(& : Packages -> Nil) : Array({String, Int32, Int32, String})
+      check(Set({String, Int32, Int32}).new) { |packages| yield packages }[0]
     end
 
     # As `check`, and also the printed type of the receiver of each call
     # whose method name is at one of `receivers` (file, line, column), such
     # as `Bag ref` or `Box[String val] ref`, and the positions of the calls
     # that reach a message handler (Pony's behaviour).
-    def check(receivers : Set({String, Int32, Int32}), & : Tree -> Nil) : {Array({String, Int32, Int32, String}), Hash({String, Int32, Int32}, String), Set({String, Int32, Int32})}
+    def check(receivers : Set({String, Int32, Int32}), & : Packages -> Nil) : {Array({String, Int32, Int32, String}), Hash({String, Int32, Int32}, String), Set({String, Int32, Int32})}
       types = {} of {String, Int32, Int32} => String
       handled = Set({String, Int32, Int32}).new
-      round(LibPonyc.spk_pass_expr, ->(package : LibPonyc::Ast) { inspect_calls(package, receivers, types, handled) }) { |tree| yield tree }
+      round(LibPonyc.spk_pass_expr, ->(package : LibPonyc::Ast) { inspect_calls(package, receivers, types, handled) }) { |packages| yield packages }
       {Ponyc.errors(@opt), types, handled}
     end
 
-    # Runs every pass but code generation on the package built by the block;
+    # Runs every pass but code generation on the packages built by the block;
     # returns whether it passed and ponyc's error text. Call it last: it
     # takes the loaded packages through the later passes too.
-    def verify(& : Tree -> Nil) : {Bool, String}
-      ok = round(LibPonyc.spk_pass_finaliser) { |tree| yield tree }
+    def verify(& : Packages -> Nil) : {Bool, String}
+      ok = round(LibPonyc.spk_pass_finaliser) { |packages| yield packages }
       text = LibPonyc.spk_errors_text(@opt)
       errors = text.null? ? "" : String.new(text)
       LibC.free(text.as(Void*)) unless text.null?
       {ok && errors.empty?, errors}
     end
 
-    # Loads a new package, lets the block build it, runs the passes up to
-    # `limit` over the program, and removes the package again.
+    # Loads a new root package, lets the block build it and add the packages
+    # it requires, runs the passes up to `limit` over the program, lets
+    # `inspect` read each of those packages, and removes them again.
     # After the expression pass a call is `(call (funref receiver name) ...)`,
     # or `(call (beref receiver name) ...)` for a message handler.
     private def inspect_calls(ast : LibPonyc::Ast, receivers : Set({String, Int32, Int32}), types : Hash({String, Int32, Int32}, String), handled : Set({String, Int32, Int32})) : Nil
@@ -72,20 +73,22 @@ module Sparkle::Ponyc
       end
     end
 
-    private def round(limit : LibC::Int, inspect : (LibPonyc::Ast -> Nil)? = nil, & : Tree -> Nil) : Bool
+    private def round(limit : LibC::Int, inspect : (LibPonyc::Ast -> Nil)? = nil, & : Packages -> Nil) : Bool
       @round += 1
       path = LibPonyc.stringtab(LibPonyc.spk_opt_strtab(@opt), "spk_round_#{@round}")
       LibPonyc.module_add_magic_src(path, "", @opt)
       LibPonyc.spk_errors_reset(@opt)
       package = LibPonyc.spk_module_load_parsed(@program, path, @opt)
       raise "ponyc failed to load a package" if package.null?
+      packages = Packages.new(@opt, @program, Tree.new(@opt, LibPonyc.ast_child(package)), "spk_round_#{@round}_")
       begin
-        yield Tree.new(@opt, LibPonyc.ast_child(package))
+        yield packages
         LibPonyc.spk_opt_set_limit(@opt, limit)
         passed = LibPonyc.spk_program_passes(@program, @opt)
-        inspect.try &.call(package)
+        inspect.try { |read| ([package] + packages.added).each { |each| read.call(each) } }
         passed
       ensure
+        packages.added.each { |added| LibPonyc.ast_remove(added) }
         LibPonyc.ast_remove(package)
       end
     end

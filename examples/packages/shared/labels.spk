@@ -1,0 +1,15 @@
+primitive Labels
+  def name(kind : String, n : USize) : String = "#{kind} of #{n}"
+end
+
+actor Printer
+  @out : OutStream
+
+  def self.new(out : OutStream)
+    @out = out
+  end
+
+  on show(text : String)
+    @out <~ print(text)
+  end
+end

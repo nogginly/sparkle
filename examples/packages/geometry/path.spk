@@ -1,0 +1,20 @@
+require "../shared"
+
+class Path
+  maintains @points.size <= 10
+
+  @points : Array(Point) = [] of Point
+
+  def ref add(p : Point)
+    expects p.x >= 0, p.y >= 0
+    @points.push(p)
+  end
+
+  def each_point
+    @points.each do |p|
+      yield p
+    end
+  end
+
+  def label : String = Labels.name("path", @points.size)
+end

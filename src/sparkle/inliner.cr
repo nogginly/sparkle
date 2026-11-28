@@ -120,9 +120,10 @@ module Sparkle
       @chains[call] = methods
     end
 
-    # `def _yf_n : this->T = @n`, with the capability of `m`, added once.
+    # `def spk_yf_n : this->T = @n`, with the capability of `m`, added once;
+    # public, so that a copy in another package can call it.
     protected def accessor(owner : String, field : String, m : Method, at : Node) : String
-      name = "_yf_#{field}"
+      name = "spk_yf_#{field}"
       decl = @types[owner]
       return name if decl.methods.any? { |x| x.name == name }
       f = decl.fields.find { |x| x.name == field } || raise ParseError.new("`@#{field}` is not a field of #{owner}", at.line, at.col)

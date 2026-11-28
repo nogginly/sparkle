@@ -166,8 +166,8 @@ describe "translation rules" do
         PONY
     end
 
-    it "keeps an existing use of collections once" do
-      rule "use \"collections\"\n" + in_main("3.times do\nend"), <<-PONY
+    it "keeps an existing require of collections once" do
+      rule "require \"collections\"\n" + in_main("3.times do\nend"), <<-PONY
         use "collections"
 
         actor Main
@@ -179,8 +179,8 @@ describe "translation rules" do
         PONY
     end
 
-    it "keeps several uses in order" do
-      rule "use \"foo\"\nuse \"bar\"\n" + in_main("3.times do\nend"), <<-PONY
+    it "keeps several requires in order" do
+      rule "require \"foo\"\nrequire \"bar\"\n" + in_main("3.times do\nend"), <<-PONY
         use "foo"
         use "bar"
         use "collections"

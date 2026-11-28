@@ -52,7 +52,7 @@ describe Ponyc::Tree do
 
     it "compiles a program built as an AST" do
       Dir.mkdir_p(out_dir)
-      ok, errors = Ponyc.compile_tree(out_dir, "tree_hello", home) { |tree| hello(tree, "print") }
+      ok, errors = Ponyc.compile_tree(out_dir, "tree_hello", home) { |packages| hello(packages.root, "print") }
       ok.should be_true, errors
       output = IO::Memory.new
       Process.run(File.join(out_dir, "tree_hello"), output: output).success?.should be_true
@@ -61,7 +61,7 @@ describe Ponyc::Tree do
 
     it "reports errors at the positions set on the nodes" do
       Dir.mkdir_p(out_dir)
-      ok, errors = Ponyc.compile_tree(out_dir, "tree_bad", home) { |tree| hello(tree, "prnt") }
+      ok, errors = Ponyc.compile_tree(out_dir, "tree_bad", home) { |packages| hello(packages.root, "prnt") }
       ok.should be_false
       errors.should contain "main.spk:3:12: couldn't find 'prnt' in 'OutStream'"
       errors.should contain "    env.out.prnt(\"hello from a tree\")\n           ^"

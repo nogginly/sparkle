@@ -1,0 +1,16 @@
+# A package of its own: required by ../main.spk as "./geometry".
+
+class Point
+  @x : Int32
+  @y : Int32
+
+  def self.new(x : Int32, y : Int32)
+    @x = x
+    @y = y
+  end
+
+  def x : Int32 = @x
+  def y : Int32 = @y
+
+  def +(other : Point) : Point = Point.new(@x + other.x, @y + other.y)
+end

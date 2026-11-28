@@ -23,7 +23,7 @@ def lower(sparkle : String) : String
   program = Sparkle::Parser.parse(sparkle)
   primed = Sparkle::Rules.primed_params([program])
   predicates = Sparkle::Rules.enum_predicates([program])
-  Sparkle::Ponyc.tree_text(home) { |tree| Sparkle::Lowerer.new(tree, Set({Int32, Int32}).new, primed, predicates).lower(program, "main.spk", sparkle) }
+  Sparkle::Ponyc.tree_text(home) { |packages| Sparkle::Lowerer.new(packages.root, Set({Int32, Int32}).new, primed, predicates).lower(program, "main.spk", sparkle) }
 end
 
 # Asserts that the lowerer builds the tree ponyc parses from `pony`.
@@ -34,7 +34,7 @@ def lowers_as(program : Sparkle::Program, sparkle : String, pony : String, calls
   Dir.mkdir_p(dir)
   begin
     File.write(File.join(dir, "main.pony"), pony)
-    lowered = Sparkle::Ponyc.tree_text(home) { |tree| Sparkle::Lowerer.new(tree, calls, primed, predicates).lower(program, "main.spk", sparkle) }
+    lowered = Sparkle::Ponyc.tree_text(home) { |packages| Sparkle::Lowerer.new(packages.root, calls, primed, predicates).lower(program, "main.spk", sparkle) }
     lowered.should eq Sparkle::Ponyc.parse_text(dir, home)
   ensure
     FileUtils.rm_rf(dir)

@@ -33,7 +33,7 @@ args: 1
 
 ## Printing
 
-`env.out.print(s)` writes a line to standard output, `env.err.print(s)` to standard error. Both take a `String`; interpolation calls `string` on each value:
+`env.out <~ print(s)` writes a line to standard output, `env.err <~ print(s)` to standard error; printing is a message posted to the output actor. Both take a `String`; interpolation calls `string` on each value:
 
 ```crystal
 n = 42
@@ -46,10 +46,10 @@ n = 42, half = 21
 
 ## Packages
 
-Pony's standard library is available. Import a package with `use` at the top of a file:
+Pony's standard library is available. Import a package with `require` at the top of a file:
 
 ```crystal
-use "collections"
+require "collections"
 
 actor Main
   def self.new(env : Env)
@@ -66,3 +66,5 @@ end
 ```
 
 `collections` is added for you when a range or `times` needs it.
+
+For your own packages, `require` names a directory of `.spk` files; see [packages](packages.md).

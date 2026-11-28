@@ -1,15 +1,16 @@
 require "./lib_ponyc"
 require "./tree"
+require "./packages"
 
 module Sparkle::Ponyc
-  # Compiles a program whose one package is built as an AST by the block,
-  # which appends type declarations to the `Tree` it is given, into the
-  # binary `out_dir/bin_name`, using the standard library of the Pony
+  # Compiles a program whose packages are built as ASTs by the block, which
+  # appends type declarations to the root's `Tree` and to those of the
+  # packages it adds, into the binary `out_dir/bin_name`, using the standard library of the Pony
   # installation at `home`. Returns whether it succeeded and ponyc's error
   # text; errors are reported at the positions set on the nodes.
-  def self.compile_tree(out_dir : String, bin_name : String, home : String, release : Bool = false, & : Tree -> Nil) : {Bool, String}
+  def self.compile_tree(out_dir : String, bin_name : String, home : String, release : Bool = false, & : Packages -> Nil) : {Bool, String}
     with_options(out_dir, bin_name, home, release) do |opt|
-      program = load_tree(opt, bin_name) { |tree| yield tree }
+      program = load_tree(opt, bin_name) { |packages| yield packages }
       next false if program.null?
       # The remaining passes resume from the parse pass on the new nodes.
       LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_all)
@@ -19,11 +20,12 @@ module Sparkle::Ponyc
     end
   end
 
-  # The package built by the block, printed as `ponyc --astmodule` prints one.
-  def self.tree_text(home : String, & : Tree -> Nil) : String
+  # The root package built by the block, printed as `ponyc --astmodule`
+  # prints one.
+  def self.tree_text(home : String, & : Packages -> Nil) : String
     text = ""
     with_options("", "text", home) do |opt|
-      program = load_tree(opt, "text") { |tree| yield tree }
+      program = load_tree(opt, "text") { |packages| yield packages }
       next false if program.null?
       text = ast_text(LibPonyc.ast_child(program))
       LibPonyc.ast_free(program)
@@ -48,13 +50,14 @@ module Sparkle::Ponyc
   end
 
   # Loads an empty in-memory package named `name`, parsed only, and lets the
-  # block build into it. Returns the program, or null when loading failed.
-  private def self.load_tree(opt : LibPonyc::PassOpt, name : String, & : Tree -> Nil) : LibPonyc::Ast
+  # block build into it and add the packages it requires. Returns the
+  # program, or null when loading failed.
+  private def self.load_tree(opt : LibPonyc::PassOpt, name : String, & : Packages -> Nil) : LibPonyc::Ast
     path = LibPonyc.stringtab(LibPonyc.spk_opt_strtab(opt), name)
     LibPonyc.module_add_magic_src(path, "", opt)
     LibPonyc.spk_opt_set_limit(opt, LibPonyc.spk_pass_parse)
     program = LibPonyc.program_load(path, opt)
-    yield Tree.new(opt, LibPonyc.ast_child(LibPonyc.ast_child(program))) unless program.null?
+    yield Packages.new(opt, program, Tree.new(opt, LibPonyc.ast_child(LibPonyc.ast_child(program))), "spk_") unless program.null?
     program
   end
 

@@ -51,8 +51,9 @@ Step 4 needs a place for Sparkle's own library, written in Sparkle:
 
 | Where | Holds |
 |---|---|
-| `lib/sparkle/` in the repository | The library's packages, each a directory of `.spk` files |
-| `share/sparkle/lib/` in an installation | The same, copied by `make install` |
+| `stdlib/` in the repository | The library's packages, each a directory of `.spk` files; not `lib/`, which holds the Crystal shards |
+| `share/sparkle/stdlib/` in an installation | The same, copied by `make install` |
+| `$SPARKLE_LIB` | Another library, for trying one out |
 
 Enumerable then becomes yielding methods on Pony's own `Array`, inlined at each call. A method of the library is never compiled on its own, so it costs nothing unless it is used.
 
@@ -65,10 +66,4 @@ Enumerable then becomes yielding methods on Pony's own `Array`, inlined at each 
 
 ## Building it
 
-1. A spec section, then resolving and parsing used Sparkle packages, with cycle detection.
-2. Lowering each package into its own in-memory package, in the session and in the compile; errors at each file's path.
-3. Public accessors for yielding methods used across packages, and the reserved prefix.
-4. The library directory, `make install` copying it, and the prelude.
-5. Examples, the skill's page on packages, and goldens.
-
-Steps 3 to 5 have mechanical parts, such as the spec cases, turning every `use` into `require`, examples and the skill page, which suit the `implementer` subagent once the rules are fixed.
+Built in one change, in this order: the spec section; `PackageSet`, which finds, parses and orders the packages and reports a missing one or a cycle at its `require`; `Ponyc::Packages`, which adds each to the program in memory, in the type-check session and in the compile; public `spk_yf_` accessors and the reserved prefix; the library's location, `make install` copying it, and the prelude; `examples/packages`. The `implementer` wrote the loader's specs and the skill page. The library itself, and so the prelude's contents, come with step 4.

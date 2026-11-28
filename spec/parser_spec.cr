@@ -135,6 +135,7 @@ describe Parser do
 
     it "rejects be, a post without a name, and a post with a block" do
       bad = {
+        "use \"collections\"\n"                                               => "1:1: `use` is written `require` in Sparkle",
         "actor A\n  be go\n  end\nend\n"                                      => "2:3: `be` is written `on` in Sparkle",
         "class C\n  def f\n    x <~ 1\n  end\nend\n"                          => "3:10: expected a message name after `<~` but found '1'",
         "class C\n  def f\n    x <~ go do |y|\n    end\n  end\nend\n"         => "3:10: a posted message takes no block",

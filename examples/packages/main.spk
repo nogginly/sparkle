@@ -1,0 +1,18 @@
+# Packages: this directory requires ./geometry, which requires ./shared.
+
+require "./geometry"
+require "./shared"
+
+actor Main
+  def self.new(env : Env)
+    path = Path.new
+    path.add(Point.new(1, 2))
+    path.add(Point.new(3, 4))
+    total = Point.new(0, 0)
+    path.each_point do |p|
+      total = total + p
+    end
+    printer = Printer.new(env.out)
+    printer <~ show("#{path.label}: total #{total.x}, #{total.y}")
+  end
+end

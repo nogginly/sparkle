@@ -65,7 +65,7 @@ describe Inliner do
           new create() =>
             _items = Array[U32].create()
 
-          fun _yf_items(): this->Array[U32] =>
+          fun spk_yf_items(): this->Array[U32] =>
             _items
 
         actor Main
@@ -73,7 +73,7 @@ describe Inliner do
             var bag = Bag.create()
             var total: U32 = 0
             var y1_self = bag
-            for y1_x in y1_self._yf_items().values() do
+            for y1_x in y1_self.spk_yf_items().values() do
               var v = y1_x
               total = total + v
             end

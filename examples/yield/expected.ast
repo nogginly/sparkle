@@ -73,7 +73,7 @@
               (seq
                 (call
                   (.
-                    (call (. (reference (id y3_self)) (id _yf_items)) x x x)
+                    (call (. (reference (id y3_self)) (id spk_yf_items)) x x x)
                     (id values)
                   )
                   x
@@ -93,7 +93,7 @@
         )
         (fun:scope
           x
-          (id _yf_items)
+          (id spk_yf_items)
           x
           x
           (->
@@ -164,7 +164,7 @@
               (seq
                 (call
                   (.
-                    (call (. (reference (id y2_self)) (id _yf_items)) x x x)
+                    (call (. (reference (id y2_self)) (id spk_yf_items)) x x x)
                     (id values)
                   )
                   x
@@ -203,7 +203,7 @@
               (seq
                 (call
                   (.
-                    (call (. (reference (id y4_self)) (id _yf_items)) x x x)
+                    (call (. (reference (id y4_self)) (id spk_yf_items)) x x x)
                     (id values)
                   )
                   x

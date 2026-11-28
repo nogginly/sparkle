@@ -47,6 +47,8 @@ module Sparkle
     end
 
     @file = ""
+    @requires = {} of String => String
+    @implicit = [] of String
     @stub_names = Set(String).new
     @plain = Set({String, Int32, Int32}).new
 
@@ -56,6 +58,15 @@ module Sparkle
     def stub(names : Set(String), plain : Set({String, Int32, Int32})) : self
       @stub_names = names
       @plain = plain
+      self
+    end
+
+    # Lowers `require` paths that name Sparkle packages to those packages'
+    # keys (`requires` maps a path, as written, to its key), and adds a `use`
+    # of each key in `implicit`.
+    def packages(requires : Hash(String, String), implicit : Array(String)) : self
+      @requires = requires
+      @implicit = implicit
       self
     end
 
@@ -70,12 +81,12 @@ module Sparkle
         when TypeDecl        then @tree.add(entity(item))
         when EnumDecl        then enum_decl(item).each { |node| @tree.add(node) }
         when AliasDecl       then @tree.add(type_alias(item.name, type(item.type), at(item)))
-        when UseDecl         then next
+        when RequireDecl     then next
         when ContractSupport then contract_support(at(item))
         else                      unsupported(item, "this declaration")
         end
       end
-      uses = program.items.select(UseDecl).map(&.path)
+      uses = @implicit + program.items.select(RequireDecl).map { |item| @requires[item.path]? || item.path }
       uses << "collections" if @collections && !uses.includes?("collections")
       uses.reverse_each { |path| @tree.use(path) }
     end

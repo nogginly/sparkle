@@ -113,7 +113,7 @@ module Sparkle
   node TypeParam, Node, name : String, constraint : TypeNode?
   node TypeDecl, Node, kind : String, cap : String?, name : String, tparams : Array(TypeParam), includes : Array(TypeNode), fields : Array(Field), methods : Array(Method), maintains : Array(Clause) = [] of Clause
   node AliasDecl, Node, name : String, type : TypeNode
-  node UseDecl, Node, path : String
+  node RequireDecl, Node, path : String
 
   # `value` is the member's resolved integer value.
   node EnumMember, Node, name : String, value : Int64

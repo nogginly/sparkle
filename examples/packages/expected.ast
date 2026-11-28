@@ -1,0 +1,164 @@
+(module:scope
+  (file:scope
+    (use x "spk_geometry" x)
+    (use x "spk_shared" x)
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var (id path) x)
+              (call (. (reference (id Path)) (id create)) x x x)
+            )
+            (call
+              (. (reference (id path)) (id add))
+              (positionalargs
+                (seq
+                  (call
+                    (. (reference (id Point)) (id create))
+                    (positionalargs (seq 1) (seq 2))
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (reference (id path)) (id add))
+              (positionalargs
+                (seq
+                  (call
+                    (. (reference (id Point)) (id create))
+                    (positionalargs (seq 3) (seq 4))
+                    x
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (=
+              (var (id total) x)
+              (call
+                (. (reference (id Point)) (id create))
+                (positionalargs (seq 0) (seq 0))
+                x
+                x
+              )
+            )
+            (= (var (id y1_self) x) (reference (id path)))
+            (for
+              (let (id y1_p) x)
+              (seq
+                (call
+                  (.
+                    (call
+                      (. (reference (id y1_self)) (id spk_yf_points))
+                      x
+                      x
+                      x
+                    )
+                    (id values)
+                  )
+                  x
+                  x
+                  x
+                )
+              )
+              (seq
+                (= (var (id p) x) (reference (id y1_p)))
+                (=
+                  (reference (id total))
+                  (+ (reference (id total)) (reference (id p)) x)
+                )
+              )
+              x
+            )
+            (=
+              (var (id printer) x)
+              (call
+                (. (reference (id Printer)) (id create))
+                (positionalargs (seq (. (reference (id env)) (id out))))
+                x
+                x
+              )
+            )
+            (call
+              (. (reference (id printer)) (id show))
+              (positionalargs
+                (seq
+                  (seq
+                    (=
+                      (let (id spk_s16_24) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (call (. (reference (id path)) (id label)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (=
+                      (let (id spk_s16_45) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (call (. (reference (id total)) (id x)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (+
+                      (+
+                        (+
+                          (+ (reference (id spk_s16_24)) ": total " x)
+                          (reference (id spk_s16_45))
+                          x
+                        )
+                        ", "
+                        x
+                      )
+                      (call
+                        (.
+                          (call (. (reference (id total)) (id y)) x x x)
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              x
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)
