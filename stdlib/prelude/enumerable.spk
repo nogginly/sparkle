@@ -25,4 +25,26 @@ module Enumerable(A)
     end
     total
   end
+
+  def find(&block : A -> Bool) : A?
+    found : A? = nil
+    each do |x|
+      if yield x
+        found = x
+        break
+      end
+    end
+    found
+  end
+
+  def any?(&block : A -> Bool) : Bool
+    found = false
+    each do |x|
+      if yield x
+        found = true
+        break
+      end
+    end
+    found
+  end
 end
