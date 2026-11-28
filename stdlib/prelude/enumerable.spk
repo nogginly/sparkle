@@ -47,4 +47,118 @@ module Enumerable(A)
     end
     found
   end
+
+  def reject(&block : A -> Bool) : Array(A)
+    result = [] of A
+    each do |x|
+      result << x unless yield x
+    end
+    result
+  end
+
+  def all?(&block : A -> Bool) : Bool
+    ok = true
+    each do |x|
+      unless yield x
+        ok = false
+        break
+      end
+    end
+    ok
+  end
+
+  def none?(&block : A -> Bool) : Bool
+    ok = true
+    each do |x|
+      if yield x
+        ok = false
+        break
+      end
+    end
+    ok
+  end
+
+  def count(&block : A -> Bool) : USize
+    n : USize = 0
+    each do |x|
+      n += 1 if yield x
+    end
+    n
+  end
+
+  def reduce(initial : A, &block : A, A -> A) : A
+    acc = initial
+    each do |x|
+      acc = yield acc, x
+    end
+    acc
+  end
+
+  def includes?(value : A) : Bool
+    found = false
+    each do |x|
+      if x == value
+        found = true
+        break
+      end
+    end
+    found
+  end
+
+  def index(value : A) : USize?
+    found : USize? = nil
+    each_with_index do |x, i|
+      if x == value
+        found = i
+        break
+      end
+    end
+    found
+  end
+
+  def first? : A?
+    found : A? = nil
+    each do |x|
+      found = x
+      break
+    end
+    found
+  end
+
+  def min? : A?
+    best : A? = nil
+    each do |x|
+      case best
+      when Nil
+        best = x
+      when b : A
+        best = x if x < b
+      end
+    end
+    best
+  end
+
+  def max? : A?
+    best : A? = nil
+    each do |x|
+      case best
+      when Nil
+        best = x
+      when b : A
+        best = x if x > b
+      end
+    end
+    best
+  end
+
+  def join(separator : String) : String
+    out = ""
+    first = true
+    each do |x|
+      out += separator unless first
+      out += x.string
+      first = false
+    end
+    out
+  end
 end

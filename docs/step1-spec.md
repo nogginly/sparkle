@@ -492,4 +492,6 @@ Macros (`getter`, `property`, `record`), methods inside an `enum`, calls with ar
 - In a `case`, a tuple pattern `{a, b}` compares against existing values; binding is written `{a : String, b : UInt32}`.
 - A continuation line inside parentheses may not start with an operator; end the previous line with it instead.
 - A field used as a receiver, `@items.push(next_item)`, is read after the arguments (see *Order of evaluation*), so an argument that reassigns that field changes which object the call reaches. Binding the field would break an `iso` field, which cannot be aliased.
+- `x.nil?` is `(x is None)` and narrows nothing: Pony has no flow typing, so `if b.nil? || x < b` still sees `b` as `A?`. A `case` with a type pattern narrows.
+- An `Array` cannot be interpolated (Pony's has no `string`), and `nil` interpolates as `None`.
 - `def pop` and `def pop!` both become `pop`; `def empty?` and `def is_empty` both become `is_empty`. Defining both is an error from `ponyc`.
