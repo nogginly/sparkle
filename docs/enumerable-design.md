@@ -1,6 +1,6 @@
 # Enumerable: a design proposal
 
-How Crystal's collection methods, `map`, `select`, `sum` and the rest, come to Pony's `Array` and other collections, written in Sparkle in the library's `prelude`. It is a proposal: the choices marked **Decision** are open. Two facts were checked first, with the unmodified Pony 0.78.2 ([`spike/enumerable/probe.cr`](../spike/enumerable/probe.cr)): a type-check round can tell the type of a block's value, and Pony's `Array` already has methods that a Crystal programmer would call by the same name with another meaning.
+How Crystal's collection methods, `map`, `select`, `sum` and the rest, come to Pony's `Array` and other collections, written in Sparkle in the library's `prelude`. The decisions are settled; they are listed below. Two facts were checked first, with the unmodified Pony 0.78.2 ([`spike/enumerable/probe.cr`](../spike/enumerable/probe.cr)): a type-check round can tell the type of a block's value, and Pony's `Array` already has methods that a Crystal programmer would call by the same name with another meaning.
 
 ## What it looks like
 
@@ -83,12 +83,12 @@ flowchart TD
 | `contains` | whether a value is present | Crystal calls it `includes?` |
 | `values`, `keys`, `pairs` | iterators | Crystal has `each`, `each_with_index` instead |
 
-## Decisions for the user
+## Decisions
 
-1. **Adding methods to Pony's types.** Crystal reopens a type: `class Array(A)` adds to the existing one. Allow that, limited to inline-only methods: no fields, nothing compiled into the type, only its public API. Or a word of its own, such as `extend Array(A)`. Recommended: Crystal's reopening with that limit. It answers DESIGN.md's open question on reopening types in the safe direction: a reopened type gains no state and no code, so its contracts still hold.
-2. **Clashing names.** When the prelude defines a name Pony's type already has, which wins? Recommended: the prelude's, so `find { … }` and `delete(value)` mean what they mean in Crystal; the prelude adds `delete_at(i)` for Pony's `delete`, and `index(value)` for its `find`.
-3. **Naming the block's type.** Crystal's `def map(&block : A -> B) : Array(B) forall B`, exactly. Recommended: yes, since it is the spelling a Crystal programmer already reads.
-4. **The first set of methods.** Recommended: `map`, `select`, `reject`, `find`, `any?`, `all?`, `none?`, `count`, `sum`, `reduce`, `includes?`, `index`, `first?`, `min`, `max`, `join`, `each_with_index` (today's loop sugar, kept), and `delete_at`. Later, with more of the language: `sort_by`, `group_by` (needs `Map`), `each_slice`, `zip`.
+1. **Reopening Pony's types**: `class Array(A)` adds to Pony's `Array`, as in Crystal, limited to inline-only methods: no fields, no constructors, nothing compiled into the type, only its public API. So a reopened type gains no state and no code, and its contracts still hold. This answers DESIGN.md's open question on reopening types for Pony's types; reopening a Sparkle type stays unsupported.
+2. **Clashing names**: the prelude's meaning wins, so `find { … }` and `delete(value)` mean what they mean in Crystal. `delete_at(i)` and `index(value)` give Pony's `delete` and `find`.
+3. **The block's type**: Crystal's `def map(&block : A -> B) : Array(B) forall B`.
+4. **The first set**: `map`, `select`, `reject`, `find`, `any?`, `all?`, `none?`, `count`, `sum`, `reduce`, `includes?`, `index`, `first?`, `min`, `max`, `join`, `each_with_index` (today's loop sugar, kept), and `delete_at`. Later: `sort_by`, `group_by`, `each_slice`, `zip`.
 
 ## What the language needs first
 
