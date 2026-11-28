@@ -183,7 +183,7 @@ describe "end to end" do
     end
 
     it "inlines the prelude's methods on Pony's types, and leaves a class's own alone" do
-      source = <<-SPK
+      source = <<-'SPK'
         class Tally
           @n : Int32 = 40
 
@@ -194,7 +194,7 @@ describe "end to end" do
           def self.new(env : Env)
             xs = [1, 2, 3]
             doubled = xs.map { |x| x * 2 }
-            env.out <~ print("\#{xs.sum} \#{doubled.sum} \#{Tally.new.sum}")
+            env.out <~ print("#{xs.sum} #{doubled.sum} #{Tally.new.sum}")
           end
         end
         SPK
