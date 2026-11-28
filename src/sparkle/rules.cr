@@ -124,6 +124,12 @@ module Sparkle
       REF_BY_DEFAULT.includes?(name) || (name.ends_with?('=') && !%w[== != <= >=].includes?(name))
     end
 
+    # Whether `d`'s methods are inline-only: a `module`, or a class that
+    # reopens a Pony type.
+    def self.inline_only?(d : TypeDecl) : Bool
+      d.kind == "module" || d.reopens
+    end
+
     # Whether `e` needs no parentheses as an operand or receiver.
     def self.atomic?(e : Expr) : Bool
       case e

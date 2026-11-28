@@ -51,13 +51,15 @@ module Sparkle
     @implicit = [] of String
     @stub_names = Set(String).new
     @plain = Set({String, Int32, Int32}).new
+    @probes = {} of {String, Int32, Int32} => Expr
 
     # Lowers a program whose yielding methods are not inlined yet, for a
     # type-checking round: `yield a` is `a`, and a call to a method named
     # in `names` drops its block, unless its name position is in `plain`.
-    def stub(names : Set(String), plain : Set({String, Int32, Int32})) : self
+    def stub(names : Set(String), plain : Set({String, Int32, Int32}), probes : Hash({String, Int32, Int32}, Expr) = {} of {String, Int32, Int32} => Expr) : self
       @stub_names = names
       @plain = plain
+      @probes = probes
       self
     end
 
@@ -78,7 +80,7 @@ module Sparkle
       @collections = false
       program.items.each do |item|
         case item
-        when TypeDecl        then @tree.add(entity(item))
+        when TypeDecl        then @tree.add(entity(item)) unless Rules.inline_only?(item)
         when EnumDecl        then enum_decl(item).each { |node| @tree.add(node) }
         when AliasDecl       then @tree.add(type_alias(item.name, type(item.type), at(item)))
         when RequireDecl     then next
@@ -701,6 +703,13 @@ module Sparkle
       end
     end
 
+    # Whether `c` is a call to an inline-only or yielding method's name that
+    # the inliner has not decided yet: lowered as a call, so that the type
+    # checker types its receiver.
+    private def undecided?(c : Call) : Bool
+      @stub_names.includes?(c.name) && !@plain.includes?({@file, c.name_line, c.name_col})
+    end
+
     # Whether `c` is a bare `x.name` that the type checker found to be a field.
     private def field_read?(c : Call) : Bool
       recv = c.recv
@@ -912,7 +921,15 @@ module Sparkle
       @tree.node(Tk::QUALIFY, at(e), [name, args])
     end
 
+    # A call; during a type-check round, a call the inliner is probing is
+    # preceded by its probe and keeps its stubbed value.
     private def call(c : Call) : Node
+      probe = @probes[{@file, c.name_line, c.name_col}]?
+      return @tree.node(Tk::SEQ, at(c), [expr(probe), unprobed(c)]) if probe
+      unprobed(c)
+    end
+
+    private def unprobed(c : Call) : Node
       if c.block && @stub_names.includes?(c.name) && !@plain.includes?({@file, c.name_line, c.name_col})
         c = Call.new(c.line, c.col, c.recv, c.name, c.args, c.named, nil, true, c.name_line, c.name_col, c.post)
       end
@@ -925,7 +942,7 @@ module Sparkle
       return @tree.node(Tk::SEQ, at(c), [@tree.node(Tk::IS, at(c), [receiver(recv), reference("None", at(c))])]) if recv && c.name == "nil?" && c.args.empty?
       method = Rules.pony_method_name(c.name, recv.is_a?(TypeRef) && c.name == "new")
       name = id(method, name_at)
-      return @tree.node(Tk::DOT, name_at, [receiver(recv), name]) if recv && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?(name_at)
+      return @tree.node(Tk::DOT, name_at, [receiver(recv), name]) if recv && !recv.is_a?(TypeRef) && bare?(c) && !@calls.includes?(name_at) && !undecided?(c)
       args = c.args.map { |arg| @tree.node(Tk::SEQ, at(arg), [expr(arg)]) }
       args << @tree.node(Tk::SEQ, at(block), [lambda(block)]) if block
       partial = c.name.ends_with?('!') ? @tree.node(Tk::QUESTION, name_at) : none

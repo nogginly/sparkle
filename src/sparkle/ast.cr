@@ -107,11 +107,18 @@ module Sparkle
   # its source text; `kind` is the clause's word.
   node Clause, Node, kind : String, cond : Expr, text : String
 
+  # `&block : A, B -> C` in a method's parameters: the block's parameter
+  # types and the type of its value.
+  node BlockParam, Node, name : String, inputs : Array(TypeNode), output : TypeNode?
+
   # `kind` is "def", "be" (a message handler, written `on`) or "abstract"; `self_recv` marks `def self.name`.
-  node Method, Node, kind : String, cap : String?, self_recv : Bool, name : String, params : Array(Param), ret : TypeNode?, body : Array(Expr)?, name_line : Int32, name_col : Int32, expects : Array(Clause) = [] of Clause, guarantees : Array(Clause) = [] of Clause
+  # `forall` names the types each call fixes (`forall B`).
+  node Method, Node, kind : String, cap : String?, self_recv : Bool, name : String, params : Array(Param), ret : TypeNode?, body : Array(Expr)?, name_line : Int32, name_col : Int32, expects : Array(Clause) = [] of Clause, guarantees : Array(Clause) = [] of Clause, block : BlockParam? = nil, forall : Array(String) = [] of String
 
   node TypeParam, Node, name : String, constraint : TypeNode?
-  node TypeDecl, Node, kind : String, cap : String?, name : String, tparams : Array(TypeParam), includes : Array(TypeNode), fields : Array(Field), methods : Array(Method), maintains : Array(Clause) = [] of Clause
+  # `kind` is "class", "actor", …, or "module"; `reopens` marks a class
+  # named after a Pony type, whose methods, like a module's, are inline-only.
+  node TypeDecl, Node, kind : String, cap : String?, name : String, tparams : Array(TypeParam), includes : Array(TypeNode), fields : Array(Field), methods : Array(Method), maintains : Array(Clause) = [] of Clause, reopens : Bool = false
   node AliasDecl, Node, name : String, type : TypeNode
   node RequireDecl, Node, path : String
 

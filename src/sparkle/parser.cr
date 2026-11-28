@@ -5,7 +5,7 @@ require "./ast"
 module Sparkle
   # Recursive-descent parser producing a `Program`. Raises `ParseError`.
   class Parser
-    TYPE_KINDS  = %w[class actor struct primitive trait interface]
+    TYPE_KINDS  = %w[class actor struct primitive trait interface module]
     TERMINATORS = %w[end else elsif when rescue ensure]
     BINARY_PREC = {
       "||" => 1, "&&" => 2,
@@ -269,10 +269,18 @@ module Sparkle
       end
       nt = tok
       name = parse_method_name
-      params = tok.op?("(") ? parse_params : [] of Param
+      params, block = tok.op?("(") ? parse_params : {[] of Param, nil}
       ret = nil
       if accept_op(":")
         ret = parse_type
+      end
+      forall = [] of String
+      if tok.kind.ident? && tok.text == "forall"
+        advance
+        loop do
+          forall << expect_kind(Kind::Const, "a type name after `forall`").text
+          break unless accept_op(",")
+        end
       end
       body = nil
       expects = [] of Clause
@@ -293,7 +301,7 @@ module Sparkle
           expect_kw("end")
         end
       end
-      Method.new(start.line, start.col, kind, cap, self_recv, name, params, ret, body, nt.line, nt.col, expects, guarantees)
+      Method.new(start.line, start.col, kind, cap, self_recv, name, params, ret, body, nt.line, nt.col, expects, guarantees, block, forall)
     end
 
     # One clause line: its word, then conditions separated by commas.
@@ -358,11 +366,18 @@ module Sparkle
       end
     end
 
-    private def parse_params : Array(Param)
+    # The parameters, and a last `&name : A, B -> C`, the block's.
+    private def parse_params : {Array(Param), BlockParam?}
       expect_op("(")
       list = [] of Param
+      block = nil
       skip_nl
       until tok.op?(")")
+        if tok.op?("&")
+          block = parse_block_param
+          skip_nl
+          break
+        end
         n = expect_kind(Kind::Ident, "a parameter name")
         type = nil
         if accept_op(":")
@@ -375,7 +390,24 @@ module Sparkle
         skip_nl
       end
       expect_op(")")
-      list
+      {list, block}
+    end
+
+    # `&block : A, USize -> B`; the types are optional, as `&block` alone.
+    private def parse_block_param : BlockParam
+      amp = advance
+      n = expect_kind(Kind::Ident, "a block name after `&`")
+      inputs = [] of TypeNode
+      output = nil
+      if accept_op(":")
+        until tok.op?("->")
+          inputs << parse_type_atom
+          break unless accept_op(",")
+        end
+        expect_op("->")
+        output = parse_type unless tok.op?(")")
+      end
+      BlockParam.new(amp.line, amp.col, n.text, inputs, output)
     end
 
     # --- types -----------------------------------------------------------

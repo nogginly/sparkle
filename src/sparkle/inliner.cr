@@ -1,5 +1,6 @@
 require "./ast"
 require "./parser"
+require "./pony_type"
 
 module Sparkle
   # Inlines `yield` (spec, *yield*). A method whose body yields is never
@@ -35,22 +36,60 @@ module Sparkle
     # Calls, by name position, decided not to reach a yielding method.
     getter plain = Set({String, Int32, Int32}).new
 
-    @yielders = {} of {String, String} => {Method, String}
+    # The probe that stands for a call, by its name position, for one round:
+    # see `decide`.
+    getter probes = {} of {String, Int32, Int32} => Expr
+
+    # A method a call can be replaced by: a yielding method, or an inline-only
+    # method of a module or a reopened Pony type. `owner` is the type the
+    # receiver must have; `params` reads the type variables of the method's
+    # declaration in terms of the owner's type parameters.
+    record Entry, method : Method, file : String, owner : TypeDecl, params : Hash(String, TypeNode)
+
+    @yielders = {} of {String, String} => Entry
+    @inline_names = Set(String).new
+    @probed = {} of {String, Int32, Int32} => Hash(String, TypeNode)
+    @probe_names = {} of String => {String, Int32, Int32}
+    @probe_outputs = {} of {String, Int32, Int32} => String
+    @probe_receivers = {} of {String, Int32, Int32} => String
     @types = {} of String => TypeDecl
     @chains = {} of Call => Array(Method)
     @fresh = 0
     @column = SYNTHETIC_COLUMN
 
     def initialize(files : Array(String), programs : Array(Program))
+      modules = {} of String => {TypeDecl, String}
+      programs.each_with_index do |program, i|
+        program.items.each { |item| modules[item.name] = {item, files[i]} if item.is_a?(TypeDecl) && item.kind == "module" }
+      end
       programs.each_with_index do |program, i|
         program.items.each do |item|
-          next unless item.is_a?(TypeDecl)
-          @types[item.name] = item
-          item.methods.each { |method| @yielders[{item.name, method.name}] = {method, files[i]} if (body = method.body) && yields?(body) }
+          next unless item.is_a?(TypeDecl) && item.kind != "module"
+          @types[item.name] = item unless item.reopens
+          item.methods.each do |method|
+            next unless item.reopens || ((body = method.body) && yields?(body))
+            add(item, method, files[i], identity(item))
+          end
+          next unless item.reopens
+          item.includes.each do |included|
+            next unless included.is_a?(NamedType) && (found = modules[included.name]?)
+            mod, file = found
+            params = mod.tparams.each_with_index.to_h { |tparam, k| {tparam.name, included.args[k]? || NamedType.new(tparam.line, tparam.col, tparam.name).as(TypeNode)} }
+            mod.methods.each { |method| add(item, method, file, params) unless @yielders[{item.name, method.name}]? }
+          end
         end
       end
       @files = files
       @programs = programs
+    end
+
+    private def add(owner : TypeDecl, method : Method, file : String, params : Hash(String, TypeNode)) : Nil
+      @yielders[{owner.name, method.name}] = Entry.new(method, file, owner, params)
+      @inline_names << method.name if owner.reopens
+    end
+
+    private def identity(decl : TypeDecl) : Hash(String, TypeNode)
+      decl.tparams.to_h { |tparam| {tparam.name, NamedType.new(tparam.line, tparam.col, tparam.name).as(TypeNode)} }
     end
 
     # The names of the yielding methods, which the lowerer stubs while any
@@ -80,33 +119,119 @@ module Sparkle
       found
     end
 
-    # Replaces the call at `site` with a copy of the yielding method that
-    # `receiver_type` (as ponyc prints it, nil for a call on `self`) has,
-    # or marks the call plain when it has none.
-    def decide(site : Site, receiver_type : String?) : Nil
+    # Replaces the call at `site` with a copy of the method that
+    # `receiver_type` (as ponyc prints it; nil for a call on `self`, or
+    # when the type is not known yet) has, or marks the call plain when it
+    # has none. A method with `forall` types first gets a probe, which the
+    # next round lowers in the call's place; the call is decided once the
+    # probe's type is read (`probed`). Returns whether the call was decided
+    # or probed, so that a call whose receiver's type is unknown waits.
+    def decide(site : Site, receiver_type : String?) : Bool
       call = site.call
+      key = {site.file, call.name_line, call.name_col}
+      receiver_type = nil if receiver_type && unknown?(receiver_type)
+      receiver_type ||= @probe_receivers[key]?
+      return false if call.recv && receiver_type.nil?
+      receiver = receiver_type.try { |printed| PonyType.parse(printed) }
       owner = receiver_type ? type_name(receiver_type) : site.owner
       entry = owner && @yielders[{owner, call.name}]?
       unless entry
         @plain << {site.file, call.name_line, call.name_col}
-        return
+        return true
       end
-      m, file = entry
+      m = entry.method
       if site.chain.includes?(m)
         raise ParseError.new("`#{call.name}` reaches itself through a block; a yielding method cannot", call.name_line, call.name_col)
       end
-      copier = Copier.new(self, site, m, file, next_tag)
+      types = concrete(entry, receiver)
+      unless m.forall.empty?
+        if found = @probed[key]?
+          types.merge!(found)
+        else
+          return false if @probes.has_key?(key)
+          receiver_type.try { |printed| @probe_receivers[key] = printed }
+          return probe(site, entry, types, key)
+        end
+      end
+      @probes.delete(key)
+      copier = Copier.new(self, site, m, entry.file, next_tag, types)
       if setter = site.setter
         setter.call(copier.value)
       else
         body = site.body || raise "a statement site has a body"
         body[site.index, 1] = copier.statements
       end
+      true
+    end
+
+    # Whether ponyc printed `type` for an expression it could not type, as
+    # in a round where an earlier call was still stubbed.
+    private def unknown?(type : String) : Bool
+      type.includes?("<type error>") || type.includes?("to_infer")
+    end
+
+    # Marks the undecided `sites` plain, when no round can decide them, so
+    # that ponyc reports what is wrong with them.
+    def give_up(sites : Array(Site)) : Nil
+      sites.each { |site| @plain << {site.file, site.call.name_line, site.call.name_col} }
+      @probes.clear
+    end
+
+    # Records the type ponyc gave each probe local, by its name.
+    def probed(types : Hash(String, String)) : Nil
+      types.each do |name, printed|
+        key = @probe_names[name]? || next
+        found = PonyType.parse(printed) || next
+        @probed[key] = {@probe_outputs[key] => found}
+      end
+    end
+
+    # The method's type variables as the receiver's type arguments give them.
+    private def concrete(entry : Entry, receiver : TypeNode?) : Hash(String, TypeNode)
+      owner_args = {} of String => TypeNode
+      if receiver.is_a?(NamedType)
+        entry.owner.tparams.each_with_index { |tparam, k| receiver.args[k]?.try { |arg| owner_args[tparam.name] = arg } }
+      end
+      return owner_args if entry.params.empty?
+      entry.params.transform_values { |type| Types.substitute(type, owner_args) }.merge(owner_args)
+    end
+
+    # The probe for `site`: a loop over an empty array of the block's
+    # parameter types, whose body binds the block's value to `spk_probe_<n>`.
+    private def probe(site : Site, entry : Entry, types : Hash(String, TypeNode), key : {String, Int32, Int32}) : Bool
+      call = site.call
+      m = entry.method
+      block = call.block
+      signature = m.block
+      unless block && signature && (output = signature.output).is_a?(NamedType) && m.forall.includes?(output.name)
+        raise ParseError.new("`#{call.name}` needs a block whose value's type is one of its `forall` names", call.name_line, call.name_col)
+      end
+      at = {call.line, call.col}
+      inputs = signature.inputs.map { |type| Types.substitute(type, types) }
+      element = inputs.size == 1 ? inputs[0] : TupleType.new(*at, inputs).as(TypeNode)
+      name = "spk_probe_#{@probe_names.size + 1}"
+      @probe_names[name] = key
+      @probe_outputs[key] = output.name
+      binds = [] of Expr
+      params = block.params
+      if params.size == 1
+        loop_param = params[0].name
+      else
+        loop_param = "spk_p"
+        params.each_with_index { |param, k| binds << Assign.new(*at, Ident.new(*at, param.name), FieldRead.new(*at, Ident.new(*at, loop_param), "_#{k + 1}"), nil) }
+      end
+      binds << Assign.new(*at, Ident.new(*at, name), Sequence.new(*at, block.body.clone), nil)
+      binds << NilLit.new(*at)
+      empty = Call.new(*at, TypeRef.new(*at, NamedType.new(*at, "Array", [element] of TypeNode)), "new", [] of Expr, [] of NamedArg, nil, true, *at)
+      loop_block = Lambda.new(*at, [Param.new(*at, loop_param, nil, nil)], binds)
+      @probes[key] = Call.new(*at, empty, "each", [] of Expr, [] of NamedArg, loop_block, false, *at)
+      true
     end
 
     # Drops the yielding methods, once no call to one is left to decide.
     def finish : Nil
       @types.each_value { |decl| decl.methods.reject! { |method| @yielders[{decl.name, method.name}]? } }
+      @probes.clear
     end
 
     protected def position(file : String, line : Int32, col : Int32, site : Site) : {Int32, Int32}
@@ -167,8 +292,10 @@ module Sparkle
       end
     end
 
+    # A call with a block to a yielding method's name, or any call to an
+    # inline-only method's name.
     private def site?(e : Expr, names : Set(String), file : String) : Bool
-      e.is_a?(Call) && !e.block.nil? && names.includes?(e.name) && !@plain.includes?({file, e.name_line, e.name_col})
+      e.is_a?(Call) && (!e.block.nil? || @inline_names.includes?(e.name)) && names.includes?(e.name) && !@plain.includes?({file, e.name_line, e.name_col})
     end
 
     # Each expression `e` holds in a value position, with a setter that
@@ -259,7 +386,8 @@ module Sparkle
       @next = false
       @break = false
 
-      def initialize(@inliner : Inliner, @site : Site, @method : Method, @file : String, @tag : String)
+      # `types` gives the type each type variable of the method stands for.
+      def initialize(@inliner : Inliner, @site : Site, @method : Method, @file : String, @tag : String, @types : Hash(String, TypeNode) = {} of String => TypeNode)
         @receiver = "#{@tag}self"
         @locals = @method.params.map(&.name).to_set
         @method.body.try { |body| declared(body) }
@@ -275,8 +403,8 @@ module Sparkle
       # The receiver and arguments bound to fresh locals, then the copied body.
       def statements : Array(Expr)
         call = @site.call
-        block = call.block || raise "a site has a block"
-        check_block(block)
+        block = call.block
+        check_block(block) if block
         returns = returns?(@method.body || [] of Expr)
         if @site.value? && (@break || returns)
           what = @break ? "`break` in its block" : "`return` in the method"
@@ -289,7 +417,7 @@ module Sparkle
         out = [Assign.new(*at, Ident.new(*at, @receiver), recv, nil)] of Expr
         @method.params.each_with_index do |param, i|
           arg = call.args[i]? || param.default || raise ParseError.new("`#{call.name}` needs an argument for `#{param.name}`", call.name_line, call.name_col)
-          out << Assign.new(*at, Ident.new(*at, @tag + param.name), arg, param.type)
+          out << Assign.new(*at, Ident.new(*at, @tag + param.name), arg, ty(param.type))
         end
         if call.args.size > @method.params.size
           raise ParseError.new("`#{call.name}` takes #{@method.params.size} arguments, not #{call.args.size}", call.name_line, call.name_col)
@@ -417,7 +545,7 @@ module Sparkle
       # `yield a, b`: the block's parameters bound to `a` and `b`, then a
       # fresh copy of its body.
       private def yield_block(e : Yield) : Array(Expr)
-        block = @site.call.block || raise "a site has a block"
+        block = @site.call.block || raise ParseError.new("`#{@site.call.name}` needs a block", @site.call.name_line, @site.call.name_col)
         if block.params.size > e.args.size
           raise ParseError.new("the block takes #{block.params.size} parameters, but `yield` passes #{e.args.size}", block.line, block.col)
         end
@@ -474,7 +602,7 @@ module Sparkle
 
       private def copy_lambda(b : Lambda) : Lambda
         pos = at(b)
-        params = b.params.map { |param| Param.new(*at(param), @tag + param.name, param.type, param.default.try { |value| copy(value) }) }
+        params = b.params.map { |param| Param.new(*at(param), @tag + param.name, ty(param.type), param.default.try { |value| copy(value) }) }
         Lambda.new(*pos, params, stmts(b.body), b.brace)
       end
 
@@ -494,7 +622,7 @@ module Sparkle
         in SelfRef   then Ident.new(*at(e), @receiver)
         in Ident     then @locals.includes?(e.name) ? Ident.new(*at(e), @tag + e.name) : self_call(e, e.name, [] of Expr, [] of NamedArg, nil)
         in IVarRef   then self_call(e, @inliner.accessor(site_owner, e.name, @method, e), [] of Expr, [] of NamedArg, nil)
-        in TypeRef   then TypeRef.new(*at(e), e.type)
+        in TypeRef   then TypeRef.new(*at(e), ty(e.type))
         in Paren     then Paren.new(*at(e), copy(e.expr))
         in Lambda    then copy_lambda(e)
         in AmpMethod then AmpMethod.new(*at(e), e.name)
@@ -503,7 +631,7 @@ module Sparkle
         in Index     then Index.new(*at(e), copy(e.recv), copy_all(e.args), e.bang)
         in Assign
           raise ParseError.new("writing a field in a yielding method is not supported yet", e.line, e.col) if e.target.is_a?(IVarRef)
-          Assign.new(*at(e), copy(e.target), copy(e.value), e.type)
+          Assign.new(*at(e), copy(e.target), copy(e.value), ty(e.type))
         in OpAssign
           raise ParseError.new("writing a field in a yielding method is not supported yet", e.line, e.col) if e.target.is_a?(IVarRef)
           OpAssign.new(*at(e), copy(e.target), e.op, copy(e.value))
@@ -512,7 +640,7 @@ module Sparkle
         in Ternary          then Ternary.new(*at(e), copy(e.cond), copy(e.then_), copy(e.else_))
         in If               then If.new(*at(e), copy(e.cond), stmts(e.then_), e.else_.try { |blk| stmts(blk) }, e.negate, e.is_elsif, e.modifier)
         in While            then loop_body { While.new(*at(e), copy(e.cond), stmts(e.body), e.inverted) }
-        in TypePattern      then TypePattern.new(*at(e), @tag + e.name, e.type)
+        in TypePattern      then TypePattern.new(*at(e), @tag + e.name, ty(e.type))
         in PredicatePattern then PredicatePattern.new(*at(e), e.name)
         in TuplePattern     then TuplePattern.new(*at(e), copy_all(e.items))
         in Case             then Case.new(*at(e), copy(e.subject), e.whens.map { |branch| When.new(*at(branch), copy_all(branch.patterns), stmts(branch.body)) }, e.else_.try { |blk| stmts(blk) }, e.exhaustive)
@@ -527,10 +655,10 @@ module Sparkle
           e.is_a?(Break) ? Break.new(*at(e)) : Next.new(*at(e))
         in Consume  then Consume.new(*at(e), copy(e.expr))
         in Recover  then Recover.new(*at(e), e.cap, stmts(e.body))
-        in ArrayLit then ArrayLit.new(*at(e), copy_all(e.elems), e.of_type)
+        in ArrayLit then ArrayLit.new(*at(e), copy_all(e.elems), ty(e.of_type))
         in TupleLit then TupleLit.new(*at(e), copy_all(e.items))
         in RangeLit then RangeLit.new(*at(e), copy(e.from), copy(e.to), e.exclusive)
-        in AsCast   then AsCast.new(*at(e), copy(e.expr), e.type)
+        in AsCast   then AsCast.new(*at(e), copy(e.expr), ty(e.type))
         in EnumRef  then EnumRef.new(*at(e), e.enum_name, e.member)
         in Expr     then raise "the inliner does not copy #{e.class}"
         end
@@ -549,6 +677,14 @@ module Sparkle
         copied
       end
 
+      private def ty(t : TypeNode) : TypeNode
+        @types.empty? ? t : Types.substitute(t, @types)
+      end
+
+      private def ty(t : Nil) : Nil
+        nil
+      end
+
       private def loop_body(&)
         @loops += 1
         begin
@@ -565,7 +701,7 @@ module Sparkle
     end
 
     protected def owner_of(m : Method) : String?
-      @yielders.each { |key, value| return key[0] if value[0].same?(m) }
+      @yielders.each { |key, value| return key[0] if value.method.same?(m) }
       nil
     end
 
@@ -576,6 +712,29 @@ module Sparkle
         stmt.block.try { |blk| blk.body.each { |inner| chain_calls(inner, chain) } }
       end
       each_body(stmt) { |inner| inner.each { |x| chain_calls(x, chain) } }
+    end
+  end
+
+  # Type nodes with type variables replaced.
+  module Types
+    # `t` with each `NamedType` named in `map`, and with no arguments of its
+    # own, replaced by its value; a capability written on the variable is
+    # kept when the value has none.
+    def self.substitute(t : TypeNode, map : Hash(String, TypeNode)) : TypeNode
+      case t
+      when NamedType
+        if t.args.empty? && (value = map[t.name]?)
+          return value unless value.is_a?(NamedType) && t.cap && value.cap.nil?
+          return NamedType.new(value.line, value.col, value.name, value.args, t.cap, t.eph)
+        end
+        NamedType.new(t.line, t.col, t.name, t.args.map { |arg| substitute(arg, map) }, t.cap, t.eph)
+      when UnionType then UnionType.new(t.line, t.col, t.types.map { |each| substitute(each, map) })
+      when IsectType then IsectType.new(t.line, t.col, t.types.map { |each| substitute(each, map) })
+      when TupleType then TupleType.new(t.line, t.col, t.types.map { |each| substitute(each, map) })
+      when ArrowType then ArrowType.new(t.line, t.col, substitute(t.left, map), substitute(t.right, map))
+      when ProcType  then ProcType.new(t.line, t.col, t.params.map { |each| substitute(each, map) }, t.ret.try { |ret| substitute(ret, map) }, t.cap, t.eph, t.partial)
+      else                t
+      end
     end
   end
 end

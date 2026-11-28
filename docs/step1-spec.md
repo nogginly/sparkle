@@ -355,6 +355,53 @@ end
   In the yielding method, a bare `return` leaves the call, by the same flag.
 - **Not yet**, each an error that says so: `return` with a value in a yielding method; `next` or `break` in a block whose call's value is used, or whose `yield` value is used; and `return` in a yielding method whose call's value is used.
 
+### Inline-only methods on Pony's types (step 4)
+
+A Sparkle `class` named after a Pony type **reopens** it, and a `module` holds methods for types to `include`. Their methods are **inline-only**: every call, with or without a block, is replaced by a copy of the method's body, as for a yielding method, and nothing of them is compiled. This is how the library's `prelude` gives Pony's `Array` Crystal's `map`, `select` and `sum` (see [enumerable-design.md](enumerable-design.md)).
+
+```crystal
+module Enumerable(A)
+  def map(&block : A -> B) : Array(B) forall B
+    result = [] of B
+    each do |x|
+      result << yield x
+    end
+    result
+  end
+
+  def sum : A
+    total : A = 0
+    each do |x|
+      total += x
+    end
+    total
+  end
+end
+
+class Array(A)
+  include Enumerable(A)
+end
+```
+
+`xs.map { |x| x * 2 }`, for an `xs` of type `Array[U32]`, becomes:
+
+```pony
+var y1_self = xs
+var y1_result = Array[U32].create()
+for y1_x in y1_self.values() do
+  y1_result.push((var x = y1_x; x * 2))
+end
+y1_result
+```
+
+- **Which types reopen.** A `class` whose name is a type of Pony's `builtin` or `collections` package, or of a Pony package the file requires, reopens that type. It may hold methods and `include`s only: a field, a constructor or a `maintains` is an error, so a reopened type gains no state and its own rules still hold. Reopening a Sparkle type is not supported.
+- **Modules.** `module Name(A)` holds inline-only methods. `include Name(T)` in a reopening gives the type those methods, with the module's `A` read as `T`.
+- **Calls.** A call to the name of an inline-only method is a site, with or without a block. As for yielding methods, the receiver's type decides: `Array[U32 val] ref` names `Array`. A receiver whose type has no such method is lowered as before, so a Sparkle class's own `count` is unaffected. A site whose receiver's type is not known yet waits for a later round.
+- **Clashing names.** The reopening's method wins over Pony's method of the same name: `xs.find { … }` is Crystal's `find`.
+- **Type parameters.** In the copy, the type's parameters are the receiver's type arguments: `A` is `U32` above, so `[] of A` is `Array[U32]` and `total : A = 0` is `var total: U32 = 0`.
+- **The block's type.** `&block : A -> B` declares the block's parameter types and its value's type; `&block : A, USize -> B` takes two. `forall B` after the return type names a type that each call fixes. For a site whose method has `forall` names, one more type-check round lowers the site as a loop over an empty array of the block's parameter types, binding the block's value to a local `spk_probe_<n>`; the local's type, read after ponyc's expression pass, is `B`. The loop is only type-checked, never run.
+- **`self`** in an inline-only method is the receiver, and a bare call such as `each` is a call on it. `each` on a Pony type is loop sugar, so the copies iterate with Pony's `values()`.
+
 ### Contracts (step 3)
 
 A method states what it `expects` of its caller and what it `guarantees` in return; a type states what it `maintains`. Each clause is checked at run time, and a failure prints the clause and its place, then exits with status 1. The design and its reasons are in [contracts-design.md](contracts-design.md).

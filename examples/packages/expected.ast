@@ -1,5 +1,6 @@
 (module:scope
   (file:scope
+    (use x "spk_prelude" x)
     (use x "spk_geometry" x)
     (use x "spk_shared" x)
     (actor:scope

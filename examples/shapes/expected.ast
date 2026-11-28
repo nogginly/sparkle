@@ -1,5 +1,6 @@
 (module:scope
   (file:scope
+    (use x "spk_prelude" x)
     (use x "collections" x)
     (trait:scope
       (id Shape)

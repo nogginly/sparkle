@@ -1,0 +1,28 @@
+# Crystal's collection methods, for any type that includes this module and
+# has `each`. Every method is inline-only: each call is replaced by a copy.
+
+module Enumerable(A)
+  def map(&block : A -> B) : Array(B) forall B
+    result = [] of B
+    each do |x|
+      result << yield x
+    end
+    result
+  end
+
+  def select(&block : A -> Bool) : Array(A)
+    result = [] of A
+    each do |x|
+      result << x if yield x
+    end
+    result
+  end
+
+  def sum : A
+    total : A = 0
+    each do |x|
+      total += x
+    end
+    total
+  end
+end
