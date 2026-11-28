@@ -228,7 +228,7 @@ A spike has shown it works, on Linux with the unmodified 0.78.2 release: Crystal
 
 ## Open questions
 
-- **Reopening types.** Allow adding methods to an existing type elsewhere, or not? Forbidding it keeps a type's methods in one place, which makes contracts easier to prove.
+- **Reopening Sparkle types.** Pony's types can be reopened with inline-only methods (docs/enumerable-design.md); whether a Sparkle type may be reopened too is open. Forbidding it keeps a type's methods in one place, which makes contracts easier to prove.
 - **Macros.** Now, later or never? A few built-in declarations (`getter`, `property`, `record`) might cover most uses.
 - **Is Pony's garbage collector actually a problem?** It collects per actor, between behaviours, with no stop-the-world pause. The real reason to remove it may be runtime size, not latency. Arenas are deferred until this is answered.
 ## Not built
