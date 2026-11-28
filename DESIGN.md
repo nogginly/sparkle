@@ -36,7 +36,7 @@ Each layer is one file in `src/sparkle/`, or a directory for the compiler, and d
 | Compiler | `ponyc/lib_ponyc.cr`, `ponyc/shim.c`, `ponyc/compiler.cr`, `ponyc/session.cr`, `ponyc/tree.cr`, `ponyc/token_ids.cr` | An AST built node by node is type-checked or compiled in-process by the linked-in `libponyc`, and its errors come back as data and as text |
 | Contracts | `contracts.cr` | `expects`, `guarantees` and `maintains` become plain methods: a wrapper that checks around the renamed body |
 | Packages | `packages.cr`, `ponyc/packages.cr` | The packages a build requires are found, parsed and ordered, and each is added to the program as an in-memory Pony package |
-| Inlining | `inliner.cr` | Each call with a block to a yielding method is replaced by a copy of its body |
+| Inlining | `inliner.cr` | Each call with a block to a yielding method, and each call to an inline-only method of a module or a reopened Pony type, is replaced by a copy of its body, its types written out |
 | Lowering | `lowerer.cr` | The AST becomes ponyc AST nodes with Sparkle positions |
 | Driver | `driver.cr`, `src/sparkle.cr` | A Pony installation is found, fields are told from methods, the package is compiled, and the CLI is exposed |
 
@@ -172,9 +172,10 @@ flowchart TD
     style S1 stroke:#2e7d32,stroke-width:3px
     style S2 stroke:#2e7d32,stroke-width:3px
     style S3 stroke:#2e7d32,stroke-width:3px
+    style S4 stroke:#2e7d32,stroke-width:3px
 ```
 
-Steps 1 to 3 are built; step 2 lacks `return` with a value in a yielding method, and `next` or `break` where the call's value is used, and step 3 does not yet take clauses on yielding, abstract or `tag` methods. Contracts come before the library because the user wants them sooner, and because how a contract fails and what it may call shape the rest ([docs/contracts-design.md](docs/contracts-design.md)). Arenas are deferred, perhaps for good: Pony's garbage collector stays, and with it the unmodified upstream `ponyc`. A fork, a small set of named patches rebased onto each release, is needed only if a rule must change the type checker mid-pass; type-check rounds have covered every rule so far ([docs/spike-yield.md](docs/spike-yield.md)).
+Steps 1 to 4 are built; step 2 lacks `return` with a value in a yielding method, and `next` or `break` where the call's value is used, step 3 does not yet take clauses on yielding, abstract or `tag` methods, and step 4's library has the first set of Enumerable's methods, on `Array` ([docs/enumerable-design.md](docs/enumerable-design.md)). Contracts come before the library because the user wants them sooner, and because how a contract fails and what it may call shape the rest ([docs/contracts-design.md](docs/contracts-design.md)). Arenas are deferred, perhaps for good: Pony's garbage collector stays, and with it the unmodified upstream `ponyc`. A fork, a small set of named patches rebased onto each release, is needed only if a rule must change the type checker mid-pass; type-check rounds have covered every rule so far ([docs/spike-yield.md](docs/spike-yield.md)).
 
 ### One binary
 

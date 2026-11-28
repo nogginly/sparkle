@@ -182,6 +182,27 @@ describe "end to end" do
       stdout.should eq "abcdcd\n"
     end
 
+    it "inlines the prelude's methods on Pony's types, and leaves a class's own alone" do
+      source = <<-SPK
+        class Tally
+          @n : Int32 = 40
+
+          def sum : Int32 = @n + 2
+        end
+
+        actor Main
+          def self.new(env : Env)
+            xs = [1, 2, 3]
+            doubled = xs.map { |x| x * 2 }
+            env.out <~ print("\#{xs.sum} \#{doubled.sum} \#{Tally.new.sum}")
+          end
+        end
+        SPK
+      code, stdout, err = run_source(source)
+      code.should eq(0), err
+      stdout.should eq "6 12 42\n"
+    end
+
     it "requires <~ for a message, and only for one" do
       err = IO::Memory.new
       Dir.cd(ROOT) { Sparkle::Driver.check("spec/fixtures/message_calls/main.spk", err) }.should eq 1
