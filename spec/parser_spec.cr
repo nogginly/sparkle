@@ -146,4 +146,17 @@ describe Parser do
       end
     end
   end
+
+  describe "inline-only declarations" do
+    it "parses a module, a block's types and forall" do
+      program = Parser.parse("module Enumerable(A)\n  def map(&block : A -> B) : Array(B) forall B\n  end\n\n  def each_pair(&block : A, USize -> Nil)\n  end\nend\n")
+      decl = program.items[0].as(TypeDecl)
+      decl.kind.should eq "module"
+      map, pair = decl.methods
+      map.forall.should eq ["B"]
+      map.block.try { |block| {block.name, block.inputs.map { |type| PonyType.to_sparkle(type) }, block.output.try { |type| PonyType.to_sparkle(type) }} }.should eq({"block", ["A"], "B"})
+      pair.block.try(&.inputs.size).should eq 2
+      pair.forall.should be_empty
+    end
+  end
 end

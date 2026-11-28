@@ -5,7 +5,7 @@ module Sparkle
   # `Newline` tokens except where the line obviously continues.
   class Lexer
     KEYWORDS = Set{
-      "class", "actor", "struct", "primitive", "trait", "interface", "def", "be", "on",
+      "class", "actor", "struct", "primitive", "trait", "interface", "module", "def", "be", "on",
       "end", "if", "elsif", "else", "unless", "while", "until", "do", "case",
       "when", "in", "then", "begin", "rescue", "ensure", "raise", "return",
       "break", "next", "self", "nil", "true", "false", "consume", "recover",

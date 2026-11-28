@@ -24,18 +24,27 @@ module Sparkle::Ponyc
     # Type-checks the packages built by the block, up to the expression
     # pass; returns each error's file, line, column and message.
     def check(& : Packages -> Nil) : Array({String, Int32, Int32, String})
-      check(Set({String, Int32, Int32}).new) { |packages| yield packages }[0]
+      check(Set({String, Int32, Int32}).new) { |packages| yield packages }.errors
     end
 
     # As `check`, and also the printed type of the receiver of each call
     # whose method name is at one of `receivers` (file, line, column), such
-    # as `Bag ref` or `Box[String val] ref`, and the positions of the calls
-    # that reach a message handler (Pony's behaviour).
-    def check(receivers : Set({String, Int32, Int32}), & : Packages -> Nil) : {Array({String, Int32, Int32, String}), Hash({String, Int32, Int32}, String), Set({String, Int32, Int32})}
-      types = {} of {String, Int32, Int32} => String
-      handled = Set({String, Int32, Int32}).new
-      round(LibPonyc.spk_pass_expr, ->(package : LibPonyc::Ast) { inspect_calls(package, receivers, types, handled) }) { |packages| yield packages }
-      {Ponyc.errors(@opt), types, handled}
+    # as `Bag ref` or `Box[String val] ref`, the positions of the calls
+    # that reach a message handler (Pony's behaviour), and the printed type
+    # of each local whose name starts with `spk_probe_`.
+    def check(receivers : Set({String, Int32, Int32}), & : Packages -> Nil) : Report
+      report = Report.new
+      round(LibPonyc.spk_pass_expr, ->(package : LibPonyc::Ast) { inspect_calls(package, receivers, report) }) { |packages| yield packages }
+      report.errors.concat(Ponyc.errors(@opt))
+      report
+    end
+
+    # What one type check found; see `check`.
+    class Report
+      getter errors = [] of {String, Int32, Int32, String}
+      getter types = {} of {String, Int32, Int32} => String
+      getter handled = Set({String, Int32, Int32}).new
+      getter probes = {} of String => String
     end
 
     # Runs every pass but code generation on the packages built by the block;
@@ -54,10 +63,18 @@ module Sparkle::Ponyc
     # `inspect` read each of those packages, and removes them again.
     # After the expression pass a call is `(call (funref receiver name) ...)`,
     # or `(call (beref receiver name) ...)` for a message handler.
-    private def inspect_calls(ast : LibPonyc::Ast, receivers : Set({String, Int32, Int32}), types : Hash({String, Int32, Int32}, String), handled : Set({String, Int32, Int32})) : Nil
+    private def inspect_calls(ast : LibPonyc::Ast, receivers : Set({String, Int32, Int32}), report : Report) : Nil
+      types = report.types
+      handled = report.handled
       child = LibPonyc.ast_child(ast)
       until child.null?
-        if LibPonyc.ast_id(child) == Tk::CALL.value
+        id = LibPonyc.ast_id(child)
+        if id == Tk::VAR.value || id == Tk::LET.value
+          name = String.new(LibPonyc.ast_name(LibPonyc.ast_child(child)))
+          type = LibPonyc.ast_type(child)
+          report.probes[name] = String.new(LibPonyc.ast_print_type(type, LibPonyc.spk_opt_strtab(@opt))) if name.starts_with?("spk_probe_") && !type.null?
+        end
+        if id == Tk::CALL.value
           file = LibPonyc.spk_ast_file(child)
           at = {file.null? ? "" : String.new(file), LibPonyc.ast_line(child).to_i32, LibPonyc.ast_pos(child).to_i32}
           callee = LibPonyc.ast_child(child)
@@ -68,7 +85,7 @@ module Sparkle::Ponyc
             types[at] = String.new(LibPonyc.ast_print_type(type, LibPonyc.spk_opt_strtab(@opt))) unless type.null?
           end
         end
-        inspect_calls(child, receivers, types, handled)
+        inspect_calls(child, receivers, report)
         child = LibPonyc.ast_sibling(child)
       end
     end

@@ -40,7 +40,7 @@ Errors are reported at `.spk` lines with types in Sparkle syntax. Fix the first 
 4. **`x.name`** is a field read or a method call, whichever `x`'s type has. `x.@name` always reads a field.
 5. **`!` and `?`.** `def first!` can fail and must be called as `first!`. `def empty?` is a predicate.
 6. **Numbers.** `x = 0` is an `Int32` and `x = 1.5` a `Float64`. Types never mix silently: convert with `n.usize`, or declare `i : USize = 0`.
-7. **Blocks.** A method of yours that `yield`s is inlined at each call, as in Crystal. On Pony's types, `each`, `each_with_index` and `times` are loops, and any other block is a lambda. See [blocks](reference/blocks.md).
+7. **Blocks.** A method of yours that `yield`s is inlined at each call, as in Crystal. On Pony's types, `each`, `each_with_index` and `times` are loops, the prelude's methods (`map`, `select`, …) are inlined too, and any other block is a lambda. See [blocks](reference/blocks.md) and [collections](reference/collections.md).
 8. **Contracts.** `expects`, `guarantees` and `maintains` lines open a method or type, and are checked at run time; a failure exits the program. See [contracts](reference/contracts.md).
 9. **Actors.** Call a method and wait for its reply; post a message and go on. `on name(args)` declares a message handler, and `actor <~ name(args)` posts the message. Output order between actors is not fixed. See [actors](reference/actors.md).
 10. **Packages.** `require "./geometry"` names a package, a directory of `.spk` files, not a file. Its public names come into scope unqualified. See [packages](reference/packages.md).
@@ -60,6 +60,7 @@ Read the page for the feature at hand.
 | [actors](reference/actors.md) | Actors, messages and handlers, sending data |
 | [control-flow](reference/control-flow.md) | `if`, `unless`, `while`, `until`, `loop`, `case` |
 | [blocks](reference/blocks.md) | Loops over collections, lambdas, `&.name` |
+| [collections](reference/collections.md) | `map`, `select`, `reduce`, `min?`, `join` and the rest on `Array` |
 | [enums](reference/enums.md) | `enum`, members, predicates, exhaustive `case … in` |
 | [contracts](reference/contracts.md) | `expects`, `guarantees`, `maintains`, `old`, `result`, release builds |
 | [errors](reference/errors.md) | Partial methods (`!`), `raise`, `begin … rescue … ensure` |

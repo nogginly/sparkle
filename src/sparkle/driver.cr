@@ -101,7 +101,12 @@ module Sparkle
         err.puts "sparkle: no .spk files in #{path}"
         return
       end
-      set = PackageSet.new(find_library, contracts)
+      home = find_pony_home
+      unless home
+        err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
+        return
+      end
+      set = PackageSet.new(find_library, contracts, home)
       begin
         set.load(File.directory?(path) ? path : File.dirname(path), root)
       rescue e : PackageSet::Failure
@@ -109,11 +114,6 @@ module Sparkle
         return
       end
       files, sources, programs = set.files, set.sources, set.programs
-      home = find_pony_home
-      unless home
-        err.puts "sparkle: ponyc not found (set SPARKLE_PONYC, run `make ponyc`, or put ponyc on PATH)"
-        return
-      end
       Project.new(files, package, sources, programs, set.units, home, Rules.primed_params(programs), Rules.enum_predicates(programs))
     end
 
@@ -136,7 +136,7 @@ module Sparkle
         unit.files.each do |i|
           yield i
           lowerer = Lowerer.new(tree, calls[files[i]]? || Set({Int32, Int32}).new, primed, predicates).packages(requires, implicit)
-          stub.try { |inliner| lowerer.stub(inliner.names, inliner.plain) }
+          stub.try { |inliner| lowerer.stub(inliner.names, inliner.plain, inliner.probes) }
           lowerer.lower(programs[i], files[i], sources[i])
         end
       end
@@ -243,21 +243,28 @@ module Sparkle
       MAX_ROUNDS.times do
         sites = finished ? [] of Inliner::Site : inliner.sites
         receivers = sites.select(&.call.recv).map { |site| {site.file, site.call.name_line, site.call.name_col} }.to_set
-        found, types, handled = session.check(receivers) do |packages|
+        report = session.check(receivers) do |packages|
           lower_units(packages, units, files, sources, programs, calls, primed, predicates, finished ? nil : inliner) { |i| yield i }
         end
+        found, types, handled = report.errors, report.types, report.handled
+        inliner.probed(report.probes)
         clean = found.empty?
         grown = false
         found.each do |file, line, column, message|
           next unless message == METHOD_WITHOUT_CALL && files.includes?(file)
           grown = true if (calls[file] ||= Set({Int32, Int32}).new).add?({line, column})
         end
+        decided = false
         sites.reverse_each do |site|
           yield files.index(site.file) || 0
-          type = site.call.recv ? (types[{site.file, site.call.name_line, site.call.name_col}]? || "") : nil
-          inliner.decide(site, type)
-          grown = true
+          type = site.call.recv ? types[{site.file, site.call.name_line, site.call.name_col}]? : nil
+          decided = true if inliner.decide(site, type)
         end
+        if !sites.empty? && !decided && !grown
+          inliner.give_up(sites)
+          decided = true
+        end
+        grown = true if decided
         if sites.empty? && !finished
           inliner.finish
           finished = true

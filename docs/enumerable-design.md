@@ -99,10 +99,4 @@ flowchart TD
 
 ## Building it
 
-1. Spec sections for reopening Pony types, `forall`, and inline-only calls without a block.
-2. Parsing; the inliner's element-type substitution and calls without a block.
-3. The probe round and `forall` substitution.
-4. `stdlib/prelude/enumerable.spk` and `array.spk` with the first set of methods; an example; the skill's page on collections.
-5. The step-2 gap, `next` and `break` where the value is used.
-
-Steps 4 and parts of 1 suit the `implementer`: writing the library's methods against a fixed pattern, their specs, and the skill page.
+Built in one change. The spec section came first. Then the parser (`module`, `&block : A -> B`, `forall`), and the marking of reopenings, from the type names in the sources of Pony's `builtin` and `collections` and of any Pony package a file requires. Then the inliner: inline-only methods, calls without a block, the receiver's type arguments written into the copy, and the probe round. Two lessons came out of the rounds. A probe must sit beside the stubbed call, not replace it, or a value assigned from the call becomes `None` and misleads the next call. And a receiver printed as `<type error>` means "not known yet", not "no such method". The `implementer` wrote most of the prelude's methods, the example and the skill page. Still open: step 2's gap, `next` and `break` in a block whose call's value is used, so `map { next … }` is not yet possible.

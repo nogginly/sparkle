@@ -1,0 +1,28 @@
+actor Main
+  def self.new(env : Env)
+    xs = [3, 1, 4, 1, 5]
+    env.out <~ print(xs.map { |x| x * 2 }.join(","))
+    env.out <~ print(xs.select { |x| x > 1 }.join(","))
+    env.out <~ print(xs.reject { |x| x > 1 }.join(","))
+    env.out <~ print("#{xs.sum}")
+    env.out <~ print("#{xs.find { |x| x > 3 }}")
+    env.out <~ print("#{xs.any? { |x| x > 4 }}")
+    env.out <~ print("#{xs.all? { |x| x > 0 }}")
+    env.out <~ print("#{xs.none? { |x| x > 4 }}")
+    env.out <~ print("#{xs.count { |x| x == 1 }}")
+    env.out <~ print("#{xs.reduce(0) { |acc, x| acc * 2 + x }}")
+    env.out <~ print("#{xs.includes?(4)} #{xs.includes?(9)}")
+    env.out <~ print("#{xs.index(4)} #{xs.index(9)}")
+    env.out <~ print("#{xs.first?} #{xs.min?} #{xs.max?}")
+    empty = [] of Int32
+    env.out <~ print("#{empty.first?} #{empty.min?} #{empty.max?}")
+    env.out <~ print(xs.join(", "))
+    begin
+      removed = xs.delete_at!(1)
+      env.out <~ print("#{removed} #{xs.join(",")}")
+      xs.delete_at!(10)
+    rescue
+      env.out <~ print("past the end")
+    end
+  end
+end

@@ -42,6 +42,14 @@ Sparkle translates before it knows types. These follow, each with its way out.
 | `x = (y = consume z)` fails for an `iso` `z`: reading the assignment aliases it | `y = consume z`, then `consume y` |
 | A variable first assigned inside an `if` or a loop exists only there | Assign it before the block |
 
+## Nil and printing
+
+| Gap | Instead |
+|---|---|
+| `if b.nil? \|\| x < b` does not narrow `b` from `Int32?` to `Int32`: Pony has no flow typing | `case b` with `when Nil` and `when n : Int32` |
+| `"#{xs}"` on an `Array` fails: Pony's `Array` has no `string` | `xs.join(", ")` |
+| `"#{nil}"` prints `None`, where Crystal prints nothing | Test `x.nil?` and print what you mean |
+
 ## Order of evaluation
 
 Sparkle evaluates left to right, as Crystal does: the receiver, then the arguments in order. One exception:

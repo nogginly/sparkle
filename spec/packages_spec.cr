@@ -128,6 +128,27 @@ describe PackageSet do
   end
 end
 
+describe "PackageSet reopenings" do
+  it "marks a class named after a Pony type as reopening it, and checks it holds only methods" do
+    home = RULE_HOME || pending!("ponyc not found")
+    with_tree({"app/main.spk" => "class Array(A)\n  def twice : USize = size * 2\nend\n\nclass Point\nend\n#{MAIN_SPK}"}) do |dir|
+      set = PackageSet.new(nil, true, home).load(File.join(dir, "app"), PackageSet.spk_files(File.join(dir, "app")))
+      decls = set.programs[0].items.select(TypeDecl)
+      decls.map { |decl| {decl.name, decl.reopens} }.should eq [{"Array", true}, {"Point", false}, {"Main", false}]
+    end
+    {
+      "class Array(A)\n  @n : USize = 0\nend\n"               => "a reopened Pony type cannot have fields",
+      "module M\n  def self.new\n  end\nend\n"                => "a module cannot have constructors",
+      "class String\n  def f\n    expects true\n  end\nend\n" => "clauses on an inline-only method are not supported yet",
+    }.each do |source, message|
+      with_tree({"app/main.spk" => source}) do |dir|
+        error = expect_raises(Exception) { PackageSet.new(nil, true, home).load(File.join(dir, "app"), PackageSet.spk_files(File.join(dir, "app"))) }
+        error.message.should eq message
+      end
+    end
+  end
+end
+
 describe "Driver.find_library" do
   it "prefers a non-empty environment value" do
     with_tree({"prefix/share/sparkle/stdlib/.keep" => ""}) do |dir|

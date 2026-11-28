@@ -1,0 +1,1683 @@
+(module:scope
+  (file:scope
+    (use x "spk_prelude" x)
+    (actor:scope
+      (id Main)
+      x
+      x
+      x
+      (members
+        (new:scope
+          x
+          (id create)
+          x
+          (params (param (id env) (nominal x (id Env) x x x) x))
+          x
+          x
+          x
+          (seq
+            (=
+              (var
+                (id xs)
+                (nominal
+                  x
+                  (id Array)
+                  (typeargs (nominal x (id I32) x x x))
+                  x
+                  x
+                )
+              )
+              (array x (seq 3 ; 1 ; 4 ; 1 ; 5))
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq:scope
+                    (=
+                      (var (id y27_self) x)
+                      (seq:scope
+                        (= (var (id y26_self) x) (reference (id xs)))
+                        (=
+                          (var (id y26_result) x)
+                          (call
+                            (.
+                              (qualify
+                                (reference (id Array))
+                                (typeargs (nominal x (id I32) x val x))
+                              )
+                              (id create)
+                            )
+                            x
+                            x
+                            x
+                          )
+                        )
+                        (for
+                          (let (id y26_x) x)
+                          (seq
+                            (call
+                              (. (reference (id y26_self)) (id values))
+                              x
+                              x
+                              x
+                            )
+                          )
+                          (seq
+                            (call
+                              (. (reference (id y26_result)) (id push))
+                              (positionalargs
+                                (seq
+                                  (seq:scope
+                                    (= (var (id x) x) (reference (id y26_x)))
+                                    (* (reference (id x)) 2 x)
+                                  )
+                                )
+                              )
+                              x
+                              x
+                            )
+                          )
+                          x
+                        )
+                        (reference (id y26_result))
+                      )
+                    )
+                    (=
+                      (var (id y27_separator) (nominal x (id String) x x x))
+                      ","
+                    )
+                    (= (var (id y27_out) x) "")
+                    (= (var (id y27_first) x) true)
+                    (for
+                      (let (id y27_x) x)
+                      (seq
+                        (call (. (reference (id y27_self)) (id values)) x x x)
+                      )
+                      (seq
+                        (if:scope
+                          (seq (not (seq (reference (id y27_first)))))
+                          (seq:scope
+                            (=
+                              (reference (id y27_out))
+                              (+
+                                (reference (id y27_out))
+                                (reference (id y27_separator))
+                                x
+                              )
+                            )
+                          )
+                          x
+                        )
+                        (=
+                          (reference (id y27_out))
+                          (+
+                            (reference (id y27_out))
+                            (call (. (reference (id y27_x)) (id string)) x x x)
+                            x
+                          )
+                        )
+                        (= (reference (id y27_first)) false)
+                      )
+                      x
+                    )
+                    (reference (id y27_out))
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq:scope
+                    (=
+                      (var (id y25_self) x)
+                      (seq:scope
+                        (= (var (id y23_self) x) (reference (id xs)))
+                        (=
+                          (var (id y23_result) x)
+                          (call
+                            (.
+                              (qualify
+                                (reference (id Array))
+                                (typeargs (nominal x (id I32) x val x))
+                              )
+                              (id create)
+                            )
+                            x
+                            x
+                            x
+                          )
+                        )
+                        (for
+                          (let (id y23_x) x)
+                          (seq
+                            (call
+                              (. (reference (id y23_self)) (id values))
+                              x
+                              x
+                              x
+                            )
+                          )
+                          (seq
+                            (if:scope
+                              (seq
+                                (seq:scope
+                                  (= (var (id x) x) (reference (id y23_x)))
+                                  (> (reference (id x)) 1 x)
+                                )
+                              )
+                              (seq:scope
+                                (call
+                                  (. (reference (id y23_result)) (id push))
+                                  (positionalargs (seq (reference (id y23_x))))
+                                  x
+                                  x
+                                )
+                              )
+                              x
+                            )
+                          )
+                          x
+                        )
+                        (reference (id y23_result))
+                      )
+                    )
+                    (=
+                      (var (id y25_separator) (nominal x (id String) x x x))
+                      ","
+                    )
+                    (= (var (id y25_out) x) "")
+                    (= (var (id y25_first) x) true)
+                    (for
+                      (let (id y25_x) x)
+                      (seq
+                        (call (. (reference (id y25_self)) (id values)) x x x)
+                      )
+                      (seq
+                        (if:scope
+                          (seq (not (seq (reference (id y25_first)))))
+                          (seq:scope
+                            (=
+                              (reference (id y25_out))
+                              (+
+                                (reference (id y25_out))
+                                (reference (id y25_separator))
+                                x
+                              )
+                            )
+                          )
+                          x
+                        )
+                        (=
+                          (reference (id y25_out))
+                          (+
+                            (reference (id y25_out))
+                            (call (. (reference (id y25_x)) (id string)) x x x)
+                            x
+                          )
+                        )
+                        (= (reference (id y25_first)) false)
+                      )
+                      x
+                    )
+                    (reference (id y25_out))
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq:scope
+                    (=
+                      (var (id y24_self) x)
+                      (seq:scope
+                        (= (var (id y22_self) x) (reference (id xs)))
+                        (=
+                          (var (id y22_result) x)
+                          (call
+                            (.
+                              (qualify
+                                (reference (id Array))
+                                (typeargs (nominal x (id I32) x val x))
+                              )
+                              (id create)
+                            )
+                            x
+                            x
+                            x
+                          )
+                        )
+                        (for
+                          (let (id y22_x) x)
+                          (seq
+                            (call
+                              (. (reference (id y22_self)) (id values))
+                              x
+                              x
+                              x
+                            )
+                          )
+                          (seq
+                            (if:scope
+                              (seq
+                                (not
+                                  (seq
+                                    (seq:scope
+                                      (= (var (id x) x) (reference (id y22_x)))
+                                      (> (reference (id x)) 1 x)
+                                    )
+                                  )
+                                )
+                              )
+                              (seq:scope
+                                (call
+                                  (. (reference (id y22_result)) (id push))
+                                  (positionalargs (seq (reference (id y22_x))))
+                                  x
+                                  x
+                                )
+                              )
+                              x
+                            )
+                          )
+                          x
+                        )
+                        (reference (id y22_result))
+                      )
+                    )
+                    (=
+                      (var (id y24_separator) (nominal x (id String) x x x))
+                      ","
+                    )
+                    (= (var (id y24_out) x) "")
+                    (= (var (id y24_first) x) true)
+                    (for
+                      (let (id y24_x) x)
+                      (seq
+                        (call (. (reference (id y24_self)) (id values)) x x x)
+                      )
+                      (seq
+                        (if:scope
+                          (seq (not (seq (reference (id y24_first)))))
+                          (seq:scope
+                            (=
+                              (reference (id y24_out))
+                              (+
+                                (reference (id y24_out))
+                                (reference (id y24_separator))
+                                x
+                              )
+                            )
+                          )
+                          x
+                        )
+                        (=
+                          (reference (id y24_out))
+                          (+
+                            (reference (id y24_out))
+                            (call (. (reference (id y24_x)) (id string)) x x x)
+                            x
+                          )
+                        )
+                        (= (reference (id y24_first)) false)
+                      )
+                      x
+                    )
+                    (reference (id y24_out))
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y21_self) x) (reference (id xs)))
+                            (=
+                              (var (id y21_total) (nominal x (id I32) x val x))
+                              0
+                            )
+                            (for
+                              (let (id y21_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y21_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (=
+                                  (reference (id y21_total))
+                                  (+
+                                    (reference (id y21_total))
+                                    (reference (id y21_x))
+                                    x
+                                  )
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y21_total))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y20_self) x) (reference (id xs)))
+                            (=
+                              (var
+                                (id y20_found)
+                                (uniontype
+                                  (nominal x (id I32) x val x)
+                                  (nominal x (id None) x x x)
+                                )
+                              )
+                              (reference (id None))
+                            )
+                            (for
+                              (let (id y20_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y20_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (if:scope
+                                  (seq
+                                    (seq:scope
+                                      (= (var (id x) x) (reference (id y20_x)))
+                                      (> (reference (id x)) 3 x)
+                                    )
+                                  )
+                                  (seq:scope
+                                    (=
+                                      (reference (id y20_found))
+                                      (reference (id y20_x))
+                                    )
+                                    (break x)
+                                  )
+                                  x
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y20_found))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y19_self) x) (reference (id xs)))
+                            (= (var (id y19_found) x) false)
+                            (for
+                              (let (id y19_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y19_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (if:scope
+                                  (seq
+                                    (seq:scope
+                                      (= (var (id x) x) (reference (id y19_x)))
+                                      (> (reference (id x)) 4 x)
+                                    )
+                                  )
+                                  (seq:scope
+                                    (= (reference (id y19_found)) true)
+                                    (break x)
+                                  )
+                                  x
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y19_found))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y18_self) x) (reference (id xs)))
+                            (= (var (id y18_ok) x) true)
+                            (for
+                              (let (id y18_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y18_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (if:scope
+                                  (seq
+                                    (not
+                                      (seq
+                                        (seq:scope
+                                          (=
+                                            (var (id x) x)
+                                            (reference (id y18_x))
+                                          )
+                                          (> (reference (id x)) 0 x)
+                                        )
+                                      )
+                                    )
+                                  )
+                                  (seq:scope
+                                    (= (reference (id y18_ok)) false)
+                                    (break x)
+                                  )
+                                  x
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y18_ok))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y17_self) x) (reference (id xs)))
+                            (= (var (id y17_ok) x) true)
+                            (for
+                              (let (id y17_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y17_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (if:scope
+                                  (seq
+                                    (seq:scope
+                                      (= (var (id x) x) (reference (id y17_x)))
+                                      (> (reference (id x)) 4 x)
+                                    )
+                                  )
+                                  (seq:scope
+                                    (= (reference (id y17_ok)) false)
+                                    (break x)
+                                  )
+                                  x
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y17_ok))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y16_self) x) (reference (id xs)))
+                            (= (var (id y16_n) (nominal x (id USize) x x x)) 0)
+                            (for
+                              (let (id y16_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y16_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (if:scope
+                                  (seq
+                                    (seq:scope
+                                      (= (var (id x) x) (reference (id y16_x)))
+                                      (== (reference (id x)) 1 x)
+                                    )
+                                  )
+                                  (seq:scope
+                                    (=
+                                      (reference (id y16_n))
+                                      (+ (reference (id y16_n)) 1 x)
+                                    )
+                                  )
+                                  x
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y16_n))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (+
+                    ""
+                    (call
+                      (.
+                        (seq
+                          (seq:scope
+                            (= (var (id y15_self) x) (reference (id xs)))
+                            (=
+                              (var
+                                (id y15_initial)
+                                (nominal x (id I32) x val x)
+                              )
+                              0
+                            )
+                            (=
+                              (var (id y15_acc) x)
+                              (reference (id y15_initial))
+                            )
+                            (for
+                              (let (id y15_x) x)
+                              (seq
+                                (call
+                                  (. (reference (id y15_self)) (id values))
+                                  x
+                                  x
+                                  x
+                                )
+                              )
+                              (seq
+                                (=
+                                  (reference (id y15_acc))
+                                  (seq:scope
+                                    (=
+                                      (var (id acc) x)
+                                      (reference (id y15_acc))
+                                    )
+                                    (= (var (id x) x) (reference (id y15_x)))
+                                    (+
+                                      (seq (* (reference (id acc)) 2 x))
+                                      (reference (id x))
+                                      x
+                                    )
+                                  )
+                                )
+                              )
+                              x
+                            )
+                            (reference (id y15_acc))
+                          )
+                        )
+                        (id string)
+                      )
+                      x
+                      x
+                      x
+                    )
+                    x
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq
+                    (=
+                      (let (id spk_s14_25) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y14_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y14_value)
+                                  (nominal x (id I32) x val x)
+                                )
+                                4
+                              )
+                              (= (var (id y14_found) x) false)
+                              (for
+                                (let (id y14_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y14_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (if:scope
+                                    (seq
+                                      (==
+                                        (reference (id y14_x))
+                                        (reference (id y14_value))
+                                        x
+                                      )
+                                    )
+                                    (seq:scope
+                                      (= (reference (id y14_found)) true)
+                                      (break x)
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y14_found))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (+
+                      (+ (reference (id spk_s14_25)) " " x)
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y13_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y13_value)
+                                  (nominal x (id I32) x val x)
+                                )
+                                9
+                              )
+                              (= (var (id y13_found) x) false)
+                              (for
+                                (let (id y13_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y13_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (if:scope
+                                    (seq
+                                      (==
+                                        (reference (id y13_x))
+                                        (reference (id y13_value))
+                                        x
+                                      )
+                                    )
+                                    (seq:scope
+                                      (= (reference (id y13_found)) true)
+                                      (break x)
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y13_found))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq
+                    (=
+                      (let (id spk_s15_25) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y12_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y12_value)
+                                  (nominal x (id I32) x val x)
+                                )
+                                4
+                              )
+                              (=
+                                (var
+                                  (id y12_found)
+                                  (uniontype
+                                    (nominal x (id USize) x x x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (tuple
+                                  (seq (let (id y12_i) x))
+                                  (seq (let (id y12_x) x))
+                                )
+                                (seq
+                                  (call
+                                    (. (reference (id y12_self)) (id pairs))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (if:scope
+                                    (seq
+                                      (==
+                                        (reference (id y12_x))
+                                        (reference (id y12_value))
+                                        x
+                                      )
+                                    )
+                                    (seq:scope
+                                      (=
+                                        (reference (id y12_found))
+                                        (reference (id y12_i))
+                                      )
+                                      (break x)
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y12_found))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (+
+                      (+ (reference (id spk_s15_25)) " " x)
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y11_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y11_value)
+                                  (nominal x (id I32) x val x)
+                                )
+                                9
+                              )
+                              (=
+                                (var
+                                  (id y11_found)
+                                  (uniontype
+                                    (nominal x (id USize) x x x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (tuple
+                                  (seq (let (id y11_i) x))
+                                  (seq (let (id y11_x) x))
+                                )
+                                (seq
+                                  (call
+                                    (. (reference (id y11_self)) (id pairs))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (if:scope
+                                    (seq
+                                      (==
+                                        (reference (id y11_x))
+                                        (reference (id y11_value))
+                                        x
+                                      )
+                                    )
+                                    (seq:scope
+                                      (=
+                                        (reference (id y11_found))
+                                        (reference (id y11_i))
+                                      )
+                                      (break x)
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y11_found))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq
+                    (=
+                      (let (id spk_s16_25) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y10_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y10_found)
+                                  (uniontype
+                                    (nominal x (id I32) x val x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (let (id y10_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y10_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (=
+                                    (reference (id y10_found))
+                                    (reference (id y10_x))
+                                  )
+                                  (break x)
+                                )
+                                x
+                              )
+                              (reference (id y10_found))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (=
+                      (let (id spk_s16_38) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y9_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y9_best)
+                                  (uniontype
+                                    (nominal x (id I32) x val x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (let (id y9_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y9_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (match:scope
+                                    (seq (reference (id y9_best)))
+                                    (cases:scope
+                                      (case:scope
+                                        (reference (id None))
+                                        x
+                                        (seq
+                                          (=
+                                            (reference (id y9_best))
+                                            (reference (id y9_x))
+                                          )
+                                        )
+                                      )
+                                      (case:scope
+                                        (let
+                                          (id y9_b)
+                                          (nominal x (id I32) x val x)
+                                        )
+                                        x
+                                        (seq
+                                          (if:scope
+                                            (seq
+                                              (<
+                                                (reference (id y9_x))
+                                                (reference (id y9_b))
+                                                x
+                                              )
+                                            )
+                                            (seq:scope
+                                              (=
+                                                (reference (id y9_best))
+                                                (reference (id y9_x))
+                                              )
+                                            )
+                                            x
+                                          )
+                                        )
+                                      )
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y9_best))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (+
+                      (+
+                        (+
+                          (+ (reference (id spk_s16_25)) " " x)
+                          (reference (id spk_s16_38))
+                          x
+                        )
+                        " "
+                        x
+                      )
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y8_self) x) (reference (id xs)))
+                              (=
+                                (var
+                                  (id y8_best)
+                                  (uniontype
+                                    (nominal x (id I32) x val x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (let (id y8_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y8_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (match:scope
+                                    (seq (reference (id y8_best)))
+                                    (cases:scope
+                                      (case:scope
+                                        (reference (id None))
+                                        x
+                                        (seq
+                                          (=
+                                            (reference (id y8_best))
+                                            (reference (id y8_x))
+                                          )
+                                        )
+                                      )
+                                      (case:scope
+                                        (let
+                                          (id y8_b)
+                                          (nominal x (id I32) x val x)
+                                        )
+                                        x
+                                        (seq
+                                          (if:scope
+                                            (seq
+                                              (>
+                                                (reference (id y8_x))
+                                                (reference (id y8_b))
+                                                x
+                                              )
+                                            )
+                                            (seq:scope
+                                              (=
+                                                (reference (id y8_best))
+                                                (reference (id y8_x))
+                                              )
+                                            )
+                                            x
+                                          )
+                                        )
+                                      )
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y8_best))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              x
+              x
+            )
+            (=
+              (var (id empty) x)
+              (call
+                (.
+                  (qualify
+                    (reference (id Array))
+                    (typeargs (nominal x (id I32) x x x))
+                  )
+                  (id create)
+                )
+                x
+                x
+                x
+              )
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq
+                    (=
+                      (let (id spk_s18_25) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y7_self) x) (reference (id empty)))
+                              (=
+                                (var
+                                  (id y7_found)
+                                  (uniontype
+                                    (nominal x (id I32) x val x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (let (id y7_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y7_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (=
+                                    (reference (id y7_found))
+                                    (reference (id y7_x))
+                                  )
+                                  (break x)
+                                )
+                                x
+                              )
+                              (reference (id y7_found))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (=
+                      (let (id spk_s18_41) (nominal x (id String) x val x))
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y6_self) x) (reference (id empty)))
+                              (=
+                                (var
+                                  (id y6_best)
+                                  (uniontype
+                                    (nominal x (id I32) x val x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (let (id y6_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y6_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (match:scope
+                                    (seq (reference (id y6_best)))
+                                    (cases:scope
+                                      (case:scope
+                                        (reference (id None))
+                                        x
+                                        (seq
+                                          (=
+                                            (reference (id y6_best))
+                                            (reference (id y6_x))
+                                          )
+                                        )
+                                      )
+                                      (case:scope
+                                        (let
+                                          (id y6_b)
+                                          (nominal x (id I32) x val x)
+                                        )
+                                        x
+                                        (seq
+                                          (if:scope
+                                            (seq
+                                              (<
+                                                (reference (id y6_x))
+                                                (reference (id y6_b))
+                                                x
+                                              )
+                                            )
+                                            (seq:scope
+                                              (=
+                                                (reference (id y6_best))
+                                                (reference (id y6_x))
+                                              )
+                                            )
+                                            x
+                                          )
+                                        )
+                                      )
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y6_best))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                    )
+                    (+
+                      (+
+                        (+
+                          (+ (reference (id spk_s18_25)) " " x)
+                          (reference (id spk_s18_41))
+                          x
+                        )
+                        " "
+                        x
+                      )
+                      (call
+                        (.
+                          (seq
+                            (seq:scope
+                              (= (var (id y5_self) x) (reference (id empty)))
+                              (=
+                                (var
+                                  (id y5_best)
+                                  (uniontype
+                                    (nominal x (id I32) x val x)
+                                    (nominal x (id None) x x x)
+                                  )
+                                )
+                                (reference (id None))
+                              )
+                              (for
+                                (let (id y5_x) x)
+                                (seq
+                                  (call
+                                    (. (reference (id y5_self)) (id values))
+                                    x
+                                    x
+                                    x
+                                  )
+                                )
+                                (seq
+                                  (match:scope
+                                    (seq (reference (id y5_best)))
+                                    (cases:scope
+                                      (case:scope
+                                        (reference (id None))
+                                        x
+                                        (seq
+                                          (=
+                                            (reference (id y5_best))
+                                            (reference (id y5_x))
+                                          )
+                                        )
+                                      )
+                                      (case:scope
+                                        (let
+                                          (id y5_b)
+                                          (nominal x (id I32) x val x)
+                                        )
+                                        x
+                                        (seq
+                                          (if:scope
+                                            (seq
+                                              (>
+                                                (reference (id y5_x))
+                                                (reference (id y5_b))
+                                                x
+                                              )
+                                            )
+                                            (seq:scope
+                                              (=
+                                                (reference (id y5_best))
+                                                (reference (id y5_x))
+                                              )
+                                            )
+                                            x
+                                          )
+                                        )
+                                      )
+                                    )
+                                    x
+                                  )
+                                )
+                                x
+                              )
+                              (reference (id y5_best))
+                            )
+                          )
+                          (id string)
+                        )
+                        x
+                        x
+                        x
+                      )
+                      x
+                    )
+                  )
+                )
+              )
+              x
+              x
+            )
+            (call
+              (. (. (reference (id env)) (id out)) (id print))
+              (positionalargs
+                (seq
+                  (seq:scope
+                    (= (var (id y4_self) x) (reference (id xs)))
+                    (=
+                      (var (id y4_separator) (nominal x (id String) x x x))
+                      ", "
+                    )
+                    (= (var (id y4_out) x) "")
+                    (= (var (id y4_first) x) true)
+                    (for
+                      (let (id y4_x) x)
+                      (seq
+                        (call (. (reference (id y4_self)) (id values)) x x x)
+                      )
+                      (seq
+                        (if:scope
+                          (seq (not (seq (reference (id y4_first)))))
+                          (seq:scope
+                            (=
+                              (reference (id y4_out))
+                              (+
+                                (reference (id y4_out))
+                                (reference (id y4_separator))
+                                x
+                              )
+                            )
+                          )
+                          x
+                        )
+                        (=
+                          (reference (id y4_out))
+                          (+
+                            (reference (id y4_out))
+                            (call (. (reference (id y4_x)) (id string)) x x x)
+                            x
+                          )
+                        )
+                        (= (reference (id y4_first)) false)
+                      )
+                      x
+                    )
+                    (reference (id y4_out))
+                  )
+                )
+              )
+              x
+              x
+            )
+            (try
+              (seq:scope
+                (=
+                  (var (id removed) x)
+                  (seq:scope
+                    (= (var (id y3_self) x) (reference (id xs)))
+                    (= (var (id y3_i) (nominal x (id USize) x x x)) 1)
+                    (call
+                      (. (reference (id y3_self)) (id delete))
+                      (positionalargs (seq (reference (id y3_i))))
+                      x
+                      ?
+                    )
+                  )
+                )
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs
+                    (seq
+                      (seq
+                        (=
+                          (let (id spk_s22_27) (nominal x (id String) x val x))
+                          (call (. (reference (id removed)) (id string)) x x x)
+                        )
+                        (+
+                          (+ (reference (id spk_s22_27)) " " x)
+                          (call
+                            (.
+                              (seq
+                                (seq:scope
+                                  (= (var (id y2_self) x) (reference (id xs)))
+                                  (=
+                                    (var
+                                      (id y2_separator)
+                                      (nominal x (id String) x x x)
+                                    )
+                                    ","
+                                  )
+                                  (= (var (id y2_out) x) "")
+                                  (= (var (id y2_first) x) true)
+                                  (for
+                                    (let (id y2_x) x)
+                                    (seq
+                                      (call
+                                        (.
+                                          (reference (id y2_self))
+                                          (id values)
+                                        )
+                                        x
+                                        x
+                                        x
+                                      )
+                                    )
+                                    (seq
+                                      (if:scope
+                                        (seq
+                                          (not (seq (reference (id y2_first))))
+                                        )
+                                        (seq:scope
+                                          (=
+                                            (reference (id y2_out))
+                                            (+
+                                              (reference (id y2_out))
+                                              (reference (id y2_separator))
+                                              x
+                                            )
+                                          )
+                                        )
+                                        x
+                                      )
+                                      (=
+                                        (reference (id y2_out))
+                                        (+
+                                          (reference (id y2_out))
+                                          (call
+                                            (.
+                                              (reference (id y2_x))
+                                              (id string)
+                                            )
+                                            x
+                                            x
+                                            x
+                                          )
+                                          x
+                                        )
+                                      )
+                                      (= (reference (id y2_first)) false)
+                                    )
+                                    x
+                                  )
+                                  (reference (id y2_out))
+                                )
+                              )
+                              (id string)
+                            )
+                            x
+                            x
+                            x
+                          )
+                          x
+                        )
+                      )
+                    )
+                  )
+                  x
+                  x
+                )
+                (= (var (id y1_self) x) (reference (id xs)))
+                (= (var (id y1_i) (nominal x (id USize) x x x)) 10)
+                (call
+                  (. (reference (id y1_self)) (id delete))
+                  (positionalargs (seq (reference (id y1_i))))
+                  x
+                  ?
+                )
+              )
+              (seq:scope
+                (call
+                  (. (. (reference (id env)) (id out)) (id print))
+                  (positionalargs (seq "past the end"))
+                  x
+                  x
+                )
+              )
+              x
+            )
+          )
+          x
+        )
+      )
+      x
+      x
+    )
+  )
+)

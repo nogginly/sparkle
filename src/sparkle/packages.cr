@@ -34,9 +34,16 @@ module Sparkle
     @prelude : String? = nil
     @in_prelude = false
 
-    # `library` is the Sparkle library's directory, if any. Every contract
-    # clause is kept when `contracts` is set, otherwise only `expects`.
-    def initialize(@library : String?, @contracts : Bool = true)
+    PONY_DECLARATION  = /^(?:class|actor|primitive|struct|interface|trait|type)(?: (?:val|ref|iso|box|tag|trn))? ([A-Z][A-Za-z0-9_]*)/m
+    ALWAYS_REOPENABLE = %w[builtin collections]
+
+    @pony_types = {} of String => Set(String)
+
+    # `library` is the Sparkle library's directory, if any, and `pony_home`
+    # the Pony installation whose packages' types a class may reopen. Every
+    # contract clause is kept when `contracts` is set, otherwise only
+    # `expects`.
+    def initialize(@library : String?, @contracts : Bool = true, @pony_home : String? = nil)
     end
 
     # Loads the package in `dir`, made of `files`, and everything it
@@ -74,21 +81,56 @@ module Sparkle
         index = parse(file)
         indexes << index
         program = @programs[index]
+        pony = ALWAYS_REOPENABLE.dup
         program.items.each do |item|
           next unless item.is_a?(RequireDecl)
-          target = resolve(item, dir, index) || next
+          target = resolve(item, dir, index)
+          unless target
+            pony << item.path
+            next
+          end
           requires[item.path] = target
           case @state[target]?
           when :loading then fail(index, item, "packages require each other: #{(chain + [dir, target]).map { |each| File.basename(each) }.join(" -> ")}")
           when nil      then visit(target, PackageSet.spk_files(target), chain + [dir])
           end
         end
+        mark_reopenings(program, index, pony)
         checked = Contracts.apply(program, file, all: @contracts) || checked
       end
       Contracts.support(@programs[indexes.first]) if checked && !indexes.empty?
       implicit = (prelude = @prelude) && !@in_prelude ? [prelude] : [] of String
       @units << Unit.new(dir, unique_name(dir), indexes, requires, implicit)
       @state[dir] = :done
+    end
+
+    # Marks each class named after a type of the Pony `packages` as a
+    # reopening, and checks that it and every module hold only methods.
+    private def mark_reopenings(program : Program, index : Int32, packages : Array(String)) : Nil
+      names = packages.reduce(Set(String).new) { |all, package| all.concat(pony_types(package)) }
+      program.items.each do |item|
+        next unless item.is_a?(TypeDecl)
+        item.reopens = item.kind == "class" && names.includes?(item.name)
+        next unless Rules.inline_only?(item)
+        what = item.reopens ? "a reopened Pony type" : "a module"
+        item.fields.first?.try { |field| fail(index, field, "#{what} cannot have fields") }
+        item.methods.find(&.self_recv).try { |method| fail(index, method, "#{what} cannot have constructors") }
+        item.maintains.first?.try { |clause| fail(index, clause, "#{what} cannot have `maintains`") }
+      end
+    end
+
+    # The names of the types the Pony package `name` declares, read from
+    # its sources.
+    private def pony_types(name : String) : Set(String)
+      @pony_types[name] ||= begin
+        found = Set(String).new
+        if home = @pony_home
+          Dir.glob(File.join(home, "packages", name, "*.pony")).each do |file|
+            File.read(file).scan(PONY_DECLARATION) { |match| found << match[1] }
+          end
+        end
+        found
+      end
     end
 
     private def parse(file : String) : Int32

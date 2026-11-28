@@ -40,6 +40,10 @@ module Sparkle
     end
 
     def apply : Bool
+      if Rules.inline_only?(@decl)
+        @decl.methods.each { |method| (method.expects.first? || method.guarantees.first?).try { |clause| unsupported(clause, "an inline-only method") } }
+        return false
+      end
       maintains = @decl.maintains
       first = maintains.first?
       if first && !WITH_STATE.includes?(@decl.kind)

@@ -1,0 +1,7 @@
+class Array(A)
+  include Enumerable(A)
+
+  def delete_at!(i : USize) : A
+    delete!(i)
+  end
+end

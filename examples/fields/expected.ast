@@ -1,5 +1,6 @@
 (module:scope
   (file:scope
+    (use x "spk_prelude" x)
     (actor:scope
       (id Main)
       x

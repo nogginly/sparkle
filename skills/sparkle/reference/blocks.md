@@ -1,6 +1,6 @@
 # Blocks
 
-A block follows a call as `do |x| … end` or `{ |x| … }`. Three method names make it a loop; any other name makes it a lambda.
+A block follows a call as `do |x| … end` or `{ |x| … }`. Three method names make it a loop, the prelude's methods (`map`, `select`, … see [collections](collections.md)) are inlined, and any other name makes it a lambda.
 
 ## `each`
 
@@ -76,7 +76,7 @@ A variable first assigned inside the block exists only there, as in any block. D
 
 ## Lambdas
 
-Any other block is a lambda, passed as the call's last argument. The callee takes an object with an `apply` method, usually an `interface`:
+Any other block, on a method that is not in the prelude, is a lambda, passed as the call's last argument. The callee takes an object with an `apply` method, usually an `interface`:
 
 ```crystal
 interface Op

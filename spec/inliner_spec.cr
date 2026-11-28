@@ -59,6 +59,8 @@ describe Inliner do
         SPK
       code.should eq(0), tree
       tree.should eq parsed(<<-PONY, home)
+        use "spk_prelude"
+
         class Bag
           var _items: Array[U32]
 
